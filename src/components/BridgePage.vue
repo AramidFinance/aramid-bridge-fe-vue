@@ -30,6 +30,7 @@ import getWeb3Modal from '@/scripts/eth/getWeb3Modal'
 import algosdk from 'algosdk'
 import { resetStateSoft } from '@/scripts/common/resetStateSoft'
 import calculateFeeAndDestinationAmount from '@/scripts/common/calculateFeeAndDestinationAmount'
+import { findValidSourceToken, findValidDestinationToken } from '@/scripts/common/validateTokenRoute'
 
 const store = useAppStore()
 const route = useRoute()
@@ -263,15 +264,32 @@ const fillInConfigFromRoute = () => {
     if (!store.state.destinationChainConfiguration) return
     store.state.destinationChain = store.state.destinationChainConfiguration.chainId
   }
-  if (sourceToken && store.state.sourceChainConfiguration) {
-    store.state.sourceTokenConfiguration = Object.values(store.state.sourceChainConfiguration.tokens).find((token) => token.name === sourceToken)
-    if (!store.state.sourceTokenConfiguration) return
-    store.state.sourceToken = store.state.sourceTokenConfiguration.tokenId
+  if (sourceToken && store.state.sourceChainConfiguration && store.state.destinationChainConfiguration) {
+    // Use validation logic to find correct source token considering bridge routes
+    const validSourceToken = findValidSourceToken(
+      store.state.sourceChainConfiguration.chainId,
+      store.state.destinationChainConfiguration.chainId,
+      sourceToken,
+      store.state.publicConfiguration
+    )
+    if (validSourceToken) {
+      store.state.sourceTokenConfiguration = validSourceToken
+      store.state.sourceToken = validSourceToken.tokenId
+    }
   }
-  if (destinationToken && store.state.destinationChainConfiguration) {
-    store.state.destinationTokenConfiguration = Object.values(store.state.destinationChainConfiguration.tokens).find((token) => token.name === destinationToken)
-    if (!store.state.destinationTokenConfiguration) return
-    store.state.destinationToken = store.state.destinationTokenConfiguration.tokenId
+  if (destinationToken && store.state.sourceChainConfiguration && store.state.destinationChainConfiguration && store.state.sourceToken) {
+    // Use validation logic to find correct destination token considering bridge routes
+    const validDestinationToken = findValidDestinationToken(
+      store.state.sourceChainConfiguration.chainId,
+      store.state.destinationChainConfiguration.chainId,
+      store.state.sourceToken,
+      destinationToken,
+      store.state.publicConfiguration
+    )
+    if (validDestinationToken) {
+      store.state.destinationTokenConfiguration = validDestinationToken
+      store.state.destinationToken = validDestinationToken.tokenId
+    }
   }
   //console.log('state after fillInConfigFromRoute', store.state)
 }
