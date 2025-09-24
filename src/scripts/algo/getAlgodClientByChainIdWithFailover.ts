@@ -86,11 +86,7 @@ const getAlgodProviders = async (chainId: number): Promise<AlgodProvider[]> => {
 /**
  * Executes an algod operation with failover across all available providers
  */
-const executeWithAlgodFailover = async <T>(
-  chainId: number,
-  operation: (client: algosdk.Algodv2) => Promise<T>,
-  operationName: string = 'algod operation'
-): Promise<T> => {
+const executeWithAlgodFailover = async <T>(chainId: number, operation: (client: algosdk.Algodv2) => Promise<T>, operationName: string = 'algod operation'): Promise<T> => {
   const logger = await getLogger()
   const providers = await getAlgodProviders(chainId)
 
@@ -105,16 +101,16 @@ const executeWithAlgodFailover = async <T>(
     try {
       logger.debug(`Attempting ${operationName} with provider ${provider.providerName} (${provider.host}) for chain ${chainId}`)
       const result = await operation(provider.client)
-      
+
       if (i > 0) {
         logger.info(`${operationName} succeeded with fallback provider ${provider.providerName} for chain ${chainId}`)
       }
-      
+
       return result
     } catch (error) {
       lastError = error
       logger.warn(`${operationName} failed with provider ${provider.providerName} (${provider.host}) for chain ${chainId}:`, error)
-      
+
       // Continue to next provider
       if (i < providers.length - 1) {
         logger.info(`Trying next algod provider for chain ${chainId}`)

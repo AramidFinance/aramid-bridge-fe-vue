@@ -6,7 +6,7 @@ const getAlgoAccountTokenOptedIn = async (chainId: number, accountAddress: strin
   try {
     const secureConfiguration = await getSecureConfiguration()
     if (!secureConfiguration?.chains || !secureConfiguration.chains[chainId]) return null
-    
+
     await asyncdelay(200)
     const account = await executeWithIndexerFailover(
       chainId,
@@ -15,7 +15,7 @@ const getAlgoAccountTokenOptedIn = async (chainId: number, accountAddress: strin
       },
       `getAlgoAccountTokenOptedIn lookupAccountByID(${accountAddress})`
     )
-    
+
     if (!account || !account.account) return false
     if (asa == 0) {
       return account.account.amount

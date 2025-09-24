@@ -1,6 +1,6 @@
 import BigNumber from 'bignumber.js'
 import getSecureConfiguration from '../common/getSecureConfiguration'
-import getIndexerClientByChainId from './getIndexerClientByChainId'
+import { executeWithIndexerFailover } from './getIndexerClientByChainIdWithFailover'
 import asyncdelay from '../common/asyncDelay'
 import algosdk from 'algosdk'
 import getAlgodClientByChainId from './getAlgodClientByChainId'
@@ -11,39 +11,51 @@ const getAlgoAccountTokenBalance = async (chainId: number, accountAddress: strin
     if (!algosdk.isValidAddress(accountAddress)) return new BigNumber('0')
     const secureConfiguration = await getSecureConfiguration()
     if (!secureConfiguration?.chains || !secureConfiguration.chains[chainId]) return null
-    
+
     await asyncdelay(200)
-    
-    // For ARC200 we need both algod and indexer clients, but we'll use the first available
-    // since arc200 library expects specific client instances
-    const indexerClient = await getIndexerClientByChainId(chainId)
+
+    // For ARC200 we need both algod and indexer clients
     const algodClient = await getAlgodClientByChainId(chainId)
-    
-    if (!indexerClient || !algodClient) {
-      console.error('Failed to get algod or indexer client for ARC200')
+
+    if (!algodClient) {
+      console.error('Failed to get algod client for ARC200')
       return new BigNumber('0')
     }
-    
-    // balance, how much ARC200 is in the account
-    const ci = new arc200(contractId, algodClient, indexerClient)
+
+    // Get ARC200 balance from smart contract
+    const ci = new arc200(contractId, algodClient, undefined)
     const balanceR = await ci.arc200_balanceOf(accountAddress)
-    const balance = balanceR.success ? balanceR.returnValue : BigInt(0)
-    //const account = await indexerClient?.lookupAccountByID(accountAddress).do()
-    //if (!account || !account.account) return new BigNumber('0')
-    // assetItem, how much ARC200-ASA is in the account with default 0
-    //if (!account.account.assets) return new BigNumber('0') // removed because of ARC200
-    // const asaItem = account.account?.assets?.find((a: any) => a['asset-id'] == assetId) || {
-    //   ['asset-id']: assetId,
-    //   amount: 0
-    // }
-    //const asaAmount = asaItem ? BigInt(asaItem.amount) : BigInt(0)
-    const asaAmount = BigInt(0)
+    const arc200Balance = balanceR.success ? balanceR.returnValue : BigInt(0)
 
-    if (balance == BigInt(0)) return new BigNumber('0') // if no ARC200-ASA and no ARC200, return 0
+    // Get ASA balance from account assets using indexer failover
+    let asaAmount = BigInt(0)
+    try {
+      const account = await executeWithIndexerFailover(
+        chainId,
+        async (indexer) => {
+          return await indexer.lookupAccountByID(accountAddress).do()
+        },
+        `getAlgoAccountARC200TokenBalance lookupAccountByID(${accountAddress})`
+      )
 
-    //console.log('algo.account', chainId, accountAddress, contractId, assetId, balance, asaAmount)
-    const ret = new BigNumber((asaAmount + balance).toString()) // combine ARC200 and ARC200-ASA
-    //console.log('account.amount', ret.toFixed(0, 1))
+      if (account?.account?.assets) {
+        const asaItem = account.account.assets.find((a: any) => a['asset-id'] == assetId)
+        asaAmount = asaItem ? BigInt(asaItem.amount) : BigInt(0)
+      }
+    } catch (e) {
+      console.warn('Failed to fetch ASA balance, using 0:', e)
+      // asaAmount remains 0 if indexer fails
+    }
+
+    // Return 0 if neither ARC200 nor ASA balance exists
+    if (arc200Balance == BigInt(0) && asaAmount == BigInt(0)) {
+      return new BigNumber('0')
+    }
+
+    // Combine ARC200 and ASA balances
+    const totalBalance = arc200Balance + asaAmount
+    const ret = new BigNumber(totalBalance.toString())
+
     return ret
   } catch (e) {
     console.error(e)

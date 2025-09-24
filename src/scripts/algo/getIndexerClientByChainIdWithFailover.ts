@@ -86,11 +86,7 @@ const getIndexerProviders = async (chainId: number): Promise<IndexerProvider[]> 
 /**
  * Executes an indexer operation with failover across all available providers
  */
-const executeWithIndexerFailover = async <T>(
-  chainId: number,
-  operation: (client: algosdk.Indexer) => Promise<T>,
-  operationName: string = 'indexer operation'
-): Promise<T> => {
+const executeWithIndexerFailover = async <T>(chainId: number, operation: (client: algosdk.Indexer) => Promise<T>, operationName: string = 'indexer operation'): Promise<T> => {
   const logger = await getLogger()
   const providers = await getIndexerProviders(chainId)
 
@@ -105,16 +101,16 @@ const executeWithIndexerFailover = async <T>(
     try {
       logger.debug(`Attempting ${operationName} with provider ${provider.providerName} (${provider.host}) for chain ${chainId}`)
       const result = await operation(provider.client)
-      
+
       if (i > 0) {
         logger.info(`${operationName} succeeded with fallback provider ${provider.providerName} for chain ${chainId}`)
       }
-      
+
       return result
     } catch (error) {
       lastError = error
       logger.warn(`${operationName} failed with provider ${provider.providerName} (${provider.host}) for chain ${chainId}:`, error)
-      
+
       // Continue to next provider
       if (i < providers.length - 1) {
         logger.info(`Trying next indexer provider for chain ${chainId}`)

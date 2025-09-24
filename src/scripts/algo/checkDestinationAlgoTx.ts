@@ -5,7 +5,7 @@ export const checkDestinationAlgoTx = async () => {
   console.log('checkDestinationAlgoTx')
   const store = useAppStore()
   if (!store.state.destinationChain) return
-  
+
   try {
     const txs = await executeWithIndexerFailover(
       store.state.destinationChain,
@@ -14,7 +14,7 @@ export const checkDestinationAlgoTx = async () => {
       },
       'checkDestinationAlgoTx lookupAccountTransactions'
     )
-    
+
     for (const tx of txs.transactions.filter(
       (tx: any) =>
         (tx['asset-transfer-transaction'] && tx['asset-transfer-transaction'].receiver == store.state.destinationAddress) ||

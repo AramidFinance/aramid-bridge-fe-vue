@@ -25,7 +25,7 @@ const getNetworkNameByChainId = (chainId: number): string | null => {
 const getPublicAlgodProviders = async (chainId: number): Promise<PublicAlgodProvider[]> => {
   const logger = await getLogger()
   const networkName = getNetworkNameByChainId(chainId)
-  
+
   if (!networkName) {
     logger.warn(`No public algod providers available for chain ${chainId}`)
     return []
@@ -34,12 +34,12 @@ const getPublicAlgodProviders = async (chainId: number): Promise<PublicAlgodProv
   try {
     const url = `https://scholtz.github.io/AlgorandPublicData/algod/${networkName}/public-algod-providers.json`
     const response = await axios.get(url, { timeout: 5000 })
-    
+
     if (response.status === 200 && Array.isArray(response.data)) {
       logger.info(`Loaded ${response.data.length} public algod providers for chain ${chainId}`)
       return response.data as PublicAlgodProvider[]
     }
-    
+
     logger.warn(`Invalid response from public algod providers for chain ${chainId}`)
     return []
   } catch (error) {
@@ -54,7 +54,7 @@ const getPublicAlgodProviders = async (chainId: number): Promise<PublicAlgodProv
 const getPublicIndexerProviders = async (chainId: number): Promise<PublicIndexerProvider[]> => {
   const logger = await getLogger()
   const networkName = getNetworkNameByChainId(chainId)
-  
+
   if (!networkName) {
     logger.warn(`No public indexer providers available for chain ${chainId}`)
     return []
@@ -63,12 +63,12 @@ const getPublicIndexerProviders = async (chainId: number): Promise<PublicIndexer
   try {
     const url = `https://scholtz.github.io/AlgorandPublicData/indexer/${networkName}/public-indexer-providers.json`
     const response = await axios.get(url, { timeout: 5000 })
-    
+
     if (response.status === 200 && Array.isArray(response.data)) {
       logger.info(`Loaded ${response.data.length} public indexer providers for chain ${chainId}`)
       return response.data as PublicIndexerProvider[]
     }
-    
+
     logger.warn(`Invalid response from public indexer providers for chain ${chainId}`)
     return []
   } catch (error) {
