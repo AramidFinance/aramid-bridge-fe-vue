@@ -9,7 +9,7 @@ const getAlgoAccountTokenBalance = async (chainId: number, accountAddress: strin
     if (!algosdk.isValidAddress(accountAddress)) return new BigNumber('0')
     const secureConfiguration = await getSecureConfiguration()
     if (!secureConfiguration?.chains || !secureConfiguration.chains[chainId]) return null
-    
+
     await asyncdelay(200)
     const account = await executeWithIndexerFailover(
       chainId,
@@ -18,7 +18,7 @@ const getAlgoAccountTokenBalance = async (chainId: number, accountAddress: strin
       },
       `getAlgoAccountTokenBalance lookupAccountByID(${accountAddress})`
     )
-    
+
     //console.log('algo.account', chainId, account)
     if (!account || !account.account) return new BigNumber('0')
     if (asa == 0) {

@@ -15,7 +15,7 @@ const getAlgorandConfigTransaction = async (daoToken: number, chainId: number, s
     while (tries > 0) {
       tries--
       await asyncdelay(200)
-      
+
       const txs: any = await executeWithIndexerFailover(
         chainId,
         async (indexer) => {
@@ -28,7 +28,7 @@ const getAlgorandConfigTransaction = async (daoToken: number, chainId: number, s
         },
         `getAlgorandConfigTransaction lookupAccountTransactions for ${sender}`
       )
-      
+
       await asyncdelay(100)
       console.log('config transactions:', txs)
       next = txs['next-token']

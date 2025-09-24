@@ -6,7 +6,7 @@ export const checkSourceAlgoTx = async () => {
   const store = useAppStore()
   if (!store.state.sourceChain) return
   if (!store.state.sourceTokenConfiguration) return
-  
+
   try {
     const txs = await executeWithIndexerFailover(
       store.state.sourceChain,
@@ -15,7 +15,7 @@ export const checkSourceAlgoTx = async () => {
       },
       'checkSourceAlgoTx lookupAccountTransactions'
     )
-    
+
     for (const tx of txs.transactions.filter((tx: any) => tx.sender == store.state.sourceAddress && !!tx.note)) {
       // check asset and amount
       if (store.state.sourceToken === '0') {
