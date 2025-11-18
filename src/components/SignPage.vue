@@ -618,7 +618,7 @@ const claimButtonClick = async () => {
               type="text"
               readonly
               :value="claimLink"
-              class="flex-1 bg-main border border-accent rounded-lg px-3 py-2 text-sm font-mono text-gray-300 focus:outline-none"
+              class="flex-1 bg-main border border-accent rounded-lg px-3 py-2 text-sm font-mono text-gray-300 focus:outline-none focus:ring-2 focus:ring-white/50"
             />
             <CopyIcon :text="claimLink" :title="`Copy claim link: ${claimLink}`"></CopyIcon>
           </div>

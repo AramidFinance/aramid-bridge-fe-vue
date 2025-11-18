@@ -84,6 +84,17 @@ const otherAssets = computed(() => {
   const popularTokenIds = popularAssets.value.map((asset) => asset.tokenId)
   return filteredAssets.value.filter((asset) => !popularTokenIds.includes(asset.tokenId))
 })
+
+// Computed property for search result announcement
+const searchResultAnnouncement = computed(() => {
+  if (!searchQuery.value.trim()) return ''
+  const count = filteredAssets.value.length
+  return count === 0
+    ? 'No tokens found'
+    : count === 1
+      ? '1 token found'
+      : `${count} tokens found`
+})
 const fillInState = () => {
   if (!state.publicConfiguration) return
   if (!store.state.sourceChain) return
@@ -168,6 +179,11 @@ watch(
             placeholder="Search tokens by name, symbol, or address..."
             class="w-full px-4 py-2 rounded-xl bg-bg-elevated border border-border-subtle text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-transparent"
           />
+        </div>
+
+        <!-- Search result announcement for screen readers -->
+        <div v-if="searchResultAnnouncement" role="status" aria-live="polite" class="sr-only">
+          {{ searchResultAnnouncement }}
         </div>
 
         <div v-if="!state.assets?.length" class="text-white text-center py-4">No assets available</div>

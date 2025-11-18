@@ -365,7 +365,7 @@ watch(
     </div>
     <div class="mt-4 w-full">
       <SimpleLabel for="transaction-memo-input">{{ t('transaction.memo') }}</SimpleLabel>
-      <input id="transaction-memo-input" :maxlength="50" class="bg-bg-elevated rounded-lg focus:outline-none w-full mt-1 3xl:mt-3 4xl:mt-6 p-1 3xl:p-3 4xl:p-6 text-base w-full" type="text" v-model="store.state.memo" aria-label="Transaction memo" />
+      <input id="transaction-memo-input" :maxlength="50" class="bg-bg-elevated rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50 w-full mt-1 3xl:mt-3 4xl:mt-6 p-1 3xl:p-3 4xl:p-6 text-base w-full" type="text" v-model="store.state.memo" aria-label="Transaction memo" />
     </div>
     <Message severity="error" v-if="state.error" class="mt-4 w-full">{{ state.error }}</Message>
     <Message severity="warn" v-if="store.state.escrowBalanceIsSufficient && !store.state.escrowBalanceIsSufficient10x" class="mt-4 w-full">

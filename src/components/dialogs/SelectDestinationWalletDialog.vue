@@ -110,7 +110,7 @@ const useAddressClick = () => {
           <textarea
             id="destination-wallet-address"
             v-model="state.addressInput"
-            class="bg-bg-elevated rounded-lg focus:outline-none w-full mt-1 3xl:mt-3 4xl:mt-6 p-1 3xl:p-3 4xl:p-6 text-base h-[80px] 3xl:h-[112px] 4xl:h-[157px] w-full"
+            class="bg-bg-elevated rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50 w-full mt-1 3xl:mt-3 4xl:mt-6 p-1 3xl:p-3 4xl:p-6 text-base h-[80px] 3xl:h-[112px] 4xl:h-[157px] w-full"
             rows="3"
             aria-label="Third party wallet address"
           ></textarea>

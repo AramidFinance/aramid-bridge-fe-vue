@@ -113,7 +113,7 @@ watch(
     <SimpleLabel class="justify-center md:justify-end lg:justify-end xl:justify-end md:text-right"> {{ t('amount.toReceive') }} </SimpleLabel>
     <div
       v-tooltip.top="'This is the amount of assets that will be transferred to the destination address.'"
-      class="flex items-center bg-transparent h-[40px] text-2xl font-bold rounded-[2px] focus:outline-none text-center md:text-right justify-center md:justify-end mt-5 md:mt-0"
+      class="flex items-center bg-transparent h-[40px] text-2xl font-bold rounded-[2px] focus:outline-none focus:ring-2 focus:ring-white/50 text-center md:text-right justify-center md:justify-end mt-5 md:mt-0"
       v-if="store.state.destinationTokenConfiguration"
     >
       {{ viewAmount(store.state.destinationAmount, store.state.destinationTokenConfiguration?.decimals) }}

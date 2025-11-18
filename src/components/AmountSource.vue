@@ -141,7 +141,7 @@ const setMax = () => {
         placeholder="0.0"
         max="1000000000"
         step="0.00001"
-        class="bg-transparent placeholder-current text-2xl font-bold rounded-[2px] focus:outline-none text-center md:text-right w-full border-b-2 border-indigo-500/50"
+        class="bg-transparent placeholder-current text-2xl font-bold rounded-[2px] focus:outline-none focus:ring-2 focus:ring-white/50 text-center md:text-right w-full border-b-2 border-indigo-500/50"
         v-model="state.sourceAmount"
         aria-label="Amount to bridge"
       />
