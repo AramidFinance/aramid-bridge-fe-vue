@@ -5,60 +5,78 @@ import getAppConfiguration from './getAppConfiguration'
 import CryptoJS from 'crypto-js'
 import getLogger from './getLogger'
 import loadIPFSFile from '../ipfs/loadFile'
-import asyncdelay from './asyncDelay'
 import { useAppStore } from '@/stores/app'
 import axios from 'axios'
+import logger from './conditionalLogger'
 
-let loading = false
+// Singleton Promise pattern to prevent multiple simultaneous loads
+let loadingPromise: Promise<PublicConfigurationRoot | null> | null = null
+
 const getPublicConfiguration = async (reload: boolean): Promise<PublicConfigurationRoot | null> => {
   const store = useAppStore()
-  const logger = await getLogger()
+  const loggerInstance = await getLogger()
   try {
-    while (loading) {
-      await asyncdelay(10)
+    // If already loading, return the existing promise
+    if (loadingPromise) {
+      return loadingPromise
     }
+
     if (!reload) {
       if (store.state.publicConfiguration !== null) return store.state.publicConfiguration
-      //console.log('currentMapping', store.state.publicConfiguration)
+      logger.debug('currentMapping', store.state.publicConfiguration)
     }
-    loading = true
 
-    const appConfiguration = await getAppConfiguration()
-    if (appConfiguration === null) return null
+    // Create the singleton promise
+    loadingPromise = (async () => {
+      try {
+        const appConfiguration = await getAppConfiguration()
+        if (appConfiguration === null) {
+          loadingPromise = null
+          return null
+        }
 
-    if (appConfiguration.useFilesystemPublicConfiguration) {
-      const fileMappingAxios = await axios.get('/public-configuration.json?t=' + new Date().getTime())
-      const fileMapping = fileMappingAxios.data as PublicConfigurationRoot
-      const copy = { ...fileMapping }
-      copy.hash = CryptoJS.SHA256(JSON.stringify(fileMapping)).toString()
-      logger.info(`${new Date()} Loaded configuration from localstorage. Hash: ${copy.hash}`)
-      store.state.publicConfiguration = copy
-      loading = false
-      ////console.log('loading', loading, store.state.publicConfiguration)
-      return store.state.publicConfiguration
-    }
-    const controlTx = await getAlgorandConfigTransaction(appConfiguration.mainToken, appConfiguration.mainNetwork, appConfiguration.configurationAddress)
-    if (!controlTx) {
-      throw 'Unable to load configuration'
-    }
-    let note = Buffer.from(controlTx.note, 'base64').toString('utf-8')
-    if (!note.startsWith('aramid-config/v1:j')) {
-      throw 'Unable to load configuration'
-    }
-    note = note.replace('aramid-config/v1:j', '')
-    const configMessage: IConfig = JSON.parse(note)
-    const data = await loadIPFSFile(configMessage.ipfsHash)
-    const mappingFromWeb: PublicConfigurationRoot = data
-    mappingFromWeb.hash = CryptoJS.SHA256(JSON.stringify(mappingFromWeb)).toString()
-    store.state.publicConfiguration = mappingFromWeb
-    logger.info(`${new Date()} Loaded configuration from hash: ${mappingFromWeb.hash}`)
-    //console.log('loaded configuration from ipfs:', store.state.publicConfiguration)
+        if (appConfiguration.useFilesystemPublicConfiguration) {
+          const fileMappingAxios = await axios.get('/public-configuration.json?t=' + new Date().getTime())
+          const fileMapping = fileMappingAxios.data as PublicConfigurationRoot
+          const copy = { ...fileMapping }
+          copy.hash = CryptoJS.SHA256(JSON.stringify(fileMapping)).toString()
+          loggerInstance.info(`${new Date()} Loaded configuration from localstorage. Hash: ${copy.hash}`)
+          store.state.publicConfiguration = copy
+          logger.debug('loading', store.state.publicConfiguration)
+          loadingPromise = null
+          return store.state.publicConfiguration
+        }
 
-    loading = false
-    return mappingFromWeb
+        const controlTx = await getAlgorandConfigTransaction(appConfiguration.mainToken, appConfiguration.mainNetwork, appConfiguration.configurationAddress)
+        if (!controlTx) {
+          throw 'Unable to load configuration'
+        }
+        let note = Buffer.from(controlTx.note, 'base64').toString('utf-8')
+        if (!note.startsWith('aramid-config/v1:j')) {
+          throw 'Unable to load configuration'
+        }
+        note = note.replace('aramid-config/v1:j', '')
+        const configMessage: IConfig = JSON.parse(note)
+        const data = await loadIPFSFile(configMessage.ipfsHash)
+        const mappingFromWeb: PublicConfigurationRoot = data
+        mappingFromWeb.hash = CryptoJS.SHA256(JSON.stringify(mappingFromWeb)).toString()
+        store.state.publicConfiguration = mappingFromWeb
+        loggerInstance.info(`${new Date()} Loaded configuration from hash: ${mappingFromWeb.hash}`)
+        logger.debug('loaded configuration from ipfs:', store.state.publicConfiguration)
+
+        loadingPromise = null
+        return mappingFromWeb
+      } catch (e) {
+        loggerInstance.error('error loading mapping', e)
+        loadingPromise = null
+        return store.state.publicConfiguration
+      }
+    })()
+
+    return loadingPromise
   } catch (e) {
-    logger.error('error loading mapping', e)
-    loading = false
+    loggerInstance.error('error loading mapping', e)
+    loadingPromise = null
   }
   return store.state.publicConfiguration
 }

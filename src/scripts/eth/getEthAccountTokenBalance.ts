@@ -3,6 +3,7 @@ import Web3, { type ContractAbi } from 'web3'
 import getSecureConfiguration from '../common/getSecureConfiguration'
 import type { EthPrivateConfiguration } from '../interface/eth/EthPrivateConfiguration'
 import erc20abi from './erc20abi'
+import logger from '../common/conditionalLogger'
 
 const getEthAccountTokenBalance = async (chainId: number, walletAddress: string, tokenAddress: string): Promise<BigNumber | null> => {
   const secureConfiguration = await getSecureConfiguration()
@@ -10,86 +11,82 @@ const getEthAccountTokenBalance = async (chainId: number, walletAddress: string,
   if (!secureConfiguration || !secureConfiguration.chains || !secureConfiguration.chains[chainId]) return null
   const config = secureConfiguration.chains[chainId] as EthPrivateConfiguration
   if (!config || config.type !== 'eth') {
-    console.error('wrong configuration', config)
+    logger.error('wrong configuration', config)
     return null
   }
 
-  //console.log('fetching balance on eth of', tokenAddress, 'for', walletAddress, 'on chain', chainId)
+  logger.debug('fetching balance on eth of', tokenAddress, 'for', walletAddress, 'on chain', chainId)
 
-  //console.log('config.providerUrl', config.providerUrl)
-  const web3 = new Web3(config.providerUrl)
-  //console.log('web3', web3)
+  // Collect all available RPC URLs
+  const rpcUrls: string[] = [config.providerUrl]
+  if (config.providerUrl2) rpcUrls.push(config.providerUrl2)
+  if (config.providerUrl3) rpcUrls.push(config.providerUrl3)
+
   let balance: string | null = null
 
   if (/^0x([0-1]{40})$/.test(tokenAddress)) {
-    // native token
-    try {
-      //console.log('web3.eth.getBalance', walletAddress)
-      const bal = await web3.eth.getBalance(walletAddress)
-      balance = bal.toString()
-      //console.log('web3.eth.getBalance=balance native token', walletAddress, balance)
-      if (balance === undefined || balance === null) {
-        throw 'undefined or null balance'
-      }
-    } catch (e) {
-      //console.log('error fetching balance:', e)
+    // Native token - try all RPCs in parallel (Task 4.4)
+    const balancePromises = rpcUrls.map(async (url) => {
       try {
-        if ((balance === undefined || balance === null || balance === 'NaN') && config.providerUrl2) {
-          //console.log('trying secondary RPC')
-          const bal = await new Web3(config.providerUrl2).eth.getBalance(walletAddress)
-          balance = bal.toString()
-        }
-      } catch (e) {
-        //console.log('error fetching balance from secondary RPC:', e)
-        try {
-          if ((balance === undefined || balance === null || balance === 'NaN') && config.providerUrl3) {
-            //console.log('trying tertiary RPC')
-            const bal = await new Web3(config.providerUrl3).eth.getBalance(walletAddress)
-            balance = bal.toString()
-          }
-        } catch (e) {
-          //console.log('error fetching balance from tertiary RPC:', e)
-          balance = null
-        }
+        const web3Instance = new Web3(url)
+        const bal = await web3Instance.eth.getBalance(walletAddress)
+        return { success: true, balance: bal.toString(), url }
+      } catch (error) {
+        logger.debug(`Failed to fetch native token balance from ${url}:`, error)
+        return { success: false, balance: null, url, error }
+      }
+    })
+
+    const results = await Promise.allSettled(balancePromises)
+
+    // Find first successful result
+    for (const result of results) {
+      if (result.status === 'fulfilled' && result.value.success) {
+        balance = result.value.balance
+        logger.debug(`Successfully fetched native token balance from ${result.value.url}`)
+        break
       }
     }
+
+    if (!balance) {
+      logger.error('All RPC endpoints failed for native token balance')
+      return null
+    }
   } else {
-    // The minimum ABI to get ERC20 Token balance
-    //console.log('/^0x([0-1]{40})$/.test(tokenAddress)', false, tokenAddress)
+    // ERC20 token - try all RPCs in parallel (Task 4.4)
+    logger.debug('Fetching ERC20 token balance', tokenAddress)
     const abi: ContractAbi = JSON.parse(JSON.stringify(erc20abi))
 
-    let contract = new web3.eth.Contract(abi, tokenAddress)
-    try {
-      balance = await contract.methods.balanceOf(walletAddress).call()
-      if (balance === undefined || balance === null) {
-        throw 'undefined or null balance'
-      }
-    } catch (error) {
-      //console.log('error fetching balance from primary RPC:', config.providerUrl, error, balance)
+    const balancePromises = rpcUrls.map(async (url) => {
       try {
-        if ((balance === undefined || balance === null) && config.providerUrl2) {
-          //console.log('trying secondary RPC:', config.providerUrl2)
-          contract = new new Web3(config.providerUrl2).eth.Contract(abi, tokenAddress)
-          balance = await contract.methods.balanceOf(walletAddress).call()
-        }
-      } catch (err) {
-        //console.log('error fetching from secondary RPC:', err)
-        try {
-          if ((balance === undefined || balance === null || balance === 'NaN') && config.providerUrl3) {
-            //console.log('trying tertiary RPC:', config.providerUrl3)
-            contract = new new Web3(config.providerUrl3).eth.Contract(abi, tokenAddress)
-            balance = await contract.methods.balanceOf(walletAddress).call()
-          }
-        } catch (e) {
-          //console.log('error fetching balance from tertiary RPC:', e)
-          balance = null
-        }
-        balance = null
+        const web3Instance = new Web3(url)
+        const contract = new web3Instance.eth.Contract(abi, tokenAddress)
+        const bal = await contract.methods.balanceOf(walletAddress).call()
+        return { success: true, balance: String(bal), url }
+      } catch (error) {
+        logger.debug(`Failed to fetch ERC20 balance from ${url}:`, error)
+        return { success: false, balance: null, url, error }
       }
+    })
+
+    const results = await Promise.allSettled(balancePromises)
+
+    // Find first successful result
+    for (const result of results) {
+      if (result.status === 'fulfilled' && result.value.success && result.value.balance) {
+        balance = result.value.balance
+        logger.debug(`Successfully fetched ERC20 balance from ${result.value.url}`)
+        break
+      }
+    }
+
+    if (!balance) {
+      logger.error('All RPC endpoints failed for ERC20 token balance')
+      return null
     }
   }
 
-  //console.log('eth.balance', balance, new BigNumber(balance ?? '0'))
+  logger.debug('eth.balance', balance)
   return new BigNumber(balance ?? '0')
 }
 

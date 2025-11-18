@@ -46,81 +46,60 @@ const setClaimErrorMessage = (val: string) => {
 
 const searchForTx = async (searchTxHash: string) => {
   console.log('searching for eth tx: 1', searchTxHash)
-  //TODO: have to change with respect to near chain
-  // validTxHash not working because of near tx hash on index 1
-  // if (validEthTxHash(searchTxHash) || validAlgoTxHash(searchTxHash)) {
-  //   console.log('searching for eth tx: 2', searchTxHash);
 
-  //   resetDefaultState();
-  // } else {
-  //   console.log('searching for eth tx: 3', searchTxHash);
-
-  // }
+  // Clear previous errors when starting a new search
+  setClaimErrorMessage('')
   setIsSearching(true)
-  if (validAlgoTxHash(searchTxHash)) {
-    console.log('validAlgoTxHash:', searchTxHash)
-    setIsSearching(true)
-    const claimTx = await getClaimTx(searchTxHash)
-    console.log('claimTx', claimTx)
-    if (claimTx) {
-      const claimData = await getTxClaimData(claimTx)
-      console.log('claimData', claimData)
 
-      if (claimData) {
-        await fillInStateFromClaimData(claimData)
+  try {
+    if (validAlgoTxHash(searchTxHash)) {
+      console.log('validAlgoTxHash:', searchTxHash)
+      const claimTx = await getClaimTx(searchTxHash)
+      console.log('claimTx', claimTx)
+      if (claimTx) {
+        const claimData = await getTxClaimData(claimTx)
+        console.log('claimData', claimData)
+
+        if (claimData) {
+          await fillInStateFromClaimData(claimData)
+        }
+      } else {
+        setClaimErrorMessage('Transaction not found in the indexer.')
       }
       setIsSearching(false)
-    }
-    setIsSearching(false)
-  } else if (validEthTxHash(searchTxHash)) {
-    console.log('validEthTxHash:', searchTxHash)
-    setIsSearching(true)
-    getClaimTx(searchTxHash).then((res: string | null) => {
-      console.log('claim tx:', res)
-      if (!res) {
-        setClaimErrorMessage('Transaction not found.')
-        setIsSearching(false)
-        return
-      }
-      getTxClaimData(res).then(async (data) => {
+    } else if (validEthTxHash(searchTxHash)) {
+      console.log('validEthTxHash:', searchTxHash)
+      try {
+        const res = await getClaimTx(searchTxHash)
+        console.log('claim tx:', res)
+        if (!res) {
+          setClaimErrorMessage('Transaction not found in the indexer.')
+          setIsSearching(false)
+          return
+        }
+        const data = await getTxClaimData(res)
         if (data) {
           console.log('claimData', data)
           await fillInStateFromClaimData(data)
           store.state.claimData = data
         }
         setIsSearching(false)
-      })
-    })
-  } else if (searchTxHash) {
-    // // this condition handles near search hash
-    // setIsSearching(true)
-    // // const claimTimer = setInterval((_, ms: any): any => {
-    // getClaimTx(searchTxHash).then((res) => {
-    //   if (!res) {
-    //     setClaimErrorMessage('Transaction not found.')
-    //     setIsSearching(false)
-    //     return
-    //   }
-    //   getTxClaimData(res).then((data) => {
-    //     appData.claimDataTxHash = res
-    //     appData.claimData = data
-    //     if (!appData.destinationChainConfiguration) appData.destinationChainConfiguration = appData.chainConfigs[data.destinationChainData.chainId]
-    //     appData.transferApproved = true
-    //     appData.assetLocked = true
-    //     appData.destinationChainConfiguration = appData.chainConfigs[data.destinationChainData.chainId]
-    //     appData.isClaimTabOpen = true
-    //     appData.isReviewTabOpen = false
-    //     appData.setAppData(appData)
-    //   })
-    //   setIsSearching(false)
-    // })
-    // console.log('searching for eth tx:', searchTxHash, isSearching)
-    // }, 4000);
-    // return (): any => {
-    //   clearInterval(claimTimer);
-    // };
+      } catch (error: any) {
+        console.error('Error searching for transaction:', error)
+        setClaimErrorMessage(error.message || 'Failed to search for transaction. Please try again.')
+        setIsSearching(false)
+      }
+    } else if (searchTxHash) {
+      setClaimErrorMessage('Invalid transaction hash format.')
+      setIsSearching(false)
+    } else {
+      setIsSearching(false)
+    }
+  } catch (error: any) {
+    console.error('Error during transaction search:', error)
+    setClaimErrorMessage(error.message || 'An unexpected error occurred. Please try again.')
+    setIsSearching(false)
   }
-  setIsSearching(false)
 }
 onMounted(async () => {
   const route = useRoute()
@@ -215,19 +194,54 @@ const resetButtonClick = async () => {
           type="text"
           v-model="state.inputTx"
         />
+
+        <!-- Loading spinner during search -->
+        <div v-if="state.isSearching" class="mt-4 text-center">
+          <div class="inline-flex items-center gap-2 text-accent font-medium">
+            <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>Searching for transaction in the indexer... This usually takes 2-5 seconds.</span>
+          </div>
+        </div>
+
+        <!-- Error message display -->
+        <div v-if="state.claimErrorMessage && !state.isSearching" class="mt-4 p-4 rounded-lg border border-red-500 bg-red-500/10">
+          <div class="flex items-start gap-3">
+            <svg class="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div class="flex-1">
+              <h3 class="font-semibold text-red-500">Transaction Not Found</h3>
+              <p class="text-sm text-red-400 mt-1">{{ state.claimErrorMessage }}</p>
+              <p class="text-sm text-red-400 mt-2">
+                This could mean:
+              </p>
+              <ul class="text-sm text-red-400 mt-1 list-disc list-inside space-y-1">
+                <li>The transaction hasn't been indexed yet (wait a few minutes and try again)</li>
+                <li>The transaction ID is incorrect</li>
+                <li>The transaction hasn't been bridged yet</li>
+              </ul>
+              <MainActionButton class="mt-3" @click="() => { state.claimErrorMessage = ''; searchForTx(state.inputTx); }">
+                Retry Search
+              </MainActionButton>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="text-sm border border-bottom-1 border-[#F6F6F61A] border-x-0 w-full pb-8" v-if="store.state.claimData?.maxClaimRound">
+      <div class="text-sm border border-bottom-1 border-subtle border-x-0 w-full pb-8" v-if="store.state.claimData?.maxClaimRound">
         <div class="flex flex-row mt-4">
           <div class="min-w-20">
-            <div class="flex flex-col w-12 md:p-1.5 m-1 bg-[#15002E] border-[#FB7EFF99] border rounded-full m-auto">
+            <div class="flex flex-col w-12 md:p-1.5 m-1 bg-main border-accent border rounded-full m-auto">
               <img class="m-auto" color="red" id="reverse-button" alt="Source chain image" loading="lazy" width="50" height="50" decoding="async" :src="getSourceChainImageUrl()" />
             </div>
           </div>
           <div class="text-lg font-bold my-2 mr-4">{{ store.state.sourceChainConfiguration?.name }}</div>
-          <hr class="h-[1px] my-6 w-full bg-[#F6F6F629] border-0 dark:bg-gray-700" />
+          <hr class="h-[1px] my-6 w-full bg-divider border-0 dark:bg-gray-700" />
           <div class="my-3 min-w-32 mx-auto text-center">Source chain</div>
-          <hr class="h-[1px] my-6 w-full bg-[#F6F6F629] border-0 dark:bg-gray-700" />
+          <hr class="h-[1px] my-6 w-full bg-divider border-0 dark:bg-gray-700" />
         </div>
         <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">
           <div class="md:min-w-44 font-bold">Transaction ID</div>
@@ -274,14 +288,14 @@ const resetButtonClick = async () => {
 
         <div class="flex flex-row mt-4">
           <div class="min-w-20">
-            <div class="flex flex-col w-12 md:p-1.5 m-1 bg-[#15002E] border-[#FB7EFF99] border rounded-full m-auto">
+            <div class="flex flex-col w-12 md:p-1.5 m-1 bg-main border-accent border rounded-full m-auto">
               <img class="m-auto" color="red" id="reverse-button" alt="Destination chain image" loading="lazy" width="50" height="50" decoding="async" :src="getDestinationChainImageUrl()" />
             </div>
           </div>
           <div class="text-lg font-bold my-2 mr-4">{{ store.state.destinationChainConfiguration?.name }}</div>
-          <hr class="h-[1px] my-6 w-full bg-[#F6F6F629] border-0 dark:bg-gray-700" />
+          <hr class="h-[1px] my-6 w-full bg-divider border-0 dark:bg-gray-700" />
           <div class="my-3 min-w-32 mx-auto text-center">Destination chain</div>
-          <hr class="h-[1px] my-6 w-full bg-[#F6F6F629] border-0 dark:bg-gray-700" />
+          <hr class="h-[1px] my-6 w-full bg-divider border-0 dark:bg-gray-700" />
         </div>
 
         <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">

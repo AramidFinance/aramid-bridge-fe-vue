@@ -70,9 +70,15 @@ const qrUrl = () => {
 <template>
   <div v-if="store.state.sourceChain" :class="store.state.dialogSelectSourceWalletIsOpen ? '' : 'hidden'">
     <div class="full-screen backdrop-blur-sm z-[100]" @click="store.state.dialogSelectSourceWalletIsOpen = false"></div>
-    <div class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col z-[101]">
+    <div
+      class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col z-[101]"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="select-source-wallet-title"
+      @keydown.esc="store.state.dialogSelectSourceWalletIsOpen = false"
+    >
       <ul class="bg-gradient-to-r from-topleft-purple to-bottomright-purple drop-shadow-menu-default rounded-[26px] p-3">
-        <DialogTitle>Connect AVM origin wallet</DialogTitle>
+        <DialogTitle id="select-source-wallet-title">Connect AVM origin wallet</DialogTitle>
 
         <WalletButton
           v-for="wallet in wallets.filter((w) => isWalletForChain(w.id, store.state.sourceChain ?? 0))"
@@ -83,10 +89,13 @@ const qrUrl = () => {
         />
         <div>
           <div>Or enter your AVM address for QR payment</div>
+          <label for="source-wallet-address" class="sr-only">Enter your AVM address for QR payment</label>
           <textarea
+            id="source-wallet-address"
             v-model="state.addressInput"
             class="bg-white-rgba rounded-[10px] focus:outline-none w-full mt-1 3xl:mt-3 4xl:mt-6 p-1 3xl:p-3 4xl:p-6 text-base h-[80px] 3xl:h-[112px] 4xl:h-[157px] w-full"
             rows="3"
+            aria-label="AVM wallet address"
           ></textarea>
         </div>
         <WalletButton :img="qrUrl()" text="QR payment" @click="qrPaymentClick()" />

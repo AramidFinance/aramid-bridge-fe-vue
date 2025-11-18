@@ -21,7 +21,8 @@ console.log('Welcome to the Aramid Bridge')
 
 <template>
   <div id="app2" class="h-[100vh] overflow-auto flex flex-col text-gray-100 md:text-lg md:min-h-screen md:min-w-[550px] min-w-max">
+    <a href="#main-content" class="sr-only sr-only-focusable bg-white text-black font-bold z-[200]">Skip to main content</a>
     <Toast />
-    <RouterView />
+    <RouterView id="main-content" />
   </div>
 </template>

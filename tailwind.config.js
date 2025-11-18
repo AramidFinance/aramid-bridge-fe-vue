@@ -6,102 +6,69 @@ export default {
   theme: {
     extend: {
       colors: {
-        'bottom-right-green': '#00110D',
-        'top-left-green': '#072821',
-        'border-green': '#AEEFE1',
+        // ============================================
+        // SEMANTIC DESIGN TOKENS (25 tokens)
+        // ============================================
+
+        // Brand Colors (4)
+        'primary': '#FB7EFF',           // Main brand pink - use for primary actions, highlights
+        'primary-light': '#FCD4FF',     // Light pink - use for text on dark backgrounds, subtle accents
+        'primary-dark': '#7400FF',      // Deep purple - use for emphasis, gradients
+        'accent': '#8217BD',            // Purple accent - use for borders, secondary highlights
+
+        // Background Colors (6)
+        'bg-main': '#15002E',           // Main dark purple background
+        'bg-secondary': '#190B29',      // Darker purple - use for cards, elevated surfaces
+        'bg-card': 'rgba(22, 14, 37, 0.7)',      // Card background with transparency
+        'bg-hover': 'rgba(14, 0, 31, 0.7)',      // Hover state background
+        'bg-overlay': 'rgba(0, 0, 0, 0.5)',      // Modal overlays, backdrops
+        'bg-elevated': 'rgba(246, 246, 246, 0.08)', // Slightly elevated surfaces
+
+        // Text Colors (5)
+        'text-primary': 'rgba(246, 246, 246, 1)',    // Main text color
+        'text-secondary': 'rgba(246, 246, 246, 0.7)', // Secondary text, labels
+        'text-muted': 'rgba(246, 246, 246, 0.4)',     // Muted text, placeholders
+        'text-accent': '#FB7EFF',                     // Accent text color
+        'text-link': '#95D5FD',                       // Link color (block explorer links)
+
+        // Border Colors (4)
+        'border-primary': '#FB7EFF',                  // Primary borders
+        'border-accent': 'rgba(251, 126, 255, 0.6)',  // Accent borders (60% opacity)
+        'border-subtle': 'rgba(246, 246, 246, 0.16)', // Subtle dividers, light borders
+        'border-muted': 'rgba(143, 143, 143, 0.3)',   // Muted borders
+
+        // State Colors (3)
+        'success': '#19FF89',           // Success state - completed actions, positive feedback
+        'warning': '#FF9519',           // Warning state - caution, pending actions
+        'error': '#FF4219',             // Error state - failures, critical alerts
+
+        // Utility Colors (3)
+        'divider': 'rgba(246, 246, 246, 0.16)',  // Horizontal rules, separators
+        'shadow': 'rgba(0, 0, 0, 0.25)',         // Drop shadows
+        'transparent': 'transparent',             // Transparent color for gradients
+
+        // ============================================
+        // LEGACY GRADIENTS (kept for specific use cases)
+        // These are used in gradients and should be migrated gradually
+        // ============================================
+        'gradient-pink-start': 'rgba(116, 7, 176, 0.8)',  // Network button gradient start
+        'gradient-pink-end': 'rgba(67, 7, 165, 0.8)',     // Network button gradient end
+
+        // ============================================
+        // DEPRECATED COLORS (To be removed in future)
+        // These are kept temporarily for backwards compatibility
+        // Migrate to semantic tokens above
+        // ============================================
         'white-rgba': 'rgba(255, 255, 255, 0.08)',
-        'green-rgba': 'rgba(0, 97, 0, 0.08)',
-        'green-rgba-2': 'rgba(0, 205, 100, 0.3)',
-        'dark-green-1': '#072821',
-        'red-rgba': 'rgba(97, 0, 0, 0.08)',
-        'red-rgba-2': 'rgba(150, 0, 0, 0.3)',
-        'black-rgba': 'rgba(0, 0, 0, 0.08)',
-        'black-rgba-2': 'rgba(0, 0, 0, 0.5)',
-        'white-rgba-0.3': 'rgba(255, 255, 255, 0.3)',
-        'white-rgba-0.15': 'rgba(255, 255, 255, 0.15)',
-        'white-rgba-0.17': 'rgba(255, 255, 255, 0.17)',
-        'white-rgba-3': 'rgba(255, 255, 255, 0.7)',
-        'white-0': 'rgba(255, 255, 255, 0)',
         'white-0.2': 'rgba(255, 255, 255, 0.2)',
-        'white-0.25': 'rgba(255, 255, 255, 0.25)',
-        'white-0.4': 'rgba(255, 255, 255, 0.4)',
-        'white-0.5': 'rgba(255, 255, 255, 0.5)',
-        'white-0.6': 'rgba(255, 255, 255, 0.6)',
-        'white-0.7': 'rgba(255, 255, 255, 0.7)',
-        'white-0.8': 'rgba(255, 255, 255, 0.8)',
-        'fun-teal': '#AEEFE1',
-        'weird-green': '#021813',
-        'topleft-purple': 'rgba(35, 0, 87, 0.9)',
-        'network-type': 'rgba(246, 246, 246, 0.7)',
-        'bottomright-purple': 'rgba(35, 16, 69, 0.9)',
-        'std-button-tl-purple': 'rgba(48, 0, 74, 0.9)',
-        'std-button-br-purple': 'rgba(35, 0, 54, 0.9)',
-        'network-btn-tl': 'rgba(116, 7, 176, 0.8)',
-        'network-btn-br': 'rgba(67, 7, 165, 0.8)',
-        'network-img-tl': 'rgba(116, 7, 176, 0.2)',
-        'network-img-br': 'rgba(67, 7, 165, 0.2)',
         'confirm-btn-grey': 'rgba(22, 14, 37, 0.9)',
         'confirm-btn-grey-hover': 'rgba(31, 20, 52, 0.7)',
-        'left-pink': 'rgba(252, 212, 255, 0.6)',
-        'middle-pink': 'rgba(251, 126, 255, 0.3)',
-        'right-purple': 'rgba(116, 0, 255, 0.7)',
-        'connect-purple': 'rgba(15, 0, 40, 0.8)',
-        'connect-purple-hover': 'rgba(60, 20, 160, 0.8)',
-        'kinda-dark-pink': 'rgba(251, 160, 255, 1)',
-        'nav-not-selected': 'rgba(246, 246, 246, 0.5)',
-        'connect-text': 'rgba(246, 246, 246, 0.7)',
-        'connect-border': 'rgba(140, 140, 140, 0.3)',
-        'main-border': 'rgba(143, 143, 143, 0.3)',
-        'token-tl-purple': 'rgba(116, 7, 176, 0.9)',
-        'token-br-purple': 'rgba(67, 7, 165, 0.9)',
-        'amount-purple': 'rgba(15, 0, 40, 0.9);',
-        'amount-purple-hover': 'rgba(60, 20, 160, 0.9)',
-        'amount-border-l': 'rgba(252, 212, 255, 0.3)',
-        'amount-border-c': 'rgba(251, 126, 255, 0.3)',
-        'amount-border-r': 'rgba(116, 0, 255, 0.3)',
-        'approve-left': 'rgba(144, 180, 254, 0.6)',
-        'approve-right': 'rgba(104, 98, 255, 0.4)',
-        'approve-middle': 'rgba(201, 95, 255, 0.6)',
-        'send-left': 'rgba(157, 246, 252, 0.5)',
-        'send-middle': 'rgba(118, 125, 255, 0.5)',
-        'send-right': 'rgba(60, 9, 201, 0.9)',
-        'placeholder-purple': 'rgb(23, 13, 40)',
+        'network-btn-tl': 'rgba(116, 7, 176, 0.8)',
+        'network-btn-br': 'rgba(67, 7, 165, 0.8)',
         'blockexplorer-default': 'rgb(149, 213, 253)',
         'blockexplorer-hover': 'rgb(116, 132, 255)',
-        'claim-left': 'rgba(144, 180, 254, 0.6)',
-        'claim-middle': 'rgba(60, 9, 201, 0.9)',
-        'claim-right': 'rgba(118, 125, 255, 0.5)',
         'search-blue': 'rgba(132, 76, 255, 0.5)',
-        'search-blue-hover': 'rgba(132, 76, 255, 1)',
-        'reset-left': 'rgba(195, 91, 254, 0.8)', // pink
-        'reset-right': 'rgba(151, 225, 254, 0.8)', // light blue
-
-        // aramid color palette
-        'primary-pink-light': 'rgba(252, 212, 255, 1)',
-        'primary-pink': 'rgba(251, 126, 255, 1)',
-        'primary-purple': 'rgba(116, 0, 255, 1)',
-        // 'primary-gradient': 'linear-gradient(91.11deg, #FCD4FF 5.02%, #FB7EFF 66.64%, #7400FF 124.21%)',
-        'dark-label': 'rgba(246, 246, 246, 1)',
-        'dark-caption': 'rgba(246, 246, 246, 0.7)',
-        'dark-placeholder': 'rgba(246, 246, 246, 0.4)',
-        'dark-elevation': 'rgba(246, 246, 246, 0.08)',
-        'dark-low-elevation': 'rgba(246, 246, 246, 0.02)',
-        'feedback-success': 'rgba(25, 255, 137, 1)',
-        'feedback-warning': 'rgba(255, 149, 25, 1)',
-        'feedback-error': 'rgba(255, 66, 25, 1)',
-
-        // background main
-        'bg-main-first': 'rgba(21, 0, 46, 1)',
-        'bg-main-second': 'rgba(14, 0, 31, 1)',
-
-        // background secondary
-        'bg-secondary-pink': 'rgba(116, 7, 176, 0.9)',
-        'bg-secondary-purple': 'rgba(67, 7, 165, 0.9)',
-
-        'background-secondary': 'rgba(14, 0, 31, 1)',
-
-        'button-bg-hover': 'rgba(14, 0, 31, 0.7)',
-        'background-card': 'rgba(22, 14, 37, 0.7)'
+        'search-blue-hover': 'rgba(132, 76, 255, 1)'
       },
       fontFamily: {
         satoshi: ['Satoshi']

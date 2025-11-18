@@ -63,11 +63,17 @@ onMounted(async () => {
 <template>
   <div :class="store.state.dialogSelectSourceChainIsOpen ? '' : 'hidden'">
     <div class="full-screen backdrop-blur-sm z-[100]" @click="store.state.dialogSelectSourceChainIsOpen = false"></div>
-    <div class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col z-[101]">
+    <div
+      class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col z-[101]"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="select-source-chain-title"
+      @keydown.esc="store.state.dialogSelectSourceChainIsOpen = false"
+    >
       <ul class="bg-gradient-to-r from-topleft-purple to-bottomright-purple drop-shadow-menu-default rounded-[26px] p-3">
-        <DialogTitle>Select origin network</DialogTitle>
+        <DialogTitle id="select-source-chain-title">Select origin network</DialogTitle>
 
-        <ChainButton v-for="(item, index) in state.chains" :key="index" :img="item.logo" :text="item.name" @click="chainButtonClick(item.chainId)"></ChainButton>
+        <ChainButton v-for="(item, index) in state.chains" :key="index" :img="item.logo" :text="item.name" @click="chainButtonClick(item.chainId)" :autofocus="index === 0"></ChainButton>
       </ul>
     </div>
   </div>

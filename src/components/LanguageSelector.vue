@@ -62,7 +62,7 @@ watch(isOpen, (newValue) => {
 
     <div
       v-if="isOpen"
-      class="absolute bottom-full right-0 mb-2 w-48 rounded-lg shadow-lg bg-[#15002E] border border-dark-elevation overflow-hidden z-50"
+      class="absolute bottom-full right-0 mb-2 w-48 rounded-lg shadow-lg bg-main border border-dark-elevation overflow-hidden z-50"
       style="background: rgba(21, 0, 46, 0.95); backdrop-filter: blur(10px)"
     >
       <div class="py-1">
@@ -75,7 +75,7 @@ watch(isOpen, (newValue) => {
         >
           <span class="text-lg">{{ lang.flag }}</span>
           <span class="flex-1 text-left">{{ lang.name }}</span>
-          <span v-if="locale === lang.code" class="text-[#FB7EFF]">✓</span>
+          <span v-if="locale === lang.code" class="text-accent">✓</span>
         </button>
       </div>
     </div>

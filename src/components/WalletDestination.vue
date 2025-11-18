@@ -20,6 +20,8 @@ import SelectDestinationWalletDialog from './dialogs/SelectDestinationWalletDial
 import RoundButton from './ui/RoundButton.vue'
 import WalletAddress from './ui/WalletAddress.vue'
 import { formatTooltip } from '@/scripts/common/formatTooltip'
+import debounce from '@/scripts/common/debounce'
+import logger from '@/scripts/common/conditionalLogger'
 
 const { t } = useI18n()
 const store = useAppStore()
@@ -40,7 +42,7 @@ const fillInState = () => {
 
 onMounted(async () => {
   state.publicConfiguration = await getPublicConfiguration(false)
-  //console.log('WalletDestination.activeAccount.value', avmActiveWallet.value, activeAccount.value)
+  logger.debug('WalletDestination.activeAccount.value', avmActiveWallet.value, activeAccount.value)
   if (store.state.destinationChainConfiguration?.type == 'algo' && avmActiveWallet.value && activeAccount.value?.address) {
     store.state.destinationAddress = activeAccount.value?.address
     store.state.connectedDestinationChain = store.state.destinationChain
@@ -74,32 +76,31 @@ const buttonClick = async () => {
         store.state.destinationAddress = address.value
       } else {
         await modal?.open()
-        console.log('0x2 address is ', isConnected.value, address.value, new Date())
-        if (isConnected.value && address.value) {
-          store.state.connectedDestinationChain = store.state.destinationChain
-          store.state.destinationAddress = address.value
-          return
+
+        // Use Promise.race to wait for connection with timeout (Task 4.3)
+        const connectionTimeout = 5000
+        const startTime = Date.now()
+
+        const checkConnection = async () => {
+          while (Date.now() - startTime < connectionTimeout) {
+            if (isConnected.value && address.value) {
+              store.state.connectedDestinationChain = store.state.destinationChain
+              store.state.destinationAddress = address.value
+              return true
+            }
+            await asyncdelay(100)
+          }
+          return false
         }
-        await asyncdelay(1000)
-        console.log('0x3 address is ', isConnected.value, address.value, new Date())
-        if (isConnected.value && address.value) {
-          store.state.connectedDestinationChain = store.state.destinationChain
-          store.state.destinationAddress = address.value
-          return
-        }
-        await asyncdelay(5000)
-        console.log('0x4 address is ', isConnected.value, address.value, new Date())
-        if (isConnected.value && address.value) {
-          store.state.connectedDestinationChain = store.state.destinationChain
-          store.state.destinationAddress = address.value
-          return
-        }
-        await asyncdelay(10000)
-        console.log('0x5 address is ', isConnected.value, address.value, new Date())
-        if (isConnected.value && address.value) {
-          store.state.connectedDestinationChain = store.state.destinationChain
-          store.state.destinationAddress = address.value
-          return
+
+        const connected = await checkConnection()
+        if (!connected) {
+          logger.warn('Wallet connection timeout after 5s')
+          toast.add({
+            severity: 'warn',
+            detail: 'Wallet connection timed out. Please try again.',
+            life: 3000
+          })
         }
       }
     }
@@ -143,8 +144,8 @@ const onDestinationAddressChange = async () => {
     const destinationTokenConfig = store.state.destinationTokenConfiguration as any
     const { type: destinationTokenType, contractId: destinationTokenContractId, unitAppId: destinationTokenUnitAppId, chainId: destinationTokenChainId } = destinationTokenConfig
 
-    console.log('destinationTokenType', destinationTokenType)
-    console.log('destinationTokenConfig', destinationTokenConfig)
+    logger.debug('destinationTokenType', destinationTokenType)
+    logger.debug('destinationTokenConfig', destinationTokenConfig)
 
     if (destinationTokenType == 'algo') {
       switch (destinationChainName) {
@@ -159,7 +160,7 @@ const onDestinationAddressChange = async () => {
             if (balance !== null) {
               store.state.destinationAddressBalance = balance.toString()
               store.state.loadingDestinationAddressBalance = false
-              //console.log('onDestinationAddressChange.balance', store.state.destinationAddressBalance, store.state.destinationChain, store.state.destinationAddress, Number(store.state.destinationToken))
+              logger.debug('onDestinationAddressChange.balance', store.state.destinationAddressBalance, store.state.destinationChain, store.state.destinationAddress, Number(store.state.destinationToken))
             }
           } else {
             store.state.loadingDestinationAddressBalance = true
@@ -167,7 +168,7 @@ const onDestinationAddressChange = async () => {
             if (balance !== null) {
               store.state.destinationAddressBalance = balance.toString()
               store.state.loadingDestinationAddressBalance = false
-              //console.log('onDestinationAddressChange.balance', store.state.destinationAddressBalance, store.state.destinationChain, store.state.destinationAddress, Number(store.state.destinationToken))
+              logger.debug('onDestinationAddressChange.balance', store.state.destinationAddressBalance, store.state.destinationChain, store.state.destinationAddress, Number(store.state.destinationToken))
             }
           }
           break
@@ -178,7 +179,7 @@ const onDestinationAddressChange = async () => {
           if (balance !== null) {
             store.state.destinationAddressBalance = balance.toString()
             store.state.loadingDestinationAddressBalance = false
-            //console.log('onDestinationAddressChange.balance', store.state.destinationAddressBalance, store.state.destinationChain, store.state.destinationAddress, Number(store.state.destinationToken))
+            logger.debug('onDestinationAddressChange.balance', store.state.destinationAddressBalance, store.state.destinationChain, store.state.destinationAddress, Number(store.state.destinationToken))
           }
         }
       }
@@ -193,7 +194,7 @@ const onDestinationAddressChange = async () => {
         }
       } catch (e: any) {
         store.state.destinationAccountOptedIn = false
-        console.error('Error checking opt-in status:', e)
+        logger.error('Error checking opt-in status:', e)
       }
     }
 
@@ -203,7 +204,7 @@ const onDestinationAddressChange = async () => {
       if (balance !== null) {
         store.state.destinationAddressBalance = balance.toString()
         store.state.loadingDestinationAddressBalance = false
-        //console.log('onDestinationAddressChange.balance', store.state.destinationAddressBalance, store.state.destinationChain, store.state.destinationAddress, store.state.destinationToken)
+        logger.debug('onDestinationAddressChange.balance', store.state.destinationAddressBalance, store.state.destinationChain, store.state.destinationAddress, store.state.destinationToken)
       }
     }
 
@@ -228,7 +229,7 @@ const onDestinationAddressChange = async () => {
       } catch (e: any) {
         store.state.destinationBridgeBalance = '0'
         store.state.loadingDestinationEscrowAddressBalance = false
-        console.error('Error fetching bridge balance:', e)
+        logger.error('Error fetching bridge balance:', e)
         toast.add({
           severity: 'error',
           detail: e.message,
@@ -239,7 +240,7 @@ const onDestinationAddressChange = async () => {
   } catch (e: any) {
     store.state.loadingDestinationAddressBalance = false
     store.state.destinationAddressBalance = '0'
-    console.error(e)
+    logger.error(e)
     toast.add({
       severity: 'error',
       detail: e.message,
@@ -249,23 +250,26 @@ const onDestinationAddressChange = async () => {
   }
 }
 
+// Debounced version to prevent excessive RPC calls
+const debouncedOnDestinationAddressChange = debounce(onDestinationAddressChange, 300)
+
 watch(
   () => store.state.destinationAddress,
-  async () => {
-    await onDestinationAddressChange()
+  () => {
+    debouncedOnDestinationAddressChange()
   }
 )
 
 watch(
   () => store.state.destinationBridgeAddress,
-  async () => {
-    await onDestinationAddressChange()
+  () => {
+    debouncedOnDestinationAddressChange()
   }
 )
 watch(
   () => store.state.destinationToken,
-  async () => {
-    await onDestinationAddressChange()
+  () => {
+    debouncedOnDestinationAddressChange()
   }
 )
 </script>

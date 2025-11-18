@@ -274,17 +274,17 @@ watch(
       <div class="font-bold text-xl">Review your transaction</div>
     </div>
 
-    <div class="text-sm border border-bottom-1 border-[#F6F6F61A] border-x-0 w-full pb-8">
+    <div class="text-sm border border-bottom-1 border-subtle border-x-0 w-full pb-8">
       <div class="flex flex-row mt-4">
         <div class="min-w-20">
-          <div class="flex flex-col w-12 md:p-1.5 m-1 bg-[#15002E] border-[#FB7EFF99] border rounded-full m-auto">
+          <div class="flex flex-col w-12 md:p-1.5 m-1 bg-main border-accent border rounded-full m-auto">
             <img class="m-auto" color="red" id="reverse-button" alt="Source chain image" loading="lazy" width="50" height="50" decoding="async" :src="getSourceChainImageUrl()" />
           </div>
         </div>
         <div class="text-lg font-bold my-2 mr-4">{{ store.state.sourceChainConfiguration?.name }}</div>
-        <hr class="h-[1px] my-6 w-full bg-[#F6F6F629] border-0 dark:bg-gray-700" />
+        <hr class="h-[1px] my-6 w-full bg-divider border-0 dark:bg-gray-700" />
         <div class="my-3 min-w-32 mx-auto text-center">Source chain</div>
-        <hr class="h-[1px] my-6 w-full bg-[#F6F6F629] border-0 dark:bg-gray-700" />
+        <hr class="h-[1px] my-6 w-full bg-divider border-0 dark:bg-gray-700" />
       </div>
       <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">
         <div class="md:min-w-44 font-bold">Amount to send</div>
@@ -334,14 +334,14 @@ watch(
 
       <div class="flex flex-row mt-4">
         <div class="min-w-20">
-          <div class="flex flex-col w-12 md:p-1.5 m-1 bg-[#15002E] border-[#FB7EFF99] border rounded-full m-auto">
+          <div class="flex flex-col w-12 md:p-1.5 m-1 bg-main border-accent border rounded-full m-auto">
             <img class="m-auto" color="red" id="reverse-button" alt="Destination chain image" loading="lazy" width="50" height="50" decoding="async" :src="getDestinationChainImageUrl()" />
           </div>
         </div>
         <div class="text-lg font-bold my-2 mr-4">{{ store.state.destinationChainConfiguration?.name }}</div>
-        <hr class="h-[1px] my-6 w-full bg-[#F6F6F629] border-0 dark:bg-gray-700" />
+        <hr class="h-[1px] my-6 w-full bg-divider border-0 dark:bg-gray-700" />
         <div class="my-3 min-w-32 mx-auto text-center">Destination chain</div>
-        <hr class="h-[1px] my-6 w-full bg-[#F6F6F629] border-0 dark:bg-gray-700" />
+        <hr class="h-[1px] my-6 w-full bg-divider border-0 dark:bg-gray-700" />
       </div>
 
       <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">

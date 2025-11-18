@@ -16,6 +16,8 @@ import { viewAmount } from '@/scripts/common/viewAmount'
 import { sanitizeTokenName } from '@/scripts/common/sanitizeTokenName'
 import { useI18n } from 'vue-i18n'
 import { formatTooltip } from '@/scripts/common/formatTooltip'
+import debounce from '@/scripts/common/debounce'
+import logger from '@/scripts/common/conditionalLogger'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -44,12 +46,12 @@ const fillInState = () => {
       store.state.sourceAmount = route.params['sourceAmount'] as string
       store.state.sourceAmountFormatted = formatBaseAmount(store.state.sourceAmount, store.state.sourceTokenConfiguration.decimals)
       state.sourceAmount = new BigNumber(store.state.sourceAmount).toNumber() / 10 ** store.state.sourceTokenConfiguration.decimals
-      //console.log('state.sourceAmount', new BigNumber(state.sourceAmount).toNumber(), state.sourceAmount)
+      logger.debug('state.sourceAmount', new BigNumber(state.sourceAmount).toNumber(), state.sourceAmount)
       calculateFeeAndDestinationAmount()
       makeNoteField()
     }
   } catch (e: any) {
-    console.error(e)
+    logger.error(e)
     toast.add({
       severity: 'error',
       detail: e.message ?? e,
@@ -64,15 +66,18 @@ const setAmount = () => {
   const base = new BigNumber(state.sourceAmount).multipliedBy(new BigNumber(10).pow(store.state.sourceTokenConfiguration.decimals)).toFixed(0, 1)
   store.state.sourceAmount = base
   store.state.sourceAmountFormatted = formatBaseAmount(base, store.state.sourceTokenConfiguration.decimals)
-  //console.log('store.state.sourceAmount', store.state.sourceAmount)
+  logger.debug('store.state.sourceAmount', store.state.sourceAmount)
   calculateFeeAndDestinationAmount()
   makeNoteField()
 }
 
+// Debounced version to prevent excessive calculations
+const debouncedSetAmount = debounce(setAmount, 300)
+
 watch(
   () => state.sourceAmount,
   () => {
-    setAmount()
+    debouncedSetAmount()
   }
 )
 watch(
@@ -117,9 +122,10 @@ const setMax = () => {
 </script>
 <template>
   <div class="flex flex-col w-full">
-    <SimpleLabel class="justify-center md:justify-end lg:justify-end xl:justify-end md:text-right"> {{ t('amount.toBridge') }} </SimpleLabel>
+    <SimpleLabel for="source-amount-input" class="justify-center md:justify-end lg:justify-end xl:justify-end md:text-right"> {{ t('amount.toBridge') }} </SimpleLabel>
     <div class="flex flex-col md:flex-row justify-center md:justify-end lg:justify-end xl:justify-end">
       <input
+        id="source-amount-input"
         v-tooltip.focus.top="formatTooltip(t('amount.tooltipBridge'))"
         type="number"
         min="0"
@@ -128,14 +134,19 @@ const setMax = () => {
         step="0.00001"
         class="bg-transparent placeholder-current text-2xl font-bold rounded-[2px] focus:outline-none text-center md:text-right w-full border-b-2 border-indigo-500/50"
         v-model="state.sourceAmount"
+        aria-label="Amount to bridge"
       />
-      <div
+      <button
         v-if="store.state.sourceAddress"
+        type="button"
         @click="setMax"
-        class="mt-2 ml-2 text-xl bg-clip-text bg-gradient-to-r text-transparent from-white to-[#E469FF] ease-in-out duration-100 font-bold cursor-pointer select-none text-center md:text-right"
+        @keydown.enter="setMax"
+        @keydown.space.prevent="setMax"
+        class="mt-2 ml-2 text-xl bg-clip-text bg-gradient-to-r text-transparent from-white to-primary ease-in-out duration-100 font-bold cursor-pointer select-none text-center md:text-right focus:outline-none focus:ring-2 focus:ring-white/50"
+        aria-label="Set amount to maximum balance"
       >
         Max
-      </div>
+      </button>
     </div>
 
     <div

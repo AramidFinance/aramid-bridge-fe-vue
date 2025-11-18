@@ -150,6 +150,8 @@ const matchBridgeTxByDataClick = async () => {
   }
 }
 
+const claimLink = ref('')
+
 const checkSourceTx = async () => {
   console.log('checkSourceTx', store.state.claimTx, store.state.bridgeTx)
   if (!store.state.claimTx && store.state.bridgeTx) {
@@ -161,6 +163,8 @@ const checkSourceTx = async () => {
         if (claimData) {
           store.state.claimData = claimData
         }
+        // Generate the claim link for the user to copy/share
+        claimLink.value = window.location.origin + '/claim/' + store.state.bridgeTx
         router.push('/claim/' + store.state.bridgeTx)
       }
     }
@@ -594,6 +598,31 @@ const claimButtonClick = async () => {
     <div v-else-if="store.state.bridgeTx && !store.state.claimTx">
       <img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> This step usually takes less then 3 minutes. Your transaction ID:
       <ShortTx :txId="store.state.bridgeTx" :length="6" :chain="store.state.sourceChain"></ShortTx>
+
+      <!-- Display claim link when ready for EVM destinations -->
+      <div v-if="claimLink && store.state.destinationChainConfiguration?.type == 'eth'" class="mt-6 p-4 rounded-lg border border-accent bg-primary/10">
+        <div class="flex flex-col gap-3">
+          <div class="flex items-center gap-2">
+            <svg class="h-5 w-5 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <h3 class="font-semibold text-primary">Claim Link Ready</h3>
+          </div>
+          <p class="text-sm text-gray-300">
+            Once indexing is complete, you or anyone with this link can claim the tokens on the destination chain.
+            Save this link to bookmark or share it with the recipient.
+          </p>
+          <div class="flex items-center gap-2 mt-2">
+            <input
+              type="text"
+              readonly
+              :value="claimLink"
+              class="flex-1 bg-main border border-accent rounded-lg px-3 py-2 text-sm font-mono text-gray-300 focus:outline-none"
+            />
+            <CopyIcon :text="claimLink" :title="`Copy claim link: ${claimLink}`"></CopyIcon>
+          </div>
+        </div>
+      </div>
     </div>
     <div v-else-if="store.state.claimTx && store.state.destinationChainConfiguration?.type == 'algo'">
       <div v-if="store.state.destinationChainConfiguration?.name === 'Voi'">

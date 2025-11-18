@@ -1,20 +1,21 @@
 import BigNumber from 'bignumber.js'
 import formatBaseAmount from './formatBaseAmount'
 import { useAppStore } from '@/stores/app'
+import logger from './conditionalLogger'
 
 const calculateFeeAndDestinationAmount = () => {
-  //console.log('calculateFeeAndDestinationAmount')
+  logger.debug('calculateFeeAndDestinationAmount')
   const store = useAppStore()
   if (!store.state.sourceTokenConfiguration) {
-    console.log('store.state.sourceTokenConfiguration missing')
+    logger.debug('store.state.sourceTokenConfiguration missing')
     return
   }
   if (!store.state.destinationTokenConfiguration) {
-    console.log('store.state.destinationTokenConfiguration missing')
+    logger.debug('store.state.destinationTokenConfiguration missing')
     return
   }
   if (!store.state.routeConfig) {
-    console.log('store.state.routeConfig missing')
+    logger.debug('store.state.routeConfig missing')
     return
   }
 
@@ -22,7 +23,7 @@ const calculateFeeAndDestinationAmount = () => {
 
   const sourceAmount = new BigNumber(store.state.sourceAmount)
   // const fee = sourceAmount.minus(new BigNumber(sourceAmount.dividedToIntegerBy(1.001)).toFixed(0, 1));
-  //console.log('dest chain tokens:', store.state.routeConfig, store.state.feeToken, store.state.destinationToken)
+  logger.debug('dest chain tokens:', store.state.routeConfig, store.state.feeToken, store.state.destinationToken)
   const feeAlternatives = store.state.routeConfig.feeAlternatives
   let feeMultiplier: number | null = null
   for (let i = 0; i < feeAlternatives.length; i++) {
@@ -37,7 +38,7 @@ const calculateFeeAndDestinationAmount = () => {
   }
   if (!feeMultiplier) feeMultiplier = 0.001 // default value if it's undefined
 
-  //console.log('fee multiplier:', feeMultiplier, '\nfee token:', feeTokenConfiguration, '\ntoken configs:', store.state.routeConfig, '\ndestination token:', store.state.destinationToken)
+  logger.debug('fee multiplier:', feeMultiplier, '\nfee token:', feeTokenConfiguration, '\ntoken configs:', store.state.routeConfig, '\ndestination token:', store.state.destinationToken)
   const fee = new BigNumber(sourceAmount.multipliedBy(feeMultiplier))
   const feeAmount = fee.toFixed(0, 0)
   let updated = false
@@ -56,10 +57,10 @@ const calculateFeeAndDestinationAmount = () => {
   // algo 2 eth 18 - 6 = 12
   // eth 2 algo 6 - 18 = -12
   const destInSourceDecimals = sourceAmount.minus(fee)
-  // console.log(sourceAmount, destInSourceDecimals, fee);
+  logger.debug(sourceAmount, destInSourceDecimals, fee)
   if (decDiff > 0) {
     // source token has more decimals than destination token
-    //console.log('source token has more decimals than destination token')
+    logger.debug('source token has more decimals than destination token')
     const destinationAmount = destInSourceDecimals.multipliedBy(10 ** decDiff).toFixed(0, 1)
     if (store.state.destinationAmount != destinationAmount) {
       store.state.destinationAmount = destinationAmount
@@ -67,7 +68,7 @@ const calculateFeeAndDestinationAmount = () => {
     }
   } else if (decDiff == 0) {
     // source token and destination token have same decimals
-    //console.log('same decimals', destInSourceDecimals.toFixed(0, 1))
+    logger.debug('same decimals', destInSourceDecimals.toFixed(0, 1))
     const destinationAmount = destInSourceDecimals.toFixed(0, 1)
     if (store.state.destinationAmount != destinationAmount) {
       store.state.destinationAmount = destinationAmount
@@ -75,7 +76,7 @@ const calculateFeeAndDestinationAmount = () => {
     }
   } else if (decDiff < 0) {
     // destination token has more decimals than source token
-    //console.log('destination token has more decimals than source token')
+    logger.debug('destination token has more decimals than source token')
     const destinationAmount = destInSourceDecimals.dividedToIntegerBy(10 ** (-1 * decDiff)).toFixed(0, 1)
     if (store.state.destinationAmount != destinationAmount) {
       store.state.destinationAmount = destinationAmount
@@ -107,7 +108,7 @@ const calculateFeeAndDestinationAmount = () => {
     const sourceInDestinationDecimals = new BigNumber(store.state.sourceAmountNet).multipliedBy(10 ** decDiff).toFixed(0, 1)
     if (store.state.destinationAmount != sourceInDestinationDecimals) {
       const difference = new BigNumber(store.state.destinationAmount).minus(new BigNumber(sourceInDestinationDecimals))
-      //console.log('difference', difference.toFixed(0, 1))
+      logger.debug('difference', difference.toFixed(0, 1))
       if (difference.gt(0)) {
         // destination amount is greater than source amount all based in destination decimals
         store.state.destinationAmount = sourceInDestinationDecimals
@@ -129,7 +130,7 @@ const calculateFeeAndDestinationAmount = () => {
     const sourceInDestinationDecimals = new BigNumber(store.state.sourceAmountNet).dividedToIntegerBy(power).toFixed(0, 1)
     if (store.state.sourceAmountNet != destinationInSourceDecimals) {
       const difference = new BigNumber(store.state.sourceAmountNet).minus(new BigNumber(destinationInSourceDecimals))
-      //console.log('difference', difference.toFixed(0, 1))
+      logger.debug('difference', difference.toFixed(0, 1))
       if (difference.gt(0)) {
         // source amount is greater than destination amount all based in source decimals
         store.state.sourceAmountNet = destinationInSourceDecimals
@@ -150,14 +151,14 @@ const calculateFeeAndDestinationAmount = () => {
     store.state.destinationAmountFormatted = destinationAmountFormatted
     updated = true
   }
-  // if (updated) {
-  //   console.log('calculate destination amount update 2:', {
-  //     sourceAmount: store.state.sourceAmount,
-  //     sourceAmountNet: store.state.sourceAmountNet,
-  //     feeAmount: store.state.feeAmount,
-  //     destinationAmount: store.state.destinationAmount
-  //   })
-  // }
+  if (updated) {
+    logger.debug('calculate destination amount update 2:', {
+      sourceAmount: store.state.sourceAmount,
+      sourceAmountNet: store.state.sourceAmountNet,
+      feeAmount: store.state.feeAmount,
+      destinationAmount: store.state.destinationAmount
+    })
+  }
 }
 
 export default calculateFeeAndDestinationAmount

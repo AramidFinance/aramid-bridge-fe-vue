@@ -138,17 +138,26 @@ watch(
 <template>
   <div :class="store.state.dialogSelectSourceAssetIsOpen ? '' : 'hidden'">
     <div class="full-screen backdrop-blur-sm z-[100]" @click="store.state.dialogSelectSourceAssetIsOpen = false"></div>
-    <div class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col z-[101] max-h-[80vh] w-[90vw] max-w-[600px]">
+    <div
+      class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col z-[101] max-h-[80vh] w-[90vw] max-w-[600px]"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="select-source-asset-title"
+      @keydown.esc="store.state.dialogSelectSourceAssetIsOpen = false"
+    >
       <div class="bg-gradient-to-r from-topleft-purple to-bottomright-purple drop-shadow-menu-default rounded-[26px] p-3 flex flex-col h-full">
-        <DialogTitle> Select asset which you want to bridge to other chain </DialogTitle>
+        <DialogTitle id="select-source-asset-title"> Select asset which you want to bridge to other chain </DialogTitle>
 
         <!-- Search Bar -->
         <div class="mb-4">
+          <label for="source-asset-search" class="sr-only">Search tokens by name, symbol, or address</label>
           <input
+            id="source-asset-search"
             v-model="searchQuery"
             type="text"
             placeholder="Search tokens by name, symbol, or address..."
             class="w-full px-4 py-2 rounded-[16px] bg-white/10 border border-white/20 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-transparent"
+            autofocus
           />
         </div>
 

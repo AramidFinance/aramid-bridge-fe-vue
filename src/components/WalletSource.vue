@@ -23,6 +23,8 @@ import WalletAddress from './ui/WalletAddress.vue'
 import BigNumber from 'bignumber.js'
 import { useI18n } from 'vue-i18n'
 import { formatTooltip } from '@/scripts/common/formatTooltip'
+import debounce from '@/scripts/common/debounce'
+import logger from '@/scripts/common/conditionalLogger'
 
 const { t } = useI18n()
 const { setActiveNetwork, activeWallet, activeAccount } = useWallet()
@@ -45,7 +47,7 @@ const fillInState = () => {
     fillSourceTokenConfiguration()
     state.connected = !!store.state.connectedSourceChain && !!store.state.sourceAddress
   } catch (e: any) {
-    console.error(e)
+    logger.error(e)
     toast.add({
       severity: 'error',
       detail: e.message ?? e,
@@ -65,8 +67,8 @@ const onSourceAddressChange = async () => {
     const { name: sourceChainName, type: sourceChainType, chainId: sourceChainId } = sourceChainConfiguration
     const sourceTokenConfig = store.state.sourceTokenConfiguration as any
     const { type: sourceTokenType, contractId: sourceTokenContractId, unitAppId: sourceTokenUnitAppId, chainId: sourceTokenChainId } = sourceTokenConfig
-    console.log('sourceTokenType', sourceTokenType)
-    console.log('sourceTokenConfig', sourceTokenConfig)
+    logger.debug('sourceTokenType', sourceTokenType)
+    logger.debug('sourceTokenConfig', sourceTokenConfig)
     if (sourceTokenType == 'algo') {
       switch (sourceChainName) {
         case 'Voi': {
@@ -75,7 +77,7 @@ const onSourceAddressChange = async () => {
             if (balance !== null) {
               store.state.sourceAddressBalance = balance.toString()
               store.state.loadingSourceAddressBalance = false
-              //console.log('onSourceAddressChange.balance', store.state.sourceAddressBalance, store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
+              logger.debug('onSourceAddressChange.balance', store.state.sourceAddressBalance, store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
             }
           } else {
             store.state.loadingSourceAddressBalance = true
@@ -94,7 +96,7 @@ const onSourceAddressChange = async () => {
           if (balance !== null) {
             store.state.sourceAddressBalance = balance.toString()
             store.state.loadingSourceAddressBalance = false
-            //console.log('onSourceAddressChange.balance', store.state.sourceAddressBalance, store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
+            logger.debug('onSourceAddressChange.balance', store.state.sourceAddressBalance, store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
           }
         }
       }
@@ -105,12 +107,12 @@ const onSourceAddressChange = async () => {
       if (balance !== null) {
         store.state.sourceAddressBalance = balance.toString()
         store.state.loadingSourceAddressBalance = false
-        //console.log('onSourceAddressChange.balance', store.state.sourceAddressBalance, store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
+        logger.debug('onSourceAddressChange.balance', store.state.sourceAddressBalance, store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
       }
     }
   } catch (e: any) {
     store.state.loadingSourceAddressBalance = false
-    console.error(e)
+    logger.error(e)
     toast.add({
       severity: 'error',
       detail: e.message,
@@ -120,10 +122,13 @@ const onSourceAddressChange = async () => {
   }
 }
 
+// Debounced version to prevent excessive RPC calls
+const debouncedOnSourceAddressChange = debounce(onSourceAddressChange, 300)
+
 onMounted(async () => {
   state.publicConfiguration = await getPublicConfiguration(false)
   fillInState()
-  //console.log('WalletSource.activeAccount.value', activeWallet.value, activeAccount.value)
+  logger.debug('WalletSource.activeAccount.value', activeWallet.value, activeAccount.value)
 
   if (store.state.sourceChainConfiguration?.type == 'algo' && activeWallet.value && activeAccount.value?.address) {
     store.state.sourceAddress = activeAccount.value?.address
@@ -137,16 +142,16 @@ onMounted(async () => {
 
 watch(
   () => store.state.sourceChain,
-  async () => {
+  () => {
     fillInState()
-    await onSourceAddressChange()
+    debouncedOnSourceAddressChange()
   }
 )
 watch(
   () => store.state.sourceAddress,
-  async () => {
+  () => {
     fillInState()
-    await onSourceAddressChange()
+    debouncedOnSourceAddressChange()
   }
 )
 
@@ -155,7 +160,7 @@ watch(
   () => {
     fillInState()
     if (store.state.sourceChainConfiguration?.type == 'algo') {
-      //console.log('setActiveNetwork', store.state.sourceChainConfiguration.name)
+      logger.debug('setActiveNetwork', store.state.sourceChainConfiguration.name)
       switch (store.state.sourceChainConfiguration.name) {
         case 'Algorand':
           setActiveNetwork(NetworkId.MAINNET)
@@ -176,15 +181,15 @@ watch(
 
 watch(
   () => store.state.connectedSourceChain,
-  async () => {
+  () => {
     fillInState()
-    await onSourceAddressChange()
+    debouncedOnSourceAddressChange()
   }
 )
 watch(
   () => store.state.sourceToken,
-  async () => {
-    await onSourceAddressChange()
+  () => {
+    debouncedOnSourceAddressChange()
   }
 )
 const buttonClick = async () => {
@@ -202,7 +207,7 @@ const buttonClick = async () => {
           try {
             activeWallet.value?.disconnect()
           } catch (e: any) {
-            console.error(e)
+            logger.error(e)
             toast.add({
               severity: 'error',
               detail: e.message ?? e,
@@ -233,38 +238,37 @@ const buttonClick = async () => {
         await asyncdelay(500)
       }
 
-      //console.log('0x1 address is ', isConnected.value, address.value, new Date())
+      logger.debug('0x1 address is ', isConnected.value, address.value, new Date())
       if (isConnected.value && address.value) {
         store.state.connectedSourceChain = store.state.sourceChain
         store.state.sourceAddress = address.value
       } else {
         await modal?.open()
-        //console.log('0x2 address is ', isConnected.value, address.value, new Date())
-        if (isConnected.value && address.value) {
-          store.state.connectedSourceChain = store.state.sourceChain
-          store.state.sourceAddress = address.value
-          return
+
+        // Use Promise.race to wait for connection with timeout (Task 4.3)
+        const connectionTimeout = 5000
+        const startTime = Date.now()
+
+        const checkConnection = async () => {
+          while (Date.now() - startTime < connectionTimeout) {
+            if (isConnected.value && address.value) {
+              store.state.connectedSourceChain = store.state.sourceChain
+              store.state.sourceAddress = address.value
+              return true
+            }
+            await asyncdelay(100)
+          }
+          return false
         }
-        await asyncdelay(1000)
-        //console.log('0x3 address is ', isConnected.value, address.value, new Date())
-        if (isConnected.value && address.value) {
-          store.state.connectedSourceChain = store.state.sourceChain
-          store.state.sourceAddress = address.value
-          return
-        }
-        await asyncdelay(5000)
-        //console.log('0x4 address is ', isConnected.value, address.value, new Date())
-        if (isConnected.value && address.value) {
-          store.state.connectedSourceChain = store.state.sourceChain
-          store.state.sourceAddress = address.value
-          return
-        }
-        await asyncdelay(10000)
-        //console.log('0x5 address is ', isConnected.value, address.value, new Date())
-        if (isConnected.value && address.value) {
-          store.state.connectedSourceChain = store.state.sourceChain
-          store.state.sourceAddress = address.value
-          return
+
+        const connected = await checkConnection()
+        if (!connected) {
+          logger.warn('Wallet connection timeout after 5s')
+          toast.add({
+            severity: 'warn',
+            detail: 'Wallet connection timed out. Please try again.',
+            life: 3000
+          })
         }
       }
 

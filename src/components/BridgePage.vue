@@ -345,7 +345,7 @@ watch(
   <MainBox>
     <div class="flex flex-row w-full">
       <div class="text-left font-extrabold text-xl w-full grow flex-1 hidden md:block">
-        {{ t('bridge.title') }} <span class="text-[#FB7EFF]">{{ t('bridge.titleCrossChain') }}</span>
+        {{ t('bridge.title') }} <span class="text-accent">{{ t('bridge.titleCrossChain') }}</span>
       </div>
       <img src="../assets/images/aramid-logo.svg" alt="Aramid" width="150" class="align-right text-right self-right" />
     </div>
@@ -363,8 +363,8 @@ watch(
       <AmountDestination></AmountDestination>
     </div>
     <div class="mt-4 w-full">
-      <SimpleLabel>{{ t('transaction.memo') }}</SimpleLabel>
-      <input :maxlength="50" class="bg-white-rgba rounded-[10px] focus:outline-none w-full mt-1 3xl:mt-3 4xl:mt-6 p-1 3xl:p-3 4xl:p-6 text-base w-full" type="text" v-model="store.state.memo" />
+      <SimpleLabel for="transaction-memo-input">{{ t('transaction.memo') }}</SimpleLabel>
+      <input id="transaction-memo-input" :maxlength="50" class="bg-white-rgba rounded-[10px] focus:outline-none w-full mt-1 3xl:mt-3 4xl:mt-6 p-1 3xl:p-3 4xl:p-6 text-base w-full" type="text" v-model="store.state.memo" aria-label="Transaction memo" />
     </div>
     <Message severity="error" v-if="state.error" class="mt-4 w-full">{{ state.error }}</Message>
     <Message severity="warn" v-if="store.state.escrowBalanceIsSufficient && !store.state.escrowBalanceIsSufficient10x" class="mt-4 w-full">

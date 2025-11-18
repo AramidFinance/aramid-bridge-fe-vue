@@ -196,13 +196,20 @@ const switchClick = () => {
 <template>
   <div class="text-[12px] text-center 3xl:text-xl 4xl:text-2xl my-2">Origin</div>
   <div class="flex flex-row items-center justify-between">
-    <hr class="h-px my-6 w-4/12 md:w-7/12 bg-[#F6F6F629] border-0 dark:bg-gray-700" />
-    <div class="w-10 p-2 cursor-pointer bg-[#190B29] border-[#FB7EFF99] border-2 rounded-full hover:bg-white-0.2" @click="switchClick">
+    <hr class="h-px my-6 w-4/12 md:w-7/12 bg-divider border-0 dark:bg-gray-700" />
+    <button
+      type="button"
+      class="w-10 p-2 cursor-pointer bg-secondary border-accent border-2 rounded-full hover:bg-white-0.2 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-transparent"
+      @click="switchClick"
+      @keydown.enter="switchClick"
+      @keydown.space.prevent="switchClick"
+      aria-label="Switch origin and destination chains"
+    >
       <span>
         <img
           color="red"
           id="reverse-button"
-          alt="reverse"
+          alt="Reverse the direction between origin and destination"
           title="Reverse the direction"
           loading="lazy"
           width="20"
@@ -214,8 +221,8 @@ const switchClick = () => {
           style="color: transparent; width: 100%; height: auto"
         />
       </span>
-    </div>
-    <hr class="h-px my-6 w-4/12 md:w-7/12 bg-[#F6F6F629] border-0 dark:bg-gray-700" />
+    </button>
+    <hr class="h-px my-6 w-4/12 md:w-7/12 bg-divider border-0 dark:bg-gray-700" />
   </div>
   <div class="text-[12px] text-center 3xl:text-xl 4xl:text-2xl my-2">Destination</div>
 </template>
