@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import SimpleLabel from './ui/SimpleLabel.vue'
+import logger from "@/scripts/common/conditionalLogger"
 import DropDown from './ui/DropDown.vue'
 import SelectSourceAssetDialog from './dialogs/SelectSourceAssetDialog.vue'
 
@@ -30,7 +31,7 @@ const fillInState = () => {
   try {
     fillSourceTokenConfiguration(undefined, route.params['sourceToken'])
   } catch (e: any) {
-    console.error(e)
+    logger.error(e)
     toast.add({
       severity: 'error',
       detail: e.message ?? e,

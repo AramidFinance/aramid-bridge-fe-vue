@@ -5,6 +5,8 @@ import asyncdelay from '../common/asyncDelay'
 import algosdk from 'algosdk'
 import getAlgodClientByChainId from './getAlgodClientByChainId'
 import { arc200 } from 'ulujs'
+import logger from '@/scripts/common/conditionalLogger'
+import { indexerLimiter } from '@/utils/rateLimit'
 
 const getAlgoAccountTokenBalance = async (chainId: number, accountAddress: string, contractId: number, assetId: number): Promise<BigNumber | null> => {
   try {
@@ -12,6 +14,8 @@ const getAlgoAccountTokenBalance = async (chainId: number, accountAddress: strin
     const secureConfiguration = await getSecureConfiguration()
     if (!secureConfiguration?.chains || !secureConfiguration.chains[chainId]) return null
 
+    // Apply rate limiting for indexer queries
+    await indexerLimiter.throttle()
     await asyncdelay(200)
 
     // For ARC200 we need both algod and indexer clients, but we'll use the first available
@@ -20,7 +24,7 @@ const getAlgoAccountTokenBalance = async (chainId: number, accountAddress: strin
     const algodClient = await getAlgodClientByChainId(chainId)
 
     if (!indexerClient || !algodClient) {
-      console.error('Failed to get algod or indexer client for ARC200')
+      logger.error('Failed to get algod or indexer client for ARC200')
       return new BigNumber('0')
     }
 
@@ -41,12 +45,12 @@ const getAlgoAccountTokenBalance = async (chainId: number, accountAddress: strin
 
     if (balance == BigInt(0)) return new BigNumber('0') // if no ARC200-ASA and no ARC200, return 0
 
-    //console.log('algo.account', chainId, accountAddress, contractId, assetId, balance, asaAmount)
+    //logger.debug('algo.account', chainId, accountAddress, contractId, assetId, balance, asaAmount)
     const ret = new BigNumber((asaAmount + balance).toString()) // combine ARC200 and ARC200-ASA
-    //console.log('account.amount', ret.toFixed(0, 1))
+    //logger.debug('account.amount', ret.toFixed(0, 1))
     return ret
   } catch (e) {
-    console.error(e)
+    logger.error(e)
     return new BigNumber('0')
   }
 }

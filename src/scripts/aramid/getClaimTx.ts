@@ -1,28 +1,29 @@
 import { getBridgeLog } from '../algo/getBridgeLog'
 import type { IClaim } from '../interface/aramid/IClaim'
 import type { IEthIPFSData } from '../interface/aramid/IEthIPFSData'
+import logger from '@/scripts/common/conditionalLogger'
 
 export const getClaimTx = async (txHash: string): Promise<string | null> => {
   try {
     const bridgeLog = await getBridgeLog()
-    console.log('bridgeLog', bridgeLog)
+    logger.debug('bridgeLog', bridgeLog)
 
     if (!bridgeLog) {
       throw new Error('Failed to fetch bridge log from indexer. The indexer service may be temporarily unavailable.')
     }
 
-    console.log('aramid transactions:', bridgeLog)
+    logger.debug('aramid transactions:', bridgeLog)
     const transactions = bridgeLog.transactions
 
     if (!transactions || transactions.length === 0) {
       throw new Error('No transactions found in bridge log. The indexer may not have synced yet.')
     }
 
-    console.log('searching transactions for', txHash)
+    logger.debug('searching transactions for', txHash)
 
     for (const currTx of transactions) {
       if (!currTx.note) {
-        console.error('!currTx.note', currTx)
+        logger.error('!currTx.note', currTx)
         continue
       }
 
@@ -39,7 +40,7 @@ export const getClaimTx = async (txHash: string): Promise<string | null> => {
         if (txType === 'aramid-claim/v1') {
           const noteObj: IClaim = JSON.parse(noteObjStr)
           if (noteObj.sourceTransactionId !== txHash) continue
-          console.log('found aramid-claim')
+          logger.debug('found aramid-claim')
           if (noteObj.ipfsHash) return currTx.id
           if (noteObj.aramidChainTx) return noteObj.aramidChainTx
           continue
@@ -48,12 +49,12 @@ export const getClaimTx = async (txHash: string): Promise<string | null> => {
         if (txType === 'aramid-claim-data/v1') {
           const noteObj: IEthIPFSData = JSON.parse(noteObjStr)
           if (noteObj.sourceTransactionId !== txHash) continue
-          console.log('found aramid-claim-data')
+          logger.debug('found aramid-claim-data')
           return currTx.id
         }
       } catch (parseError) {
         // Log parse errors but continue searching other transactions
-        console.error('Error parsing transaction note:', parseError)
+        logger.error('Error parsing transaction note:', parseError)
         continue
       }
     }

@@ -20,6 +20,8 @@ import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import { executeEthRedeemTx } from '@/scripts/eth/executeEthRedeemTx'
 import { fillInStateFromClaimData } from '@/scripts/events/fillInStateFromClaimData'
 import { resetStateSoft } from '@/scripts/common/resetStateSoft'
+import logger from '@/scripts/common/conditionalLogger'
+import { sanitizeInput, isValidTxHash } from '@/utils/sanitize'
 const toast = useToast()
 const router = useRouter()
 const store = useAppStore()
@@ -45,20 +47,23 @@ const setClaimErrorMessage = (val: string) => {
 }
 
 const searchForTx = async (searchTxHash: string) => {
-  console.log('searching for eth tx: 1', searchTxHash)
+  logger.debug('searching for eth tx: 1', searchTxHash)
+
+  // Sanitize input to prevent XSS attacks
+  const sanitizedTxHash = sanitizeInput(searchTxHash, 100)
 
   // Clear previous errors when starting a new search
   setClaimErrorMessage('')
   setIsSearching(true)
 
   try {
-    if (validAlgoTxHash(searchTxHash)) {
-      console.log('validAlgoTxHash:', searchTxHash)
-      const claimTx = await getClaimTx(searchTxHash)
-      console.log('claimTx', claimTx)
+    if (validAlgoTxHash(sanitizedTxHash)) {
+      logger.debug('validAlgoTxHash:', sanitizedTxHash)
+      const claimTx = await getClaimTx(sanitizedTxHash)
+      logger.debug('claimTx', claimTx)
       if (claimTx) {
         const claimData = await getTxClaimData(claimTx)
-        console.log('claimData', claimData)
+        logger.debug('claimData', claimData)
 
         if (claimData) {
           await fillInStateFromClaimData(claimData)
@@ -67,11 +72,11 @@ const searchForTx = async (searchTxHash: string) => {
         setClaimErrorMessage('Transaction not found in the indexer.')
       }
       setIsSearching(false)
-    } else if (validEthTxHash(searchTxHash)) {
-      console.log('validEthTxHash:', searchTxHash)
+    } else if (validEthTxHash(sanitizedTxHash)) {
+      logger.debug('validEthTxHash:', sanitizedTxHash)
       try {
-        const res = await getClaimTx(searchTxHash)
-        console.log('claim tx:', res)
+        const res = await getClaimTx(sanitizedTxHash)
+        logger.debug('claim tx:', res)
         if (!res) {
           setClaimErrorMessage('Transaction not found in the indexer.')
           setIsSearching(false)
@@ -79,24 +84,24 @@ const searchForTx = async (searchTxHash: string) => {
         }
         const data = await getTxClaimData(res)
         if (data) {
-          console.log('claimData', data)
+          logger.debug('claimData', data)
           await fillInStateFromClaimData(data)
           store.state.claimData = data
         }
         setIsSearching(false)
       } catch (error: any) {
-        console.error('Error searching for transaction:', error)
+        logger.error('Error searching for transaction:', error)
         setClaimErrorMessage(error.message || 'Failed to search for transaction. Please try again.')
         setIsSearching(false)
       }
-    } else if (searchTxHash) {
+    } else if (sanitizedTxHash) {
       setClaimErrorMessage('Invalid transaction hash format.')
       setIsSearching(false)
     } else {
       setIsSearching(false)
     }
   } catch (error: any) {
-    console.error('Error during transaction search:', error)
+    logger.error('Error during transaction search:', error)
     setClaimErrorMessage(error.message || 'An unexpected error occurred. Please try again.')
     setIsSearching(false)
   }
@@ -111,8 +116,6 @@ onMounted(async () => {
   if (state.inputTx) {
     searchForTx(state.inputTx)
   }
-
-  //console.log('modal', modal)
 })
 
 const getSourceChainImageUrl = () => {
@@ -130,7 +133,6 @@ const claimButtonClick = async () => {
 
     const { switchNetwork } = useSwitchNetwork()
     if (!web3ModalProvider.walletProvider.value) {
-      //console.log('modal', modal)
       await modal?.open()
     }
     if (!web3ModalProvider.walletProvider.value) {
@@ -138,7 +140,7 @@ const claimButtonClick = async () => {
     }
 
     if (store.state.destinationChain) {
-      console.log('chainId.value ? store.state.destinationChain', chainId.value, store.state.destinationChain)
+      logger.debug('chainId.value ? store.state.destinationChain', chainId.value, store.state.destinationChain)
       if (chainId.value != store.state.destinationChain) {
         //provider.open()
         toast.add({
@@ -146,26 +148,26 @@ const claimButtonClick = async () => {
           detail: `Please switch to ${store.state.destinationChainConfiguration?.name} in your wallet, and claim again`,
           life: 10000
         })
-        console.log('switching network to', store.state.destinationChain)
+        logger.debug('switching network to', store.state.destinationChain)
         state.claiming = false
         await switchNetwork(store.state.destinationChain)
-        console.log('after switching network to', store.state.destinationChain)
+        logger.debug('after switching network to', store.state.destinationChain)
         //return
       }
     }
     const releaseInfo = await executeEthRedeemTx()
     state.resultTx = releaseInfo.hash
-    console.log('releaseInfo', releaseInfo)
+    logger.debug('releaseInfo', releaseInfo)
     state.claimed = true
     state.claiming = false
   } catch (e: any) {
     state.claiming = false
-    console.error(e)
+    logger.error(e)
     if ((e.message as string).indexOf('Transaction ID already processed') > 0) {
       state.claimed = true
       return
     }
-    console.error(e)
+    logger.error(e)
     toast.add({
       severity: 'error',
       detail: e.message ?? e,
@@ -190,13 +192,14 @@ const resetButtonClick = async () => {
         <input
           :disabled="state.fromRoute"
           :maxlength="50"
-          class="bg-white-rgba rounded-[10px] focus:outline-none w-full mt-1 3xl:mt-3 4xl:mt-6 p-1 3xl:p-3 4xl:p-6 text-base w-full p-3"
+          class="bg-bg-elevated rounded-lg focus:outline-none w-full mt-1 3xl:mt-3 4xl:mt-6 p-1 3xl:p-3 4xl:p-6 text-base w-full p-3"
           type="text"
           v-model="state.inputTx"
         />
 
         <!-- Loading spinner during search -->
-        <div v-if="state.isSearching" class="mt-4 text-center">
+        <div v-if="state.isSearching" class="mt-4 text-center" role="status" aria-live="polite">
+          <span class="sr-only">Searching for transaction...</span>
           <div class="inline-flex items-center gap-2 text-accent font-medium">
             <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -207,7 +210,7 @@ const resetButtonClick = async () => {
         </div>
 
         <!-- Error message display -->
-        <div v-if="state.claimErrorMessage && !state.isSearching" class="mt-4 p-4 rounded-lg border border-red-500 bg-red-500/10">
+        <div v-if="state.claimErrorMessage && !state.isSearching" class="mt-4 p-4 rounded-lg border border-red-500 bg-red-500/10" role="alert" aria-live="assertive">
           <div class="flex items-start gap-3">
             <svg class="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>

@@ -1,5 +1,6 @@
 import { useAppStore } from '@/stores/app'
 import { fillRouteInfo } from './fillRouteInfo'
+import logger from '@/scripts/common/conditionalLogger'
 
 export const resetSourceChainIfNotMatched = () => {
   const store = useAppStore()
@@ -10,7 +11,7 @@ export const resetSourceChainIfNotMatched = () => {
   if (!store.state.publicConfiguration.chains2tokens[store.state.sourceChain.toString()]) return
 
   if (!store.state.publicConfiguration.chains2tokens[store.state.sourceChain.toString()][store.state.destinationChain.toString()]) {
-    console.log('resetSourceChainIfNotMatched')
+    logger.debug('resetSourceChainIfNotMatched')
     store.state.sourceChain = undefined
     store.state.sourceChainConfiguration = undefined
   }

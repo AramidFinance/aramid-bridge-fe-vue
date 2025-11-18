@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAppStore } from '@/stores/app'
+import logger from "@/scripts/common/conditionalLogger"
 import CopyIcon from './ui/CopyIcon.vue'
 import MainBox from './ui/MainBox.vue'
 import WalletAddress from './ui/WalletAddress.vue'
@@ -116,13 +117,13 @@ const { activeWallet } = useWallet()
 const { avmActiveWallet, activeAccount } = useAvmWallet()
 
 const routeToReviewScreen = () => {
-  console.log('routeToReviewScreen')
-  console.log('route', route)
+  logger.debug('routeToReviewScreen')
+  logger.debug('route', route)
   router.push({ name: 'review-sc-dc-st-dt-sa-da-a-n' })
 }
 
 const matchBridgeTxByDataClick = async () => {
-  console.log('matchBridgeTxByDataClick')
+  logger.debug('matchBridgeTxByDataClick')
   if (!store.state.bridgeTx && store.state.sourceChain) {
     if (store.state.sourceChainConfiguration?.type == 'algo') {
       const txId = await checkSourceAlgoTx()
@@ -136,7 +137,7 @@ const matchBridgeTxByDataClick = async () => {
             }
           }
         } catch (error) {
-          console.error('Error checking transaction confirmation:', error)
+          logger.error('Error checking transaction confirmation:', error)
         }
       }
     }
@@ -153,7 +154,7 @@ const matchBridgeTxByDataClick = async () => {
 const claimLink = ref('')
 
 const checkSourceTx = async () => {
-  console.log('checkSourceTx', store.state.claimTx, store.state.bridgeTx)
+  logger.debug('checkSourceTx', store.state.claimTx, store.state.bridgeTx)
   if (!store.state.claimTx && store.state.bridgeTx) {
     if (store.state.destinationChainConfiguration?.type == 'eth') {
       const claimTx = await getClaimTx(store.state.bridgeTx)
@@ -391,7 +392,7 @@ const signWithUseWallet = async () => {
       store.state.bridgeTx = tx
     }
   } catch (e: any) {
-    console.error(e)
+    logger.error(e)
     toast.add({
       severity: 'error',
       detail: e.message ?? e,
@@ -408,7 +409,7 @@ onBeforeUnmount(() => {
 
 const resetButtonClick = async () => {
   resetStateSoft()
-  console.log('resetButtonClick')
+  logger.debug('resetButtonClick')
   store.state.claimData = undefined
   await router.push({ name: 'bridge-sc-dc-st-dt-sa-da-a-n' })
 }
@@ -416,7 +417,7 @@ const resetButtonClick = async () => {
 const claimTxPending = ref(false)
 
 const claimButtonClick = async () => {
-  console.log('claimButtonClick')
+  logger.debug('claimButtonClick')
   try {
     claimTxPending.value = true
     if (!store.state.destinationTokenConfiguration?.arc200TokenId) return
@@ -541,7 +542,7 @@ const claimButtonClick = async () => {
     // Reset state and redirect
     await resetButtonClick()
   } catch (e: any) {
-    console.error(e)
+    logger.error(e)
     toast.add({
       severity: 'error',
       detail: e.message ?? e,
@@ -558,7 +559,7 @@ const claimButtonClick = async () => {
     <div class="w-[80vw] md:w-full flex flex-row gap-4 items-center mb-4">
       <div
         id="edit-button"
-        class="px-2 items-center flex backdrop-blur-xl rounded-[80px] place-content-start select-none justify-between opacity-70 font-semibold text-[14px] cursor-pointer"
+        class="px-2 items-center flex backdrop-blur-xl rounded-full place-content-start select-none justify-between opacity-70 font-semibold text-[14px] cursor-pointer"
         style="border: 1px solid rgba(246, 246, 246, 0.16); background: rgba(246, 246, 246, 0.16)"
         @click="routeToReviewScreen"
       >
@@ -631,7 +632,8 @@ const claimButtonClick = async () => {
         <p>Please check your wallet to verify the received assets.</p>
         <div v-if="store.state.destinationTokenConfiguration?.arc200TokenId">
           <template v-if="claimTxPending">
-            <p class="text-center">
+            <p class="text-center" role="status" aria-live="polite">
+              <span class="sr-only">Processing claim transaction</span>
               <img :src="loader" alt="Loading" height="18" width="18" class="inline-block" />
               Claiming transaction in progress...
             </p>

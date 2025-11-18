@@ -14,7 +14,7 @@ import { useAppStore } from '@/stores/app'
 import { useWeb3ModalAccount } from '@web3modal/ethers/vue'
 import { useWallet } from 'avm-wallet-vue'
 import { useToast } from 'primevue/usetoast'
-import { onMounted, reactive, watch } from 'vue'
+import { onMounted, onUnmounted, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SelectDestinationWalletDialog from './dialogs/SelectDestinationWalletDialog.vue'
 import RoundButton from './ui/RoundButton.vue'
@@ -22,11 +22,19 @@ import WalletAddress from './ui/WalletAddress.vue'
 import { formatTooltip } from '@/scripts/common/formatTooltip'
 import debounce from '@/scripts/common/debounce'
 import logger from '@/scripts/common/conditionalLogger'
+import TIMEOUTS from '@/config/timeouts'
 
 const { t } = useI18n()
 const store = useAppStore()
 const toast = useToast()
 const { setActiveNetwork, avmActiveWallet, activeAccount } = useWallet()
+
+// Request ID counter for balance fetching race condition prevention
+let currentRequestId = 0
+
+// Store watcher stop functions for cleanup
+const stopWatchers: Array<() => void> = []
+
 interface IState {
   connected: boolean
   publicConfiguration: PublicConfigurationRoot | null
@@ -51,12 +59,12 @@ onMounted(async () => {
   fillInState()
 })
 
-watch(
+stopWatchers.push(watch(
   () => store.state.destinationAddress,
   () => {
     fillInState()
   }
-)
+))
 const buttonClick = async () => {
   if (state.connected) {
     // disconnect
@@ -77,31 +85,36 @@ const buttonClick = async () => {
       } else {
         await modal?.open()
 
-        // Use Promise.race to wait for connection with timeout (Task 4.3)
-        const connectionTimeout = 5000
-        const startTime = Date.now()
+        // Event-driven connection check with timeout (fixes busy-wait regression)
+        const checkConnection = async (): Promise<boolean> => {
+          return new Promise((resolve) => {
+            // Set up timeout
+            const timeoutId = setTimeout(() => {
+              unwatch()
+              logger.debug('Wallet connection timeout after 30s')
+              toast.add({
+                severity: 'warn',
+                summary: t('wallet.connectionTimeout'),
+                detail: t('wallet.connectionTimeoutDetail'),
+                life: 5000
+              })
+              resolve(false)
+            }, TIMEOUTS.WALLET_CONNECTION)
 
-        const checkConnection = async () => {
-          while (Date.now() - startTime < connectionTimeout) {
-            if (isConnected.value && address.value) {
-              store.state.connectedDestinationChain = store.state.destinationChain
-              store.state.destinationAddress = address.value
-              return true
-            }
-            await asyncdelay(100)
-          }
-          return false
-        }
-
-        const connected = await checkConnection()
-        if (!connected) {
-          logger.warn('Wallet connection timeout after 5s')
-          toast.add({
-            severity: 'warn',
-            detail: 'Wallet connection timed out. Please try again.',
-            life: 3000
+            // Watch for connection - reactive, not polling
+            const unwatch = watch([isConnected, address], ([conn, addr]) => {
+              if (conn && addr) {
+                clearTimeout(timeoutId)
+                unwatch()
+                store.state.connectedDestinationChain = store.state.destinationChain
+                store.state.destinationAddress = addr
+                resolve(true)
+              }
+            }, { immediate: true })
           })
         }
+
+        await checkConnection()
       }
     }
   }
@@ -132,6 +145,10 @@ const getImageUrl = () => {
 }
 
 const onDestinationAddressChange = async () => {
+  // FIX: Increment request ID before any async work to track this request
+  const requestId = ++currentRequestId
+  logger.debug(`Starting destination balance fetch request ${requestId}`)
+
   try {
     // refresh balance of destination account
     if (!store.state.destinationChain) return
@@ -144,6 +161,12 @@ const onDestinationAddressChange = async () => {
     const destinationTokenConfig = store.state.destinationTokenConfiguration as any
     const { type: destinationTokenType, contractId: destinationTokenContractId, unitAppId: destinationTokenUnitAppId, chainId: destinationTokenChainId } = destinationTokenConfig
 
+    // Only proceed if this is still the latest request
+    if (requestId !== currentRequestId) {
+      logger.debug(`Cancelling stale request ${requestId}, current is ${currentRequestId}`)
+      return
+    }
+
     logger.debug('destinationTokenType', destinationTokenType)
     logger.debug('destinationTokenConfig', destinationTokenConfig)
 
@@ -151,67 +174,117 @@ const onDestinationAddressChange = async () => {
       switch (destinationChainName) {
         case 'Voi': {
           if (destinationTokenConfig?.arc200TokenId) {
+            // Set loading state only for current request
+            if (requestId === currentRequestId) {
+              store.state.loadingDestinationAddressBalance = true
+            }
+
             const balance = await getAlgoAccountARC200TokenBalance(
               store.state.destinationChain,
               store.state.destinationAddress,
               Number(destinationTokenConfig?.arc200TokenId),
               Number(store.state.destinationToken)
             )
-            if (balance !== null) {
-              store.state.destinationAddressBalance = balance.toString()
+
+            // Only update state if this is still the latest request
+            if (requestId === currentRequestId) {
+              if (balance !== null) {
+                store.state.destinationAddressBalance = balance.toString()
+                logger.debug(`Request ${requestId}: Updated destination balance to ${store.state.destinationAddressBalance}`)
+              }
               store.state.loadingDestinationAddressBalance = false
-              logger.debug('onDestinationAddressChange.balance', store.state.destinationAddressBalance, store.state.destinationChain, store.state.destinationAddress, Number(store.state.destinationToken))
+            } else {
+              logger.debug(`Ignoring stale balance response from request ${requestId}, current is ${currentRequestId}`)
             }
           } else {
-            store.state.loadingDestinationAddressBalance = true
+            // Set loading state only for current request
+            if (requestId === currentRequestId) {
+              store.state.loadingDestinationAddressBalance = true
+            }
+
             const balance = await getAlgoAccountTokenBalance(store.state.destinationChain, store.state.destinationAddress, Number(store.state.destinationToken))
-            if (balance !== null) {
-              store.state.destinationAddressBalance = balance.toString()
+
+            // Only update state if this is still the latest request
+            if (requestId === currentRequestId) {
+              if (balance !== null) {
+                store.state.destinationAddressBalance = balance.toString()
+                logger.debug(`Request ${requestId}: Updated destination balance to ${store.state.destinationAddressBalance}`)
+              }
               store.state.loadingDestinationAddressBalance = false
-              logger.debug('onDestinationAddressChange.balance', store.state.destinationAddressBalance, store.state.destinationChain, store.state.destinationAddress, Number(store.state.destinationToken))
+            } else {
+              logger.debug(`Ignoring stale balance response from request ${requestId}, current is ${currentRequestId}`)
             }
           }
           break
         }
         default: {
-          store.state.loadingDestinationAddressBalance = true
+          // Set loading state only for current request
+          if (requestId === currentRequestId) {
+            store.state.loadingDestinationAddressBalance = true
+          }
+
           const balance = await getAlgoAccountTokenBalance(store.state.destinationChain, store.state.destinationAddress, Number(store.state.destinationToken))
-          if (balance !== null) {
-            store.state.destinationAddressBalance = balance.toString()
+
+          // Only update state if this is still the latest request
+          if (requestId === currentRequestId) {
+            if (balance !== null) {
+              store.state.destinationAddressBalance = balance.toString()
+              logger.debug(`Request ${requestId}: Updated destination balance to ${store.state.destinationAddressBalance}`)
+            }
             store.state.loadingDestinationAddressBalance = false
-            logger.debug('onDestinationAddressChange.balance', store.state.destinationAddressBalance, store.state.destinationChain, store.state.destinationAddress, Number(store.state.destinationToken))
+          } else {
+            logger.debug(`Ignoring stale balance response from request ${requestId}, current is ${currentRequestId}`)
           }
         }
       }
 
-      // Check opt-in status for Algorand chains
-      try {
-        const optin = await getAlgoAccountTokenOptedIn(store.state.destinationChain, store.state.destinationAddress, Number(store.state.destinationToken))
-        if (optin !== null) {
-          store.state.destinationAccountOptedIn = optin
-        } else {
-          store.state.destinationAccountOptedIn = false
+      // Check opt-in status for Algorand chains - only if still current request
+      if (requestId === currentRequestId) {
+        try {
+          const optin = await getAlgoAccountTokenOptedIn(store.state.destinationChain, store.state.destinationAddress, Number(store.state.destinationToken))
+          if (requestId === currentRequestId) {
+            if (optin !== null) {
+              store.state.destinationAccountOptedIn = optin
+            } else {
+              store.state.destinationAccountOptedIn = false
+            }
+          }
+        } catch (e: any) {
+          if (requestId === currentRequestId) {
+            store.state.destinationAccountOptedIn = false
+            logger.error(`Request ${requestId}: Error checking opt-in status:`, e)
+          }
         }
-      } catch (e: any) {
-        store.state.destinationAccountOptedIn = false
-        logger.error('Error checking opt-in status:', e)
       }
     }
 
     if (destinationTokenType == 'eth' && store.state.destinationToken) {
-      store.state.loadingDestinationAddressBalance = true
+      // Set loading state only for current request
+      if (requestId === currentRequestId) {
+        store.state.loadingDestinationAddressBalance = true
+      }
+
       const balance = await getEthAccountTokenBalance(store.state.destinationChain, store.state.destinationAddress, store.state.destinationToken)
-      if (balance !== null) {
-        store.state.destinationAddressBalance = balance.toString()
+
+      // Only update state if this is still the latest request
+      if (requestId === currentRequestId) {
+        if (balance !== null) {
+          store.state.destinationAddressBalance = balance.toString()
+          logger.debug(`Request ${requestId}: Updated destination balance to ${store.state.destinationAddressBalance}`)
+        }
         store.state.loadingDestinationAddressBalance = false
-        logger.debug('onDestinationAddressChange.balance', store.state.destinationAddressBalance, store.state.destinationChain, store.state.destinationAddress, store.state.destinationToken)
+      } else {
+        logger.debug(`Ignoring stale balance response from request ${requestId}, current is ${currentRequestId}`)
       }
     }
 
-    // Check bridge balance if bridge address exists
-    if (store.state.destinationBridgeAddress) {
+    // Check bridge balance if bridge address exists - only if still current request
+    if (store.state.destinationBridgeAddress && requestId === currentRequestId) {
       try {
-        store.state.loadingDestinationEscrowAddressBalance = true
+        if (requestId === currentRequestId) {
+          store.state.loadingDestinationEscrowAddressBalance = true
+        }
+
         let bridgeBalance
 
         if (destinationTokenType == 'algo') {
@@ -220,32 +293,45 @@ const onDestinationAddressChange = async () => {
           bridgeBalance = await getEthAccountTokenBalance(store.state.destinationChain, store.state.destinationBridgeAddress!, store.state.destinationToken)
         }
 
-        if (bridgeBalance) {
-          store.state.destinationBridgeBalance = bridgeBalance.toFixed(0, 1)
+        // Only update state if this is still the latest request
+        if (requestId === currentRequestId) {
+          if (bridgeBalance) {
+            store.state.destinationBridgeBalance = bridgeBalance.toFixed(0, 1)
+          } else {
+            store.state.destinationBridgeBalance = '0'
+          }
+          store.state.loadingDestinationEscrowAddressBalance = false
+          logger.debug(`Request ${requestId}: Updated bridge balance to ${store.state.destinationBridgeBalance}`)
         } else {
-          store.state.destinationBridgeBalance = '0'
+          logger.debug(`Ignoring stale bridge balance from request ${requestId}, current is ${currentRequestId}`)
         }
-        store.state.loadingDestinationEscrowAddressBalance = false
       } catch (e: any) {
-        store.state.destinationBridgeBalance = '0'
-        store.state.loadingDestinationEscrowAddressBalance = false
-        logger.error('Error fetching bridge balance:', e)
-        toast.add({
-          severity: 'error',
-          detail: e.message,
-          life: 3000
-        })
+        if (requestId === currentRequestId) {
+          store.state.destinationBridgeBalance = '0'
+          store.state.loadingDestinationEscrowAddressBalance = false
+          logger.error(`Request ${requestId}: Error fetching bridge balance:`, e)
+          toast.add({
+            severity: 'error',
+            detail: e.message,
+            life: 3000
+          })
+        }
       }
     }
   } catch (e: any) {
-    store.state.loadingDestinationAddressBalance = false
-    store.state.destinationAddressBalance = '0'
-    logger.error(e)
-    toast.add({
-      severity: 'error',
-      detail: e.message,
-      life: 3000
-    })
+    // Only update error state if this is still the latest request
+    if (requestId === currentRequestId) {
+      store.state.loadingDestinationAddressBalance = false
+      store.state.destinationAddressBalance = '0'
+      logger.error(`Request ${requestId} failed:`, e)
+      toast.add({
+        severity: 'error',
+        detail: e.message,
+        life: 3000
+      })
+    } else {
+      logger.debug(`Ignoring error from stale request ${requestId}, current is ${currentRequestId}`)
+    }
     return false
   }
 }
@@ -253,25 +339,31 @@ const onDestinationAddressChange = async () => {
 // Debounced version to prevent excessive RPC calls
 const debouncedOnDestinationAddressChange = debounce(onDestinationAddressChange, 300)
 
-watch(
+stopWatchers.push(watch(
   () => store.state.destinationAddress,
   () => {
     debouncedOnDestinationAddressChange()
   }
-)
+))
 
-watch(
+stopWatchers.push(watch(
   () => store.state.destinationBridgeAddress,
   () => {
     debouncedOnDestinationAddressChange()
   }
-)
-watch(
+))
+stopWatchers.push(watch(
   () => store.state.destinationToken,
   () => {
     debouncedOnDestinationAddressChange()
   }
-)
+))
+
+// Cleanup on unmount to prevent memory leaks
+onUnmounted(() => {
+  stopWatchers.forEach(stop => stop())
+  debouncedOnDestinationAddressChange.cancel()
+})
 </script>
 <template>
   <div>

@@ -1,6 +1,7 @@
 import getSecureConfiguration from '../common/getSecureConfiguration'
 import { executeWithIndexerFailover } from './getIndexerClientByChainIdWithFailover'
 import asyncdelay from '../common/asyncDelay'
+import logger from '@/scripts/common/conditionalLogger'
 
 const getAlgoAccountTokenOptedIn = async (chainId: number, accountAddress: string, asa: number): Promise<boolean | null> => {
   try {
@@ -24,10 +25,10 @@ const getAlgoAccountTokenOptedIn = async (chainId: number, accountAddress: strin
     const asaItem = account.account.assets.find((a: any) => a['asset-id'] == asa)
     if (!asaItem) return false
     const ret = asaItem['opted-in-at-round'] > 0 && !asaItem['is-frozen'] && !asaItem['deleted']
-    console.log(`optin:${chainId}:${accountAddress}:${asa}:${ret}`)
+    logger.debug(`optin:${chainId}:${accountAddress}:${asa}:${ret}`)
     return ret
   } catch (e) {
-    console.error('Failed to check opt-in status:', e)
+    logger.error('Failed to check opt-in status:', e)
     return null
   }
 }

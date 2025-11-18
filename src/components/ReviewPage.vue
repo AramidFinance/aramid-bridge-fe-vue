@@ -1,6 +1,7 @@
 CopyIcon
 <script setup lang="ts">
 import { useAppStore } from '@/stores/app'
+import logger from "@/scripts/common/conditionalLogger"
 import CopyIcon from './ui/CopyIcon.vue'
 import MainBox from './ui/MainBox.vue'
 import WalletAddress from './ui/WalletAddress.vue'
@@ -48,7 +49,7 @@ const getDestinationChainImageUrl = () => {
 }
 
 const routeToBridgeScreen = () => {
-  console.log('route', route)
+  logger.debug('route', route)
   if (route.name == 'review-sc-dc-st-dt-sa-da-a-n') {
     router.push({ name: 'bridge-sc-dc-st-dt-sa-da-a-n' })
   }
@@ -82,7 +83,7 @@ const signButtonClick = async () => {
       }
     })
   } catch (e: any) {
-    console.error(e)
+    logger.error(e)
     toast.add({
       severity: 'error',
       detail: e.message ?? e,
@@ -93,7 +94,7 @@ const signButtonClick = async () => {
 const switchNetworkClick = async () => {
   try {
     if (!web3ModalProvider.walletProvider.value) {
-      //console.log('modal', modal)
+      //logger.debug('modal', modal)
       await modal?.open()
     }
     if (!web3ModalProvider.walletProvider.value) {
@@ -101,7 +102,7 @@ const switchNetworkClick = async () => {
     }
 
     if (store.state.sourceChain) {
-      //console.log('chainId.value ? store.state.sourceChain', chainId.value, store.state.sourceChain)
+      //logger.debug('chainId.value ? store.state.sourceChain', chainId.value, store.state.sourceChain)
       if (chainId.value != store.state.sourceChain) {
         //provider.open()
         toast.add({
@@ -117,7 +118,7 @@ const switchNetworkClick = async () => {
     }
   } catch (e: any) {
     state.switchingNetwork = false
-    console.error(e)
+    logger.error(e)
     toast.add({
       severity: 'error',
       detail: e.message ?? e,
@@ -130,7 +131,7 @@ const approveButtonClick = async () => {
     if (!store.state.sourceChainConfiguration) throw Error('store.state.sourceChainConfiguration is missing')
     state.inApproval = true
     if (!web3ModalProvider.walletProvider.value) {
-      //console.log('modal', modal)
+      //logger.debug('modal', modal)
       await modal?.open({ view: 'Account' })
     }
     if (!web3ModalProvider.walletProvider.value) {
@@ -138,7 +139,7 @@ const approveButtonClick = async () => {
     }
 
     const approveInfo = await executeEthApproveTx()
-    //console.log('approveInfo', approveInfo)
+    //logger.debug('approveInfo', approveInfo)
     state.approvalHash = approveInfo.hash
     state.inApproval = false
     state.inApprovalMinting = true
@@ -155,7 +156,7 @@ const approveButtonClick = async () => {
     state.inApproval = false
     state.inApprovalMinting = false
     state.inSign = false
-    console.error(e)
+    logger.error(e)
     toast.add({
       severity: 'error',
       detail: e.message ?? e,
@@ -166,14 +167,14 @@ const approveButtonClick = async () => {
 
 const lockButtonClick = async () => {
   try {
-    //console.log('lockButtonClick')
+    //logger.debug('lockButtonClick')
     if (!store.state.sourceChainConfiguration) throw Error('store.state.sourceChainConfiguration is missing')
     state.inSign = true
     const signInfo = await executeEthLockTokensTx()
     state.inSign = false
     state.signHash = signInfo.hash
     state.inSignMinting = true
-    //console.log('signInfo', signInfo)
+    //logger.debug('signInfo', signInfo)
     await signInfo.wait()
     state.inSignMinting = false
     if (signInfo.hash) {
@@ -197,7 +198,7 @@ const lockButtonClick = async () => {
   } catch (e: any) {
     state.inSign = false
     state.inSignMinting = false
-    console.error(e)
+    logger.error(e)
     toast.add({
       severity: 'error',
       detail: e.message ?? e,
@@ -208,14 +209,14 @@ const lockButtonClick = async () => {
 
 const payNativeButtonClick = async () => {
   try {
-    //console.log('lockButtonClick')
+    //logger.debug('lockButtonClick')
     if (!store.state.sourceChainConfiguration) throw Error('store.state.sourceChainConfiguration is missing')
     state.inSign = true
     const signInfo = await executeEthLockNativeTx()
     state.inSign = false
     state.signHash = signInfo.hash
     state.inSignMinting = true
-    //console.log('signInfo', signInfo)
+    //logger.debug('signInfo', signInfo)
     await signInfo.wait()
     state.inSignMinting = false
     if (signInfo.hash) {
@@ -239,7 +240,7 @@ const payNativeButtonClick = async () => {
   } catch (e: any) {
     state.inSign = false
     state.inSignMinting = false
-    console.error(e)
+    logger.error(e)
     toast.add({
       severity: 'error',
       detail: e.message ?? e,
@@ -262,7 +263,7 @@ watch(
     <div class="w-[80vw] md:w-full flex flex-row gap-4 items-center mb-4">
       <div
         id="edit-button"
-        class="px-2 items-center flex backdrop-blur-xl rounded-[80px] place-content-start select-none justify-between opacity-70 font-semibold text-[14px] cursor-pointer"
+        class="px-2 items-center flex backdrop-blur-xl rounded-full place-content-start select-none justify-between opacity-70 font-semibold text-[14px] cursor-pointer"
         style="border: 1px solid rgba(246, 246, 246, 0.16); background: rgba(246, 246, 246, 0.16)"
         @click="routeToBridgeScreen"
       >

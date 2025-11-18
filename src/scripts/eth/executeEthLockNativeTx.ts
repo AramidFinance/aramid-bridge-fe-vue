@@ -4,6 +4,7 @@ import { BrowserProvider, Contract, formatUnits } from 'ethers'
 import { useWeb3ModalProvider } from '@web3modal/ethers/vue'
 import { useAppStore } from '@/stores/app'
 import BigNumber from 'bignumber.js'
+import logger from '@/scripts/common/conditionalLogger'
 
 export const executeEthLockNativeTx = async () => {
   const store = useAppStore()
@@ -15,8 +16,8 @@ export const executeEthLockNativeTx = async () => {
   const bridgeContractAddress = await getBridgeContractAddressAsync(store.state.sourceChain)
   if (!bridgeContractAddress) throw Error('Destination chain escrow address not found')
   const bridge = chainId2Bridge(store.state.sourceChain)
-  console.log('bridge contract address:', bridgeContractAddress)
-  console.log('bridge contract:', bridge)
+  logger.debug('bridge contract address:', bridgeContractAddress)
+  logger.debug('bridge contract:', bridge)
   const provider = useWeb3ModalProvider()
   if (!provider.walletProvider.value) throw Error('provider.walletProvider.value is empty')
   const walletProvider = new BrowserProvider(provider.walletProvider.value, store.state.sourceChain)
@@ -30,7 +31,7 @@ export const executeEthLockNativeTx = async () => {
     addressId: store.state.destinationAddress // address of destination network
   }
   const total = new BigNumber(store.state.sourceAmount).plus(store.state.feeAmount).toString()
-  console.log('toSubmit', [
+  logger.debug('toSubmit', [
     store.state.sourceToken, // address of token used to pay fee
     store.state.feeAmount, // amount of fee paid
     store.state.sourceAmount, // amount of token being bridged

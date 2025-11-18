@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { useAppStore } from '@/stores/app'
+import logger from "@/scripts/common/conditionalLogger"
 import WalletButton from '../ui/WalletButton.vue'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
-import { onMounted, reactive } from 'vue'
+import { onMounted, reactive, ref, computed } from 'vue'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import { useWallet, type Wallet } from 'avm-wallet-vue'
@@ -12,15 +13,20 @@ import WalletAddress from '../ui/WalletAddress.vue'
 import DialogTitle from '../ui/DialogTitle.vue'
 import DialogButton from '../ui/DialogButton.vue'
 import { isWalletForChain } from '@/scripts/algo/isWalletForChain'
+import { useFocusTrap } from '@/composables/useFocusTrap'
 
 const toast = useToast()
 
 const { wallets, activeAccount } = useWallet()
 
 const store = useAppStore()
+const dialogRef = ref<HTMLElement | null>(null)
+const isOpen = computed(() => store.state.dialogSelectDestinationWalletAVMIsOpen)
+
+useFocusTrap(dialogRef, isOpen)
 
 const walletButtonClick = async (wallet: Wallet) => {
-  console.log('destination.wallet', wallet, activeAccount)
+  logger.debug('destination.wallet', wallet, activeAccount)
   await wallet.connect()
   if (activeAccount.value?.address) {
     store.state.destinationAddress = activeAccount.value?.address
@@ -34,7 +40,7 @@ const useAddressClick = () => {
     store.state.connectedDestinationChain = store.state.destinationChainConfiguration?.chainId
     store.state.dialogSelectDestinationWalletAVMIsOpen = false
   } catch (e) {
-    console.error(`AVM address ${state.addressInput} is not valid`, e)
+    logger.error(`AVM address ${state.addressInput} is not valid`, e)
     toast.add({
       severity: 'error',
       summary: 'AVM address verification',
@@ -77,13 +83,14 @@ const closeDialog = () => {
   <div :class="store.state.dialogSelectDestinationWalletAVMIsOpen ? '' : 'hidden'">
     <div class="full-screen backdrop-blur-sm z-[100]" @click="closeDialog"></div>
     <div
+      ref="dialogRef"
       class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col z-[101]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="select-destination-wallet-avm-title"
       @keydown.esc="closeDialog"
     >
-      <ul class="bg-gradient-to-r from-topleft-purple to-bottomright-purple drop-shadow-menu-default rounded-[26px] p-3">
+      <ul class="bg-gradient-brand drop-shadow-menu-default rounded-2xl p-3">
         <DialogTitle id="select-destination-wallet-avm-title">Choose AVM destination wallet</DialogTitle>
 
         <WalletButton
@@ -99,7 +106,7 @@ const closeDialog = () => {
           <textarea
             id="destination-wallet-avm-address"
             v-model="state.addressInput"
-            class="bg-white-rgba rounded-[10px] focus:outline-none w-full mt-1 3xl:mt-3 4xl:mt-6 p-1 3xl:p-3 4xl:p-6 text-base h-[80px] 3xl:h-[112px] 4xl:h-[157px] w-full"
+            class="bg-bg-elevated rounded-lg focus:outline-none w-full mt-1 3xl:mt-3 4xl:mt-6 p-1 3xl:p-3 4xl:p-6 text-base h-[80px] 3xl:h-[112px] 4xl:h-[157px] w-full"
             rows="3"
             aria-label="AVM wallet address"
           ></textarea>

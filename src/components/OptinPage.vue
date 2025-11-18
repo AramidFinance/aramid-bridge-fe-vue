@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAppStore } from '@/stores/app'
+import logger from "@/scripts/common/conditionalLogger"
 import CopyIcon from './ui/CopyIcon.vue'
 import MainBox from './ui/MainBox.vue'
 import WalletAddress from './ui/WalletAddress.vue'
@@ -26,7 +27,7 @@ const state = reactive({
 })
 
 const routeToBridgeScreen = () => {
-  console.log('route', route)
+  logger.debug('route', route)
   router.push({ name: 'bridge-sc-dc-st-dt-sa-da-a-n' })
 }
 
@@ -59,7 +60,7 @@ const checkOptIn = async () => {
       })
     }
   } catch (e: any) {
-    console.error(e)
+    logger.error(e)
     toast.add({
       severity: 'error',
       detail: e.message,
@@ -96,7 +97,7 @@ const optinUsingUseWallet = async () => {
       checkOptIn()
     }
   } catch (e: any) {
-    console.error(e)
+    logger.error(e)
     state.signInWallet = false
     state.sendingOptin = false
     toast.add({
@@ -113,7 +114,7 @@ const optinUsingUseWallet = async () => {
     <div class="w-[80vw] md:w-full flex flex-row gap-4 items-center mb-4">
       <div
         id="edit-button"
-        class="px-2 items-center flex backdrop-blur-xl rounded-[80px] place-content-start select-none justify-between opacity-70 font-semibold text-[14px] cursor-pointer"
+        class="px-2 items-center flex backdrop-blur-xl rounded-full place-content-start select-none justify-between opacity-70 font-semibold text-[14px] cursor-pointer"
         style="border: 1px solid rgba(246, 246, 246, 0.16); background: rgba(246, 246, 246, 0.16)"
         @click="routeToBridgeScreen"
       >

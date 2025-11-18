@@ -2,6 +2,7 @@ import axios from 'axios'
 import type { AppConfiguration } from '../interface/configuration/AppConfiguration'
 import { useConfigStore } from '@/stores/config'
 import asyncdelay from './asyncDelay'
+import logger from '@/scripts/common/conditionalLogger'
 let loading: boolean | null = null
 
 const getAppConfiguration = async () => {
@@ -17,7 +18,7 @@ const getAppConfiguration = async () => {
   if (loading === false) return configStore.state
   const response = await axios.get('/config.json')
   if (response.status !== 200) {
-    console.error(`Request to /config.json did not returned status 200 (${response.status})`)
+    logger.error(`Request to /config.json did not returned status 200 (${response.status})`)
     return null
   }
   const config = response.data as AppConfiguration

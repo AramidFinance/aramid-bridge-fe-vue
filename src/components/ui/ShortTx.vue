@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import shortenAddress from '@/scripts/common/shortenAddress'
+import logger from "@/scripts/common/conditionalLogger"
 import CopyIcon from './CopyIcon.vue'
 import { useAppStore } from '@/stores/app'
 import { reactive } from 'vue'
@@ -14,7 +15,7 @@ const chain = props.chain ?? store.state.sourceChain
 if (chain && store.state.publicConfiguration?.chains[chain?.toString()].blockExplorers) {
   state.explorer = store.state.publicConfiguration?.chains[chain?.toString()].blockExplorers[0]
 }
-console.log('state.explorer', props, state.explorer)
+logger.debug('state.explorer', props, state.explorer)
 </script>
 <template>
   <span v-if="state.explorer">

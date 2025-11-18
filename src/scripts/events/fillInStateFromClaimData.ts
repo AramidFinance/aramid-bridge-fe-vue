@@ -3,11 +3,12 @@ import getChainConfiguration from '../common/getChainConfiguration'
 import formatBaseAmount from '../common/formatBaseAmount'
 import type { IEthIPFSData } from '../interface/aramid/IEthIPFSData'
 import getTokenAsync from '../common/getTokenAsync'
+import logger from '@/scripts/common/conditionalLogger'
 
 export const fillInStateFromClaimData = async (claimData: IEthIPFSData) => {
   const store = useAppStore()
 
-  console.log('claim data found:', claimData)
+  logger.debug('claim data found:', claimData)
   const sourceConfiguration = await getChainConfiguration(claimData.sourceChainData.chainId)
   if (sourceConfiguration) {
     store.state.sourceChain = claimData.sourceChainData.chainId

@@ -2,6 +2,7 @@ import { useAppStore } from '@/stores/app'
 import getToken from '../common/getToken'
 import { fillRouteInfo } from './fillRouteInfo'
 import { useConfigStore } from '@/stores/config'
+import logger from '@/scripts/common/conditionalLogger'
 
 export const fillDestinationTokenConfiguration = (tokenId: string | undefined = undefined, paramValue: string | string[] | undefined = undefined) => {
   const store = useAppStore()
@@ -15,7 +16,7 @@ export const fillDestinationTokenConfiguration = (tokenId: string | undefined = 
     const destTokenObj = getToken(store.state.destinationChain, destToken, store.state.publicConfiguration)
 
     if (destToken && destTokenObj) {
-      console.log('fillDestinationTokenConfiguration', destToken, destTokenObj.name)
+      logger.debug('fillDestinationTokenConfiguration', destToken, destTokenObj.name)
       store.state.destinationToken = destToken
       store.state.destinationTokenConfiguration = destTokenObj
     }
@@ -35,7 +36,7 @@ export const fillDestinationTokenConfiguration = (tokenId: string | undefined = 
       const destTokenObj = getToken(store.state.destinationChain, tokenFromPath, store.state.publicConfiguration)
 
       if (tokenFromPath && destTokenObj) {
-        console.log('fillDestinationTokenConfiguration', tokenFromPath, destTokenObj.name)
+        logger.debug('fillDestinationTokenConfiguration', tokenFromPath, destTokenObj.name)
         store.state.destinationToken = tokenFromPath
         store.state.destinationTokenConfiguration = destTokenObj
       }
@@ -63,7 +64,7 @@ export const fillDestinationTokenConfiguration = (tokenId: string | undefined = 
         const destTokenObj = getToken(store.state.destinationChain, destToken, store.state.publicConfiguration)
 
         if (destToken && destTokenObj) {
-          console.log('fillDestinationTokenConfiguration', destToken, destTokenObj.name)
+          logger.debug('fillDestinationTokenConfiguration', destToken, destTokenObj.name)
           store.state.destinationToken = destToken
           store.state.destinationTokenConfiguration = destTokenObj
         }

@@ -1,5 +1,6 @@
 import { useAppStore } from '@/stores/app'
 import type { ITransfer } from '../interface/aramid/ITransfer'
+import logger from '@/scripts/common/conditionalLogger'
 
 export const makeNoteField = () => {
   const store = useAppStore()
@@ -25,12 +26,12 @@ export const makeNoteField = () => {
     note: store.state.memo ?? 'aramid-fe-2',
     sourceAmount: netSrcAmt
   }
-  console.log('note', note)
+  logger.debug('note', note)
   const algorandNote: string = `aramid-transfer/v1:j${JSON.stringify(note)}`
   store.state.sourceTxNote = algorandNote
 
   const addAsset = store.state.sourceToken && Number(store.state.sourceToken) > 0 ? `&asset=${store.state.sourceToken}` : ''
   const addNetwork = `&network=${store.state.sourceChainGenesis}`
   store.state.qrContent = `algorand://${store.state.sourceBridgeAddress}?amount=${store.state.sourceAmount}${addAsset}${addNetwork}&note=${algorandNote}`
-  console.log('store.state.qrContent', store.state.qrContent)
+  logger.debug('store.state.qrContent', store.state.qrContent)
 }

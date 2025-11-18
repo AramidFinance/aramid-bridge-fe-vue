@@ -16,18 +16,31 @@ const getPublicConfiguration = async (reload: boolean): Promise<PublicConfigurat
   const store = useAppStore()
   const loggerInstance = await getLogger()
   try {
-    // If already loading, return the existing promise
-    if (loadingPromise) {
-      return loadingPromise
-    }
-
+    // FIX: Check reload flag FIRST before checking cache or loading promise
+    // This ensures reload=true always forces a fresh load
     if (!reload) {
-      if (store.state.publicConfiguration !== null) return store.state.publicConfiguration
-      logger.debug('currentMapping', store.state.publicConfiguration)
+      // For non-reload requests, return cached configuration if available
+      if (store.state.publicConfiguration !== null) {
+        logger.debug('Returning cached configuration', store.state.publicConfiguration)
+        return store.state.publicConfiguration
+      }
+
+      // For non-reload requests, return existing loading promise if one exists
+      if (loadingPromise) {
+        logger.debug('Returning existing loading promise for non-reload request')
+        return loadingPromise
+      }
+    } else {
+      // For reload=true, always clear any existing promise to force a fresh load
+      // This prevents the race condition where reload=true returns stale data
+      if (loadingPromise) {
+        logger.debug('Clearing existing loading promise for reload request')
+        loadingPromise = null
+      }
     }
 
-    // Create the singleton promise
-    loadingPromise = (async () => {
+    // Create the singleton promise with timeout protection
+    const loadPromise = (async () => {
       try {
         const appConfiguration = await getAppConfiguration()
         if (appConfiguration === null) {
@@ -72,6 +85,23 @@ const getPublicConfiguration = async (reload: boolean): Promise<PublicConfigurat
         return store.state.publicConfiguration
       }
     })()
+
+    // Add 30-second timeout protection using Promise.race
+    const timeoutPromise = new Promise<PublicConfigurationRoot | null>((_, reject) => {
+      setTimeout(() => {
+        loggerInstance.error('Configuration loading timeout after 30 seconds')
+        loadingPromise = null
+        reject(new Error('Configuration loading timeout after 30 seconds'))
+      }, 30000)
+    })
+
+    // Race between the load operation and timeout
+    loadingPromise = Promise.race([loadPromise, timeoutPromise]).catch((error) => {
+      loggerInstance.error('Configuration loading failed:', error)
+      loadingPromise = null
+      // Return cached configuration if available, otherwise null
+      return store.state.publicConfiguration
+    })
 
     return loadingPromise
   } catch (e) {

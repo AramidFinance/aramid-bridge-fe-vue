@@ -1,8 +1,9 @@
 import { useAppStore } from '@/stores/app'
 import { executeWithIndexerFailover } from './getIndexerClientByChainIdWithFailover'
+import logger from '@/scripts/common/conditionalLogger'
 
 export const checkDestinationAlgoTx = async () => {
-  console.log('checkDestinationAlgoTx')
+  logger.debug('checkDestinationAlgoTx')
   const store = useAppStore()
   if (!store.state.destinationChain) return
 
@@ -27,17 +28,17 @@ export const checkDestinationAlgoTx = async () => {
         note = note.substring('aramid-confirm/v1:j'.length)
         const noteJson = JSON.parse(note)
         if (noteJson['sourceNetwork'] == store.state.sourceChain && noteJson['sourceTxId'] == store.state.bridgeTx) {
-          console.log('Tx is bridged: ', tx)
+          logger.debug('Tx is bridged: ', tx)
           return tx.id
         }
-        //console.log('checking', tx, note, noteJson)
+        //logger.debug('checking', tx, note, noteJson)
       } catch (e) {
-        console.error(e)
+        logger.error(e)
       }
     }
-    //console.log('txs', store.state.destinationAddress, txs.transactions)
+    //logger.debug('txs', store.state.destinationAddress, txs.transactions)
   } catch (error) {
-    console.error('Failed to check destination algo tx:', error)
+    logger.error('Failed to check destination algo tx:', error)
     return null
   }
 }

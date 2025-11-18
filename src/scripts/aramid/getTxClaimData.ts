@@ -1,6 +1,7 @@
 import getAlgorandTransaction from '../algo/getAlgorandTransaction'
 import getAppConfiguration from '../common/getAppConfiguration'
 import type { IEthIPFSData } from '../interface/aramid/IEthIPFSData'
+import logger from '@/scripts/common/conditionalLogger'
 
 export const getTxClaimData = async (claimTx: string): Promise<IEthIPFSData | null> => {
   const appConfiguration = await getAppConfiguration()
@@ -11,7 +12,7 @@ export const getTxClaimData = async (claimTx: string): Promise<IEthIPFSData | nu
   const currTx = bridgeLog.transaction
 
   if (!currTx.note) {
-    console.error('!currTx.note', currTx)
+    logger.error('!currTx.note', currTx)
     return null
   }
   const decodedNote = Buffer.from(currTx.note, 'base64').toString('utf-8') // decode from base64
@@ -29,12 +30,12 @@ export const getTxClaimData = async (claimTx: string): Promise<IEthIPFSData | nu
   //   if (txType === 'aramid-claim/v1') {
   //     const noteObj: IClaim = JSON.parse(noteObjStr)
   //     const ipfsHash = noteObj.ipfsHash
-  //     // console.log(txType, noteObj.sourceTransactionId, ipfsHash);
-  //     // console.log(noteObj.sourceTransactionId == txHash)
+  //     // logger.debug(txType, noteObj.sourceTransactionId, ipfsHash);
+  //     // logger.debug(noteObj.sourceTransactionId == txHash)
   //     if (ipfsHash) {
-  //       // console.log('found transaction');
+  //       // logger.debug('found transaction');
   //       const ipfsData = await retrieveIpfsData(ipfsHash)
-  //       console.log('transaction found, ipfs data:', ipfsData)
+  //       logger.debug('transaction found, ipfs data:', ipfsData)
   //       return ipfsData.data as IEthIPFSData
   //     }
   //   }

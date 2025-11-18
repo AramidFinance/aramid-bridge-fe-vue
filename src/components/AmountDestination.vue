@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import SimpleLabel from './ui/SimpleLabel.vue'
+import logger from "@/scripts/common/conditionalLogger"
 import { useAppStore } from '@/stores/app'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
@@ -36,7 +37,7 @@ const fillInState = () => {
       fillSourceChainConfiguration()
     }
   } catch (e: any) {
-    console.error(e)
+    logger.error(e)
     toast.add({
       severity: 'error',
       detail: e.message ?? e,
@@ -58,7 +59,7 @@ const setWarningIfLowBalanceAtDestinationChain = () => {
   } else {
     store.state.escrowBalanceIsSufficient = true
   }
-  // console.log(
+  // logger.debug(
   //   'store.state.escrowBalanceIsSufficient',
   //   store.state.escrowBalanceIsSufficient,
   //   store.state.escrowBalanceIsSufficient10x,
@@ -71,7 +72,7 @@ watch(
   () => store.state.destinationAmount,
   () => {
     // check 10x warning
-    //console.log('destinationAmount updated', store.state.escrowBalanceIsSufficient, store.state.escrowBalanceIsSufficient10x, store.state.destinationAmount, store.state.destinationBridgeBalance)
+    //logger.debug('destinationAmount updated', store.state.escrowBalanceIsSufficient, store.state.escrowBalanceIsSufficient10x, store.state.destinationAmount, store.state.destinationBridgeBalance)
     setWarningIfLowBalanceAtDestinationChain()
   }
 )
@@ -122,6 +123,8 @@ watch(
       v-if="store.state.destinationAddress && store.state.destinationAddressBalance && store.state.destinationTokenConfiguration"
       class="text-white-0.6 my-3 text-center md:text-right md:justify-end w-full text-base 3xl:text-xl 4xl:text-3xl"
       title="Click to refresh source balance"
+      aria-live="polite"
+      aria-atomic="true"
     >
       {{ t('common.balance') }}: {{ viewAmount(store.state.destinationAddressBalance, store.state.destinationTokenConfiguration?.decimals) }} {{ store.state.destinationTokenConfiguration.name }}
     </div>

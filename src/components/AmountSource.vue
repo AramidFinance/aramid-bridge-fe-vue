@@ -5,7 +5,7 @@ import { useAppStore } from '@/stores/app'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
-import { onMounted, reactive, ref, watch } from 'vue'
+import { onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import calculateFeeAndDestinationAmount from '@/scripts/common/calculateFeeAndDestinationAmount'
 import BigNumber from 'bignumber.js'
@@ -23,6 +23,9 @@ const { t } = useI18n()
 const toast = useToast()
 const store = useAppStore()
 const route = useRoute()
+
+// Store watcher stop functions for cleanup
+const stopWatchers: Array<() => void> = []
 
 interface IState {
   publicConfiguration: PublicConfigurationRoot | null
@@ -74,36 +77,42 @@ const setAmount = () => {
 // Debounced version to prevent excessive calculations
 const debouncedSetAmount = debounce(setAmount, 300)
 
-watch(
+stopWatchers.push(watch(
   () => state.sourceAmount,
   () => {
     debouncedSetAmount()
   }
-)
-watch(
+))
+stopWatchers.push(watch(
   () => store.state.sourceTokenConfiguration,
   () => {
     fillInState()
   }
-)
-watch(
+))
+stopWatchers.push(watch(
   () => store.state.sourceAddress,
   () => {
     fillInState()
   }
-)
-watch(
+))
+stopWatchers.push(watch(
   () => store.state.sourceToken,
   () => {
     fillInState()
   }
-)
-watch(
+))
+stopWatchers.push(watch(
   () => route.params?.sourceAmount,
   () => {
     fillInState()
   }
-)
+))
+
+// Cleanup on unmount to prevent memory leaks
+onUnmounted(() => {
+  stopWatchers.forEach(stop => stop())
+  debouncedSetAmount.cancel()
+})
 const setMax = () => {
   if (!store.state.sourceAddressBalance) return
   if (!store.state.sourceTokenConfiguration) return
@@ -153,6 +162,8 @@ const setMax = () => {
       v-if="store.state.sourceAddress && store.state.sourceAddressBalance && store.state.sourceTokenConfiguration"
       class="text-white-0.6 my-1 text-center md:text-right md:justify-end w-full text-sm 3xl:text-xl 4xl:text-3xl"
       title="Click to refresh source balance"
+      aria-live="polite"
+      aria-atomic="true"
     >
       Balance: {{ viewAmount(store.state.sourceAddressBalance, store.state.sourceTokenConfiguration.decimals) }}
       {{ store.state.sourceTokenConfiguration.name }}

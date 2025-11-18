@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { useAppStore } from '@/stores/app'
+import logger from "@/scripts/common/conditionalLogger"
 import LanguageSelector from './LanguageSelector.vue'
 
 const store = useAppStore()
 
 const logState = () => {
-  console.log('state', store?.state)
+  logger.debug('state', store?.state)
 }
 </script>
 <template>
-  <footer @click="logState" class="flex flex-none w-full bg-white-rgba border-t border-dark-elevation py-2 sticky top-[100vh] justify-center gap-4 backdrop-blur-xl">
+  <footer @click="logState" class="flex flex-none w-full bg-bg-elevated border-t border-border-subtle py-2 sticky top-[100vh] justify-center gap-4 backdrop-blur-xl">
     <div class="flex items-center gap-4">
       <LanguageSelector />
       <div class="flex gap-4">
@@ -19,7 +20,7 @@ const logState = () => {
             focusable="false"
             data-prefix="fab"
             data-icon="discord"
-            class="svg-inline--fa fa-discord w-4 h-4 text-dark-placeholder transition duration-100 ease-in-out hover:text-dark-label"
+            class="svg-inline--fa fa-discord w-4 h-4 text-text-muted transition duration-100 ease-in-out hover:text-text-secondary"
             role="img"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 640 512"
@@ -36,7 +37,7 @@ const logState = () => {
             focusable="false"
             data-prefix="fab"
             data-icon="github"
-            class="svg-inline--fa fa-github w-4 h-4 text-dark-placeholder transition duration-100 ease-in-out hover:text-dark-label"
+            class="svg-inline--fa fa-github w-4 h-4 text-text-muted transition duration-100 ease-in-out hover:text-text-secondary"
             role="img"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 496 512"
@@ -53,7 +54,7 @@ const logState = () => {
             focusable="false"
             data-prefix="fab"
             data-icon="twitter"
-            class="svg-inline--fa fa-twitter w-4 h-4 text-dark-placeholder transition duration-100 ease-in-out hover:text-dark-label"
+            class="svg-inline--fa fa-twitter w-4 h-4 text-text-muted transition duration-100 ease-in-out hover:text-text-secondary"
             role="img"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 512 512"
@@ -70,7 +71,7 @@ const logState = () => {
             focusable="false"
             data-prefix="fab"
             data-icon="linkedin"
-            class="svg-inline--fa fa-linkedin w-4 h-4 text-dark-placeholder transition duration-100 ease-in-out hover:text-dark-label"
+            class="svg-inline--fa fa-linkedin w-4 h-4 text-text-muted transition duration-100 ease-in-out hover:text-text-secondary"
             role="img"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 448 512"

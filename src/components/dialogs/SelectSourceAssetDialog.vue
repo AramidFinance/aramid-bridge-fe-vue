@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAppStore } from '@/stores/app'
+import logger from "@/scripts/common/conditionalLogger"
 import AssetButton from '../ui/AssetButton.vue'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import { onMounted, reactive, watch, computed, ref } from 'vue'
@@ -10,9 +11,15 @@ import { resetDestinationTokenIfNotMatched } from '@/scripts/events/resetDestina
 import { fillDestinationTokenConfiguration } from '@/scripts/events/fillDestinationTokenConfiguration'
 import DialogTitle from '../ui/DialogTitle.vue'
 import { fillRouteInfo } from '@/scripts/events/fillRouteInfo'
+import { useFocusTrap } from '@/composables/useFocusTrap'
+import { sanitizeSearchQuery } from '@/utils/sanitize'
 
 const store = useAppStore()
 const searchQuery = ref('')
+const dialogRef = ref<HTMLElement | null>(null)
+const isOpen = computed(() => store.state.dialogSelectSourceAssetIsOpen)
+
+useFocusTrap(dialogRef, isOpen)
 
 const assetButtonClick = (tokenId: string) => {
   fillSourceTokenConfiguration(tokenId)
@@ -47,7 +54,9 @@ const filteredAssets = computed(() => {
   if (!state.assets) return []
   if (!searchQuery.value.trim()) return state.assets
 
-  const query = searchQuery.value.toLowerCase().trim()
+  // Sanitize search query to prevent XSS attacks
+  const sanitizedQuery = sanitizeSearchQuery(searchQuery.value)
+  const query = sanitizedQuery.toLowerCase().trim()
   return state.assets.filter(
     (asset) =>
       asset.name.toLowerCase().includes(query) ||
@@ -106,9 +115,9 @@ const fillInState = () => {
       state.assets = Object.values(state.publicConfiguration.chains[store.state.sourceChain.toString()].tokens)
     }
   }
-  console.log('sourceChain', store.state.sourceChain)
-  console.log('destinationChain', store.state.destinationChain)
-  console.log('assets', state.assets)
+  logger.debug('sourceChain', store.state.sourceChain)
+  logger.debug('destinationChain', store.state.destinationChain)
+  logger.debug('assets', state.assets)
 }
 onMounted(async () => {
   state.publicConfiguration = await getPublicConfiguration(false)
@@ -139,13 +148,14 @@ watch(
   <div :class="store.state.dialogSelectSourceAssetIsOpen ? '' : 'hidden'">
     <div class="full-screen backdrop-blur-sm z-[100]" @click="store.state.dialogSelectSourceAssetIsOpen = false"></div>
     <div
+      ref="dialogRef"
       class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col z-[101] max-h-[80vh] w-[90vw] max-w-[600px]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="select-source-asset-title"
       @keydown.esc="store.state.dialogSelectSourceAssetIsOpen = false"
     >
-      <div class="bg-gradient-to-r from-topleft-purple to-bottomright-purple drop-shadow-menu-default rounded-[26px] p-3 flex flex-col h-full">
+      <div class="bg-gradient-brand drop-shadow-menu-default rounded-2xl p-3 flex flex-col h-full">
         <DialogTitle id="select-source-asset-title"> Select asset which you want to bridge to other chain </DialogTitle>
 
         <!-- Search Bar -->
@@ -156,8 +166,7 @@ watch(
             v-model="searchQuery"
             type="text"
             placeholder="Search tokens by name, symbol, or address..."
-            class="w-full px-4 py-2 rounded-[16px] bg-white/10 border border-white/20 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-transparent"
-            autofocus
+            class="w-full px-4 py-2 rounded-xl bg-bg-elevated border border-border-subtle text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-transparent"
           />
         </div>
 
@@ -175,7 +184,7 @@ watch(
                   :text="item.name"
                   :id="item?.arc200TokenId?.toString() || item.tokenId"
                   @click="assetButtonClick(item.tokenId)"
-                  @error="console.log('Failed to load image for:', item.name)"
+                  @error="logger.debug('Failed to load image for:', item.name)"
                 />
               </template>
             </div>
@@ -191,14 +200,15 @@ watch(
                   :text="item.name"
                   :id="item?.arc200TokenId?.toString() || item.tokenId"
                   @click="assetButtonClick(item.tokenId)"
-                  @error="console.log('Failed to load image for:', item.name)"
+                  @error="logger.debug('Failed to load image for:', item.name)"
                 />
               </template>
             </div>
           </div>
 
           <!-- No results message -->
-          <div v-if="searchQuery.trim() && filteredAssets.length === 0" class="text-white/60 text-center py-8">
+          <div v-if="searchQuery.trim() && filteredAssets.length === 0" class="text-white/60 text-center py-8" role="status" aria-live="polite">
+            <span class="sr-only">{{ filteredAssets.length }} results found</span>
             <div class="text-lg mb-2">🔍</div>
             <div>No tokens found matching "{{ searchQuery }}"</div>
             <div class="text-sm mt-1">Try searching by name, symbol, or token address</div>

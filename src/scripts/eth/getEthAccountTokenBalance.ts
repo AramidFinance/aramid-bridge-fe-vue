@@ -4,8 +4,12 @@ import getSecureConfiguration from '../common/getSecureConfiguration'
 import type { EthPrivateConfiguration } from '../interface/eth/EthPrivateConfiguration'
 import erc20abi from './erc20abi'
 import logger from '../common/conditionalLogger'
+import { balanceLimiter } from '@/utils/rateLimit'
 
 const getEthAccountTokenBalance = async (chainId: number, walletAddress: string, tokenAddress: string): Promise<BigNumber | null> => {
+  // Apply rate limiting to prevent RPC abuse
+  await balanceLimiter.throttle()
+
   const secureConfiguration = await getSecureConfiguration()
 
   if (!secureConfiguration || !secureConfiguration.chains || !secureConfiguration.chains[chainId]) return null

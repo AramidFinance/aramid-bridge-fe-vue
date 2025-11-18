@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import MainBox from './ui/MainBox.vue'
+import logger from "@/scripts/common/conditionalLogger"
 import ChainSelectionSource from './ChainSelectionSource.vue'
 import AssetSelectionSource from './AssetSelectionSource.vue'
 import AssetSelectionDestination from './AssetSelectionDestination.vue'
@@ -94,7 +95,7 @@ const fillInRoute = () => {
     }
   }
   if (route) {
-    // console.log('debug route', {
+    // logger.debug('debug route', {
     //   route: route,
     //   params: params
     // })
@@ -147,7 +148,7 @@ const doValidation = (): boolean => {
       store.state.sourceAlgoConnectorType !== AlgoConnectorType.QRCode &&
       store.state.sourceAlgoConnectorType !== AlgoConnectorType.UseWallet
     ) {
-      console.log('store.state.sourceAlgoConnectorType', store.state.sourceAlgoConnectorType)
+      logger.debug('store.state.sourceAlgoConnectorType', store.state.sourceAlgoConnectorType)
       throw Error(t('bridge.selectSignMethod'))
     } else if (!store.state.destinationAddress) {
       throw Error(t('bridge.selectDestinationAddress'))
@@ -207,7 +208,7 @@ const doValidation = (): boolean => {
 
     return true
   } catch (e: any) {
-    console.error(e)
+    logger.error(e)
     state.error = e.message ?? e
     toast.add({
       severity: 'error',
@@ -275,13 +276,13 @@ const fillInConfigFromRoute = () => {
     if (!store.state.destinationTokenConfiguration) return
     store.state.destinationToken = store.state.destinationTokenConfiguration.tokenId
   }
-  //console.log('state after fillInConfigFromRoute', store.state)
+  //logger.debug('state after fillInConfigFromRoute', store.state)
 }
 
 onMounted(async () => {
   await getPublicConfiguration(false)
   fillInConfigFromRoute()
-  //console.log('store.state.publicConfiguration', store.state.publicConfiguration)
+  //logger.debug('store.state.publicConfiguration', store.state.publicConfiguration)
   resetDestinationChainIfNotMatched()
   if (!store.state.destinationChain) fillDestinationChainConfiguration()
   resetSourceTokenIfNotMatched()
@@ -293,10 +294,10 @@ onMounted(async () => {
   if (route.params['note']) {
     try {
       const parsedMemo = base64url.decode(route.params['note'] as string)
-      //console.log('parsedMemo', parsedMemo)
+      //logger.debug('parsedMemo', parsedMemo)
       store.state.memo = parsedMemo
     } catch (e: any) {
-      console.error(e)
+      logger.error(e)
       toast.add({
         severity: 'error',
         detail: e.message ?? e,
@@ -309,7 +310,7 @@ onMounted(async () => {
   fillInRoute()
 
   //const modal = getWeb3Modal()
-  //console.log('modal', modal)
+  //logger.debug('modal', modal)
 
   if (store.state.memo == 'aramid') store.state.memo = ''
 })
@@ -364,7 +365,7 @@ watch(
     </div>
     <div class="mt-4 w-full">
       <SimpleLabel for="transaction-memo-input">{{ t('transaction.memo') }}</SimpleLabel>
-      <input id="transaction-memo-input" :maxlength="50" class="bg-white-rgba rounded-[10px] focus:outline-none w-full mt-1 3xl:mt-3 4xl:mt-6 p-1 3xl:p-3 4xl:p-6 text-base w-full" type="text" v-model="store.state.memo" aria-label="Transaction memo" />
+      <input id="transaction-memo-input" :maxlength="50" class="bg-bg-elevated rounded-lg focus:outline-none w-full mt-1 3xl:mt-3 4xl:mt-6 p-1 3xl:p-3 4xl:p-6 text-base w-full" type="text" v-model="store.state.memo" aria-label="Transaction memo" />
     </div>
     <Message severity="error" v-if="state.error" class="mt-4 w-full">{{ state.error }}</Message>
     <Message severity="warn" v-if="store.state.escrowBalanceIsSufficient && !store.state.escrowBalanceIsSufficient10x" class="mt-4 w-full">

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import SimpleLabel from './ui/SimpleLabel.vue'
+import logger from "@/scripts/common/conditionalLogger"
 import DropDown from './ui/DropDown.vue'
 import SelectDestinationChainDialog from './dialogs/SelectDestinationChainDialog.vue'
 
@@ -38,7 +39,7 @@ const fillInState = () => {
       fillDestinationChainConfiguration(undefined, route.params['destinationChain'])
     }
   } catch (e: any) {
-    console.error(e)
+    logger.error(e)
     toast.add({
       severity: 'error',
       detail: e.message ?? e,

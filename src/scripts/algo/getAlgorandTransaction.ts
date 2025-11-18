@@ -1,5 +1,6 @@
 import asyncdelay from '../common/asyncDelay'
 import { executeWithIndexerFailover } from './getIndexerClientByChainIdWithFailover'
+import logger from '@/scripts/common/conditionalLogger'
 
 /**
  * Loads algorand transaction from the network
@@ -31,7 +32,7 @@ const getAlgorandTransaction = async (txId: string, chainId: number) => {
     }
     throw `Too many attempts to load tx ${txId}`
   } catch (e) {
-    console.error(`Unable to load tx from algo chain ${chainId} ${txId}`, e)
+    logger.error(`Unable to load tx from algo chain ${chainId} ${txId}`, e)
     return null
   }
 }

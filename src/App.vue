@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
+import logger from "@/scripts/common/conditionalLogger"
 import Toast from 'primevue/toast'
 import { Buffer } from 'buffer'
 import getWeb3Modal from './scripts/eth/getWeb3Modal'
@@ -14,9 +15,9 @@ window.global ||= window
 window.process = {
   env: {}
 }
-//console.log('window.process', window.process)
+//logger.debug('window.process', window.process)
 
-console.log('Welcome to the Aramid Bridge')
+logger.debug('Welcome to the Aramid Bridge')
 </script>
 
 <template>

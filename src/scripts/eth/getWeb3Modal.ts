@@ -12,6 +12,7 @@ import { AppKit } from '@web3modal/base'
 let web3Modal: AppKit<EthersStoreUtilState, number> | null = null
 import config from '@/env/secure.json'
 import type { EthPrivateConfiguration } from '../interface/eth/EthPrivateConfiguration'
+import logger from '@/scripts/common/conditionalLogger'
 
 const getWeb3Modal = (): AppKit<EthersStoreUtilState, number> | null => {
   if (web3Modal !== null) return web3Modal
@@ -20,7 +21,7 @@ const getWeb3Modal = (): AppKit<EthersStoreUtilState, number> | null => {
   const store = useAppStore()
 
   if (!store.state.publicConfiguration?.chains) {
-    console.log('!store.state.publicConfiguration?.chains')
+    logger.debug('!store.state.publicConfiguration?.chains')
     return null
   }
 
@@ -58,7 +59,7 @@ const getWeb3Modal = (): AppKit<EthersStoreUtilState, number> | null => {
     enableAnalytics: true, // Optional - defaults to your Cloud configuration
     enableOnramp: true
   })
-  console.log('chains', chains)
+  logger.debug('chains', chains)
   web3Modal = modal
   return modal
 }

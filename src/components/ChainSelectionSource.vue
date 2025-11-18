@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import SimpleLabel from './ui/SimpleLabel.vue'
+import logger from "@/scripts/common/conditionalLogger"
 import DropDown from './ui/DropDown.vue'
 import SelectSourceChainDialog from './dialogs/SelectSourceChainDialog.vue'
 
@@ -29,11 +30,11 @@ const fillInState = () => {
   try {
     if (!state.publicConfiguration) return
     if (!store.state.sourceChainConfiguration) {
-      //console.log("css route.params['sourceChain']", route.params['sourceChain'])
+      //logger.debug("css route.params['sourceChain']", route.params['sourceChain'])
       fillSourceChainConfiguration(undefined, route.params['sourceChain'])
     }
   } catch (e: any) {
-    console.error(e)
+    logger.error(e)
     toast.add({
       severity: 'error',
       detail: e.message ?? e,

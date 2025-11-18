@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import calculateFeeAndDestinationAmount from '@/scripts/common/calculateFeeAndDestinationAmount'
+import logger from "@/scripts/common/conditionalLogger"
 import formatBaseAmount from '@/scripts/common/formatBaseAmount'
 import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import { useAppStore } from '@/stores/app'
@@ -60,7 +61,7 @@ const fillInRoute = () => {
     }
   }
   if (route) {
-    // console.log('debug route', {
+    // logger.debug('debug route', {
     //   route: route,
     //   params: params
     // })
@@ -128,7 +129,7 @@ const switchClick = () => {
     const newGrossSourceAmountFormatted = formatBaseAmount(newGrossSourceAmount, store.state.sourceTokenConfiguration.decimals)
     const newDestinationAmountFormatted = formatBaseAmount(newDestinationAmount, store.state.destinationTokenConfiguration.decimals)
     const feeAmountFormatted = formatBaseAmount(feeAmountInSourceDecimals, store.state.sourceTokenConfiguration.decimals)
-    console.log('debug swap', {
+    logger.debug('debug swap', {
       decimalsDifference,
       sourceAmountNet: store.state.sourceAmountNet,
       destinationAmount: store.state.destinationAmount,
@@ -182,7 +183,7 @@ const switchClick = () => {
   }
 
   calculateFeeAndDestinationAmount()
-  // console.log('debug switch', {
+  // logger.debug('debug switch', {
   //   sourceChain: store.state.sourceChain,
   //   destinationChain: store.state.destinationChain,
   //   sourceToken: store.state.sourceToken,
@@ -199,7 +200,7 @@ const switchClick = () => {
     <hr class="h-px my-6 w-4/12 md:w-7/12 bg-divider border-0 dark:bg-gray-700" />
     <button
       type="button"
-      class="w-10 p-2 cursor-pointer bg-secondary border-accent border-2 rounded-full hover:bg-white-0.2 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-transparent"
+      class="w-10 p-2 cursor-pointer bg-secondary border-accent border-2 rounded-full hover:bg-bg-hover focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-transparent"
       @click="switchClick"
       @keydown.enter="switchClick"
       @keydown.space.prevent="switchClick"

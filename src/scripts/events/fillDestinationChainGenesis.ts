@@ -1,5 +1,6 @@
 import { useAppStore } from '@/stores/app'
 import { executeWithAlgodFailover } from '../algo/getAlgodClientByChainIdWithFailover'
+import logger from '@/scripts/common/conditionalLogger'
 
 export const fillDestinationChainGenesis = async () => {
   const store = useAppStore()
@@ -15,7 +16,7 @@ export const fillDestinationChainGenesis = async () => {
         )
         store.state.destinationChainGenesis = params?.genesisID
       } catch (error) {
-        console.error('Failed to get destination chain genesis:', error)
+        logger.error('Failed to get destination chain genesis:', error)
       }
     }
   }

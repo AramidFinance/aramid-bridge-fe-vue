@@ -1,6 +1,7 @@
 import asyncdelay from '../common/asyncDelay'
 import getLogger from '../common/getLogger'
 import { executeWithIndexerFailover } from './getIndexerClientByChainIdWithFailover'
+import logger from '@/scripts/common/conditionalLogger'
 
 /**
  * Loads algorand transaction from the network
@@ -30,7 +31,7 @@ const getAlgorandConfigTransaction = async (daoToken: number, chainId: number, s
       )
 
       await asyncdelay(100)
-      console.log('config transactions:', txs)
+      logger.debug('config transactions:', txs)
       next = txs['next-token']
       if (txs.transactions.length == 0) throw 'Unable to find aramid-config tx'
       for (const index in txs.transactions) {
@@ -39,7 +40,7 @@ const getAlgorandConfigTransaction = async (daoToken: number, chainId: number, s
         if (tx['asset-transfer-transaction'].receiver != sender) continue
         if (tx.sender != sender) continue
         if (tx['asset-transfer-transaction']['asset-id'] != daoToken) continue
-        //console.log(tx);
+        //logger.debug(tx);
         const note = Buffer.from(tx.note, 'base64').toString('utf-8')
         if (note.startsWith('aramid-config/v1:j')) {
           return tx

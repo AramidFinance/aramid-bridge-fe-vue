@@ -51,7 +51,7 @@ watch(isOpen, (newValue) => {
   <div class="language-selector relative">
     <button
       @click="toggleDropdown"
-      class="flex items-center gap-2 px-3 py-2 rounded-lg bg-white-rgba hover:bg-white-rgba-hover transition-colors cursor-pointer border border-dark-elevation"
+      class="flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-elevated hover:bg-bg-hover transition-colors cursor-pointer border border-border-subtle"
       type="button"
     >
       <span class="text-lg">{{ getCurrentLanguage().flag }}</span>
@@ -62,7 +62,7 @@ watch(isOpen, (newValue) => {
 
     <div
       v-if="isOpen"
-      class="absolute bottom-full right-0 mb-2 w-48 rounded-lg shadow-lg bg-main border border-dark-elevation overflow-hidden z-50"
+      class="absolute bottom-full right-0 mb-2 w-48 rounded-lg shadow-lg bg-main border border-border-subtle overflow-hidden z-50"
       style="background: rgba(21, 0, 46, 0.95); backdrop-filter: blur(10px)"
     >
       <div class="py-1">
@@ -70,8 +70,8 @@ watch(isOpen, (newValue) => {
           v-for="lang in languages"
           :key="lang.code"
           @click="changeLanguage(lang.code)"
-          class="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-white-rgba transition-colors"
-          :class="{ 'bg-white-rgba': locale === lang.code }"
+          class="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-bg-elevated transition-colors"
+          :class="{ 'bg-bg-elevated': locale === lang.code }"
         >
           <span class="text-lg">{{ lang.flag }}</span>
           <span class="flex-1 text-left">{{ lang.name }}</span>

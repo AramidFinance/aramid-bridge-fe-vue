@@ -1,47 +1,48 @@
 import { useAppStore } from '@/stores/app'
 import getBridgeContractAddress from '../common/getBridgeContractAddress'
+import logger from '@/scripts/common/conditionalLogger'
 
 export const fillRouteInfo = () => {
-  ////console.log('fillRouteInfo')
+  ////logger.debug('fillRouteInfo')
   const store = useAppStore()
   if (!store.state.publicConfiguration) {
-    //console.log('!store.state.publicConfiguration')
+    //logger.debug('!store.state.publicConfiguration')
     return
   }
   if (!store.state.publicConfiguration.chains2tokens) {
-    //console.log('!store.state.publicConfiguration.chains2tokens')
+    //logger.debug('!store.state.publicConfiguration.chains2tokens')
     return
   }
   if (!store.state.sourceChain) {
-    //console.log('!store.state.sourceChain')
+    //logger.debug('!store.state.sourceChain')
     return
   }
   if (!store.state.destinationChain) {
-    //console.log('!store.state.destinationChain')
+    //logger.debug('!store.state.destinationChain')
     return
   }
   if (!store.state.sourceToken) {
-    //console.log('!store.state.sourceToken')
+    //logger.debug('!store.state.sourceToken')
     return
   }
   if (!store.state.destinationToken) {
-    //console.log('!store.state.destinationToken')
+    //logger.debug('!store.state.destinationToken')
     return
   }
   if (!store.state.publicConfiguration.chains2tokens[store.state.sourceChain.toString()]) {
-    //console.log('!store.state.publicConfiguration.chains2tokens[store.state.sourceChain.toString()]')
+    //logger.debug('!store.state.publicConfiguration.chains2tokens[store.state.sourceChain.toString()]')
     return
   }
   if (!store.state.publicConfiguration.chains2tokens[store.state.sourceChain.toString()][store.state.destinationChain.toString()]) {
-    //console.log('!store.state.publicConfiguration.chains2tokens[store.state.sourceChain.toString()][store.state.destinationChain.toString()]')
+    //logger.debug('!store.state.publicConfiguration.chains2tokens[store.state.sourceChain.toString()][store.state.destinationChain.toString()]')
     return
   }
   if (!store.state.publicConfiguration.chains2tokens[store.state.sourceChain.toString()][store.state.destinationChain.toString()][store.state.sourceToken]) {
-    //console.log('!store.state.publicConfiguration.chains2tokens[store.state.sourceChain.toString()][store.state.destinationChain.toString()][store.state.sourceToken]')
+    //logger.debug('!store.state.publicConfiguration.chains2tokens[store.state.sourceChain.toString()][store.state.destinationChain.toString()][store.state.sourceToken]')
     return
   }
   if (!store.state.publicConfiguration.chains2tokens[store.state.sourceChain.toString()][store.state.destinationChain.toString()][store.state.sourceToken][store.state.destinationToken]) {
-    //console.log('!store.state.publicConfiguration.chains2tokens[store.state.sourceChain.toString()][store.state.destinationChain.toString()][store.state.sourceToken][store.state.destinationToken]')
+    //logger.debug('!store.state.publicConfiguration.chains2tokens[store.state.sourceChain.toString()][store.state.destinationChain.toString()][store.state.sourceToken][store.state.destinationToken]')
     return
   }
   store.state.routeConfig =

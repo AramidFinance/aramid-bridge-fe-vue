@@ -2,6 +2,7 @@ import { useAppStore } from '@/stores/app'
 import getChainConfigurationSync from '../common/getChainConfigurationSync'
 import { fillRouteInfo } from './fillRouteInfo'
 import { useConfigStore } from '@/stores/config'
+import logger from '@/scripts/common/conditionalLogger'
 
 export const fillDestinationChainConfiguration = (chainId: number | undefined = undefined, paramValue: string | string[] | undefined = undefined) => {
   const store = useAppStore()
@@ -13,7 +14,7 @@ export const fillDestinationChainConfiguration = (chainId: number | undefined = 
     const newDestChainId = chainId
     const newDestChainObj = getChainConfigurationSync(newDestChainId, store.state.publicConfiguration)
     if (newDestChainId && newDestChainObj) {
-      //console.log('fillDestinationChainConfiguration', newDestChainId, newDestChainObj.name)
+      //logger.debug('fillDestinationChainConfiguration', newDestChainId, newDestChainObj.name)
       store.state.destinationChain = newDestChainId
       store.state.destinationChainConfiguration = newDestChainObj
       store.state.destinationChainGenesis = undefined
@@ -28,7 +29,7 @@ export const fillDestinationChainConfiguration = (chainId: number | undefined = 
     const newDestChainId = chainFromPath
     const newDestChainObj = getChainConfigurationSync(newDestChainId, store.state.publicConfiguration)
     if (newDestChainId && newDestChainObj) {
-      //console.log('fillDestinationChainConfiguration', newDestChainId, newDestChainObj.name)
+      //logger.debug('fillDestinationChainConfiguration', newDestChainId, newDestChainObj.name)
       store.state.destinationChain = newDestChainId
       store.state.destinationChainConfiguration = newDestChainObj
       store.state.destinationChainGenesis = undefined
@@ -49,7 +50,7 @@ export const fillDestinationChainConfiguration = (chainId: number | undefined = 
     }
     const newDestChainObj = getChainConfigurationSync(newDestChainId, store.state.publicConfiguration)
     if (newDestChainId && newDestChainObj) {
-      //console.log('fillDestinationChainConfiguration', newDestChainId, newDestChainObj.name)
+      //logger.debug('fillDestinationChainConfiguration', newDestChainId, newDestChainObj.name)
       store.state.destinationChain = newDestChainId
       store.state.destinationChainConfiguration = newDestChainObj
       store.state.destinationChainGenesis = undefined

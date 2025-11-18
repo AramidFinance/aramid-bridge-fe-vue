@@ -48,6 +48,20 @@ export default {
         'transparent': 'transparent',             // Transparent color for gradients
 
         // ============================================
+        // MISSING CLASSES FOUND IN COMPONENTS (Added for compatibility)
+        // ============================================
+        'dark-elevation': 'rgba(246, 246, 246, 0.16)',  // Used in MainBox, dialogs - same as border-subtle
+        'dark-placeholder': 'rgba(246, 246, 246, 0.4)',  // Used in inputs - same as text-muted
+        'dark-label': 'rgba(246, 246, 246, 0.7)',        // Used in labels - same as text-secondary
+
+        // Gradient positions (map to existing brand colors):
+        'topleft-purple': 'rgba(116, 7, 176, 0.9)',   // Gradient start for dialogs
+        'bottomright-purple': 'rgba(67, 7, 165, 0.9)', // Gradient end for dialogs
+
+        // Transparency variants:
+        'white-0.3': 'rgba(255, 255, 255, 0.3)',    // Used in MainBox for glass effect
+
+        // ============================================
         // LEGACY GRADIENTS (kept for specific use cases)
         // These are used in gradients and should be migrated gradually
         // ============================================
@@ -98,6 +112,11 @@ export default {
       dropShadow: {
         'menu-default': '0px 0px 9px rgba(51, 0, 255, 0.6)',
         'menu-2': '0px 0px 16px rgba(252, 157, 255, 0.3) drop-shadow(0px 0px 9px rgba(51, 0, 255, 0.6))'
+      },
+      backgroundImage: {
+        'gradient-brand': 'linear-gradient(135deg, rgba(116,7,176,0.9) 0%, rgba(67,7,165,0.9) 100%)',
+        'gradient-brand-subtle': 'linear-gradient(135deg, rgba(116,7,176,0.3) 0%, rgba(67,7,165,0.3) 100%)',
+        'gradient-button': 'linear-gradient(90deg, rgba(116,7,176,0.8) 0%, rgba(67,7,165,0.8) 100%)',
       },
       screens: {
         '3xl': '2150px', // 2xl * 1.4

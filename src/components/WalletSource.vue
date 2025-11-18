@@ -6,7 +6,7 @@ import { useAppStore } from '@/stores/app'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
-import { onMounted, reactive, watch } from 'vue'
+import { onMounted, onUnmounted, reactive, watch } from 'vue'
 import RoundButton from './ui/RoundButton.vue'
 import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import { useToast } from 'primevue/usetoast'
@@ -25,12 +25,19 @@ import { useI18n } from 'vue-i18n'
 import { formatTooltip } from '@/scripts/common/formatTooltip'
 import debounce from '@/scripts/common/debounce'
 import logger from '@/scripts/common/conditionalLogger'
+import TIMEOUTS from '@/config/timeouts'
 
 const { t } = useI18n()
 const { setActiveNetwork, activeWallet, activeAccount } = useWallet()
 
 const toast = useToast()
 const store = useAppStore()
+
+// Request ID counter for balance fetching race condition prevention
+let currentRequestId = 0
+
+// Store watcher stop functions for cleanup
+const stopWatchers: Array<() => void> = []
 
 interface IState {
   connected: boolean
@@ -57,67 +64,128 @@ const fillInState = () => {
 }
 
 const onSourceAddressChange = async () => {
+  // FIX: Increment request ID before any async work to track this request
+  const requestId = ++currentRequestId
+  logger.debug(`Starting balance fetch request ${requestId}`)
+
   try {
     // refresh balance of source account
     if (!store.state.sourceChain) return
     if (!store.state.sourceChainConfiguration) return
     if (!store.state.sourceAddress) return
     if (!store.state.sourceTokenConfiguration) return
+
     const sourceChainConfiguration = store.state.sourceChainConfiguration
     const { name: sourceChainName, type: sourceChainType, chainId: sourceChainId } = sourceChainConfiguration
     const sourceTokenConfig = store.state.sourceTokenConfiguration as any
     const { type: sourceTokenType, contractId: sourceTokenContractId, unitAppId: sourceTokenUnitAppId, chainId: sourceTokenChainId } = sourceTokenConfig
+
+    // Only proceed if this is still the latest request
+    if (requestId !== currentRequestId) {
+      logger.debug(`Cancelling stale request ${requestId}, current is ${currentRequestId}`)
+      return
+    }
+
     logger.debug('sourceTokenType', sourceTokenType)
     logger.debug('sourceTokenConfig', sourceTokenConfig)
+
     if (sourceTokenType == 'algo') {
       switch (sourceChainName) {
         case 'Voi': {
           if (sourceTokenConfig?.arc200TokenId) {
+            // Set loading state only for current request
+            if (requestId === currentRequestId) {
+              store.state.loadingSourceAddressBalance = true
+            }
+
             const balance = await getAlgoAccountARC200TokenBalance(store.state.sourceChain, store.state.sourceAddress, Number(sourceTokenConfig?.arc200TokenId), Number(store.state.sourceToken))
-            if (balance !== null) {
-              store.state.sourceAddressBalance = balance.toString()
+
+            // Only update state if this is still the latest request
+            if (requestId === currentRequestId) {
+              if (balance !== null) {
+                store.state.sourceAddressBalance = balance.toString()
+                logger.debug(`Request ${requestId}: Updated balance to ${store.state.sourceAddressBalance}`)
+              }
               store.state.loadingSourceAddressBalance = false
-              logger.debug('onSourceAddressChange.balance', store.state.sourceAddressBalance, store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
+            } else {
+              logger.debug(`Ignoring stale balance response from request ${requestId}, current is ${currentRequestId}`)
             }
           } else {
-            store.state.loadingSourceAddressBalance = true
+            // Set loading state only for current request
+            if (requestId === currentRequestId) {
+              store.state.loadingSourceAddressBalance = true
+            }
+
             const balance = await getAlgoAccountTokenBalance(store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
-            if (balance !== null) {
-              store.state.sourceAddressBalance = balance.toString()
+
+            // Only update state if this is still the latest request
+            if (requestId === currentRequestId) {
+              if (balance !== null) {
+                store.state.sourceAddressBalance = balance.toString()
+                logger.debug(`Request ${requestId}: Updated balance to ${store.state.sourceAddressBalance}`)
+              }
               store.state.loadingSourceAddressBalance = false
-              //console.log('onSourceAddressChange.balance', store.state.sourceAddressBalance, store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
+            } else {
+              logger.debug(`Ignoring stale balance response from request ${requestId}, current is ${currentRequestId}`)
             }
           }
           break
         }
         default: {
-          store.state.loadingSourceAddressBalance = true
+          // Set loading state only for current request
+          if (requestId === currentRequestId) {
+            store.state.loadingSourceAddressBalance = true
+          }
+
           const balance = await getAlgoAccountTokenBalance(store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
-          if (balance !== null) {
-            store.state.sourceAddressBalance = balance.toString()
+
+          // Only update state if this is still the latest request
+          if (requestId === currentRequestId) {
+            if (balance !== null) {
+              store.state.sourceAddressBalance = balance.toString()
+              logger.debug(`Request ${requestId}: Updated balance to ${store.state.sourceAddressBalance}`)
+            }
             store.state.loadingSourceAddressBalance = false
-            logger.debug('onSourceAddressChange.balance', store.state.sourceAddressBalance, store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
+          } else {
+            logger.debug(`Ignoring stale balance response from request ${requestId}, current is ${currentRequestId}`)
           }
         }
       }
     }
+
     if (store.state.sourceChainConfiguration.type == 'eth' && store.state.sourceToken) {
-      store.state.loadingSourceAddressBalance = true
+      // Set loading state only for current request
+      if (requestId === currentRequestId) {
+        store.state.loadingSourceAddressBalance = true
+      }
+
       const balance = await getEthAccountTokenBalance(store.state.sourceChain, store.state.sourceAddress, store.state.sourceToken)
-      if (balance !== null) {
-        store.state.sourceAddressBalance = balance.toString()
+
+      // Only update state if this is still the latest request
+      if (requestId === currentRequestId) {
+        if (balance !== null) {
+          store.state.sourceAddressBalance = balance.toString()
+          logger.debug(`Request ${requestId}: Updated balance to ${store.state.sourceAddressBalance}`)
+        }
         store.state.loadingSourceAddressBalance = false
-        logger.debug('onSourceAddressChange.balance', store.state.sourceAddressBalance, store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
+      } else {
+        logger.debug(`Ignoring stale balance response from request ${requestId}, current is ${currentRequestId}`)
       }
     }
   } catch (e: any) {
-    store.state.loadingSourceAddressBalance = false
-    logger.error(e)
-    toast.add({
-      severity: 'error',
-      detail: e.message,
-      life: 3000
-    })
+    // Only update error state if this is still the latest request
+    if (requestId === currentRequestId) {
+      store.state.loadingSourceAddressBalance = false
+      store.state.sourceAddressBalance = undefined
+      logger.error(`Request ${requestId} failed:`, e)
+      toast.add({
+        severity: 'error',
+        detail: e.message,
+        life: 3000
+      })
+    } else {
+      logger.debug(`Ignoring error from stale request ${requestId}, current is ${currentRequestId}`)
+    }
     return false
   }
 }
@@ -140,22 +208,22 @@ onMounted(async () => {
   }
 })
 
-watch(
+stopWatchers.push(watch(
   () => store.state.sourceChain,
   () => {
     fillInState()
     debouncedOnSourceAddressChange()
   }
-)
-watch(
+))
+stopWatchers.push(watch(
   () => store.state.sourceAddress,
   () => {
     fillInState()
     debouncedOnSourceAddressChange()
   }
-)
+))
 
-watch(
+stopWatchers.push(watch(
   () => store.state.sourceChainConfiguration,
   () => {
     fillInState()
@@ -177,21 +245,27 @@ watch(
       }
     }
   }
-)
+))
 
-watch(
+stopWatchers.push(watch(
   () => store.state.connectedSourceChain,
   () => {
     fillInState()
     debouncedOnSourceAddressChange()
   }
-)
-watch(
+))
+stopWatchers.push(watch(
   () => store.state.sourceToken,
   () => {
     debouncedOnSourceAddressChange()
   }
-)
+))
+
+// Cleanup on unmount to prevent memory leaks
+onUnmounted(() => {
+  stopWatchers.forEach(stop => stop())
+  debouncedOnSourceAddressChange.cancel()
+})
 const buttonClick = async () => {
   if (store.state.sourceChainConfiguration?.type == 'algo') {
     if (state.connected) {
@@ -245,37 +319,42 @@ const buttonClick = async () => {
       } else {
         await modal?.open()
 
-        // Use Promise.race to wait for connection with timeout (Task 4.3)
-        const connectionTimeout = 5000
-        const startTime = Date.now()
+        // Event-driven connection check with timeout (fixes busy-wait regression)
+        const checkConnection = async (): Promise<boolean> => {
+          return new Promise((resolve) => {
+            // Set up timeout
+            const timeoutId = setTimeout(() => {
+              unwatch()
+              logger.debug('Wallet connection timeout after 30s')
+              toast.add({
+                severity: 'warn',
+                summary: t('wallet.connectionTimeout'),
+                detail: t('wallet.connectionTimeoutDetail'),
+                life: 5000
+              })
+              resolve(false)
+            }, TIMEOUTS.WALLET_CONNECTION)
 
-        const checkConnection = async () => {
-          while (Date.now() - startTime < connectionTimeout) {
-            if (isConnected.value && address.value) {
-              store.state.connectedSourceChain = store.state.sourceChain
-              store.state.sourceAddress = address.value
-              return true
-            }
-            await asyncdelay(100)
-          }
-          return false
-        }
-
-        const connected = await checkConnection()
-        if (!connected) {
-          logger.warn('Wallet connection timeout after 5s')
-          toast.add({
-            severity: 'warn',
-            detail: 'Wallet connection timed out. Please try again.',
-            life: 3000
+            // Watch for connection - reactive, not polling
+            const unwatch = watch([isConnected, address], ([conn, addr]) => {
+              if (conn && addr) {
+                clearTimeout(timeoutId)
+                unwatch()
+                store.state.connectedSourceChain = store.state.sourceChain
+                store.state.sourceAddress = addr
+                resolve(true)
+              }
+            }, { immediate: true })
           })
         }
+
+        await checkConnection()
       }
 
       //if (!address) {
       // await modal?.open({ view: 'Account' })
       // address = await modal?.getAddress()
-      // //console.log('address after open is ', address)
+      // //logger.debug('address after open is ', address)
       // //}
 
       // if (address) {
