@@ -112,8 +112,8 @@ const store = useAppStore()
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
-const { activeWallet } = useWallet()
-const { avmActiveWallet, activeAccount } = useAvmWallet()
+const { activeWallet, signTransactions: useWalletSignTransactions } = useWallet()
+const { avmActiveWallet, activeAccount, signTransactions: avmSignTransactions } = useAvmWallet()
 
 const routeToReviewScreen = () => {
   console.log('routeToReviewScreen')
@@ -131,7 +131,7 @@ const matchBridgeTxByDataClick = async () => {
         try {
           if (algodClient) {
             const txInfo = await algodClient.pendingTransactionInformation(txId).do()
-            if (txInfo['confirmed-round']) {
+            if (txInfo.confirmedRound) {
               store.state.bridgeTx = txId
             }
           }
@@ -224,9 +224,13 @@ const signWithUseWallet = async () => {
     let signed: any
 
     // smart asset (arc200)
-    const config = store.state.sourceTokenConfiguration as any
+    const config = store.state.sourceTokenConfiguration
     if (config?.arc200TokenId || config?.asa2arc200BridgeAppId) {
-      const { arc200TokenId, asa2arc200BridgeAppId, decimals, name, chainId } = store.state.sourceTokenConfiguration as any
+      const arc200TokenId = config.arc200TokenId
+      const asa2arc200BridgeAppId = config.asa2arc200BridgeAppId
+      const decimals = config.decimals
+      const name = config.name
+      const chainId = config.chainId
 
       const sourceAddress = store.state?.sourceAddress || ''
       const tokenId = store.state.sourceToken
@@ -264,7 +268,7 @@ const signWithUseWallet = async () => {
         )
       }
       const builder = {
-        arc200: makeConstructor(arc200TokenId, arc200ExchangeABI)
+        arc200: makeConstructor(String(arc200TokenId), arc200ExchangeABI)
         //saw200: makeConstructor(asa2arc200BridgeAppId, saw200ABI)
       }
       // transaction group
@@ -355,7 +359,7 @@ const signWithUseWallet = async () => {
       if (!customR.success) {
         throw Error(customR.error)
       }
-      signed = await activeWallet.value?.signTransactions(customR.txns.map((txn: string) => new Uint8Array(Buffer.from(txn, 'base64'))))
+      signed = await useWalletSignTransactions(customR.txns.map((txn: string) => new Uint8Array(Buffer.from(txn, 'base64'))))
     }
     // algo or asa
     else {
@@ -377,7 +381,7 @@ const signWithUseWallet = async () => {
               note: new Uint8Array(Buffer.from(store.state.sourceTxNote))
             })
 
-      signed = await activeWallet.value?.signTransactions([tx])
+      signed = await useWalletSignTransactions([tx])
     }
     if (signed && signed.length > 0) {
       // res.txId is the txId of the first transaction in the signed array
@@ -515,7 +519,7 @@ const claimButtonClick = async () => {
     }
 
     // Sign with destination wallet
-    const signed = await avmActiveWallet.value.signTransactions(customR.txns.map((txn: string) => new Uint8Array(Buffer.from(txn, 'base64'))))
+    const signed = await avmSignTransactions(customR.txns.map((txn: string) => new Uint8Array(Buffer.from(txn, 'base64'))))
 
     // Filter out any null values to satisfy the type requirement
     const filteredSigned = signed.filter((s: Uint8Array | null): s is Uint8Array => s !== null)
@@ -526,7 +530,7 @@ const claimButtonClick = async () => {
 
     // Wait for confirmation
     await algodClient.status().do()
-    await algodClient.pendingTransactionInformation(result.txId).do()
+    await algodClient.pendingTransactionInformation(result.txid).do()
 
     toast.add({
       severity: 'success',

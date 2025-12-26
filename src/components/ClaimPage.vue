@@ -1,25 +1,25 @@
 <script setup lang="ts">
-import { useAppStore } from '@/stores/app'
-import MainBox from './ui/MainBox.vue'
-import WalletAddress from './ui/WalletAddress.vue'
-import { onMounted, reactive } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import SimpleLabel from './ui/SimpleLabel.vue'
-import validEthTxHash from '@/scripts/eth/validEthTxHash'
+import validAlgoTxHash from '@/scripts/algo/validAlgoTxHash'
 import { getClaimTx } from '@/scripts/aramid/getClaimTx'
 import { getTxClaimData } from '@/scripts/aramid/getTxClaimData'
-import validAlgoTxHash from '@/scripts/algo/validAlgoTxHash'
-import CopyIcon from './ui/CopyIcon.vue'
-import MainActionButton from './ui/MainActionButton.vue'
-import { useToast } from 'primevue/usetoast'
-import getWeb3Modal from '@/scripts/eth/getWeb3Modal'
-import { useSwitchNetwork, useWeb3ModalAccount, useWeb3ModalProvider } from '@web3modal/ethers/vue'
-import FireworksEffect from './ui/FireworksEffect.vue'
-import ShortTx from './ui/ShortTx.vue'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
-import { executeEthRedeemTx } from '@/scripts/eth/executeEthRedeemTx'
-import { fillInStateFromClaimData } from '@/scripts/events/fillInStateFromClaimData'
 import { resetStateSoft } from '@/scripts/common/resetStateSoft'
+import { executeEthRedeemTx } from '@/scripts/eth/executeEthRedeemTx'
+import getWeb3Modal from '@/scripts/eth/getWeb3Modal'
+import validEthTxHash from '@/scripts/eth/validEthTxHash'
+import { fillInStateFromClaimData } from '@/scripts/events/fillInStateFromClaimData'
+import { useAppStore } from '@/stores/app'
+import { useSwitchNetwork, useWeb3ModalAccount, useWeb3ModalProvider } from '@web3modal/ethers/vue'
+import { useToast } from 'primevue/usetoast'
+import { onMounted, reactive } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import CopyIcon from './ui/CopyIcon.vue'
+import FireworksEffect from './ui/FireworksEffect.vue'
+import MainActionButton from './ui/MainActionButton.vue'
+import MainBox from './ui/MainBox.vue'
+import ShortTx from './ui/ShortTx.vue'
+import SimpleLabel from './ui/SimpleLabel.vue'
+import WalletAddress from './ui/WalletAddress.vue'
 const toast = useToast()
 const router = useRouter()
 const store = useAppStore()
@@ -75,7 +75,7 @@ const searchForTx = async (searchTxHash: string) => {
   } else if (validEthTxHash(searchTxHash)) {
     console.log('validEthTxHash:', searchTxHash)
     setIsSearching(true)
-    getClaimTx(searchTxHash).then((res: string | null) => {
+    getClaimTx(searchTxHash).then((res: string | undefined) => {
       console.log('claim tx:', res)
       if (!res) {
         setClaimErrorMessage('Transaction not found.')

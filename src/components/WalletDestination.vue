@@ -6,6 +6,7 @@ import getAlgoAccountARC200TokenBalance from '@/scripts/algo/getAlgoAccountARC20
 import getAlgoAccountTokenBalance from '@/scripts/algo/getAlgoAccountTokenBalance'
 import getAlgoAccountTokenOptedIn from '@/scripts/algo/getAlgoAccountTokenOptedIn'
 import asyncdelay from '@/scripts/common/asyncDelay'
+import { formatTooltip } from '@/scripts/common/formatTooltip'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import getEthAccountTokenBalance from '@/scripts/eth/getEthAccountTokenBalance'
 import getWeb3Modal from '@/scripts/eth/getWeb3Modal'
@@ -19,12 +20,13 @@ import { useI18n } from 'vue-i18n'
 import SelectDestinationWalletDialog from './dialogs/SelectDestinationWalletDialog.vue'
 import RoundButton from './ui/RoundButton.vue'
 import WalletAddress from './ui/WalletAddress.vue'
-import { formatTooltip } from '@/scripts/common/formatTooltip'
 
 const { t } = useI18n()
 const store = useAppStore()
 const toast = useToast()
-const { setActiveNetwork, avmActiveWallet, activeAccount } = useWallet()
+const wallet = useWallet()
+const { avmActiveWallet, activeAccount } = wallet
+
 interface IState {
   connected: boolean
   publicConfiguration: PublicConfigurationRoot | null
@@ -139,9 +141,9 @@ const onDestinationAddressChange = async () => {
     if (!store.state.destinationTokenConfiguration) return
 
     const destinationChainConfiguration = store.state.destinationChainConfiguration
-    const { name: destinationChainName, type: destinationChainType, chainId: destinationChainId } = destinationChainConfiguration
-    const destinationTokenConfig = store.state.destinationTokenConfiguration as any
-    const { type: destinationTokenType, contractId: destinationTokenContractId, unitAppId: destinationTokenUnitAppId, chainId: destinationTokenChainId } = destinationTokenConfig
+    const { name: destinationChainName } = destinationChainConfiguration
+    const destinationTokenConfig = store.state.destinationTokenConfiguration
+    const { type: destinationTokenType } = destinationTokenConfig
 
     console.log('destinationTokenType', destinationTokenType)
     console.log('destinationTokenConfig', destinationTokenConfig)

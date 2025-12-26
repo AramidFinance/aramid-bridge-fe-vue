@@ -7,13 +7,13 @@ import algosdk from 'algosdk'
 import { useWallet } from 'avm-wallet-vue'
 import { useToast } from 'primevue/usetoast'
 import QRCodeVue3 from 'qrcode-vue3'
-import { onMounted, reactive } from 'vue'
+import { computed, onMounted, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CopyIcon from './ui/CopyIcon.vue'
 import MainActionButton from './ui/MainActionButton.vue'
 import MainBox from './ui/MainBox.vue'
 import WalletAddress from './ui/WalletAddress.vue'
-const { avmActiveWallet, activeAccount } = useWallet()
+const { avmActiveWallet, activeAccount, signTransactions: avmSignTransactions } = useWallet()
 
 const store = useAppStore()
 const route = useRoute()
@@ -24,6 +24,8 @@ const state = reactive({
   signInWallet: false,
   sendingOptin: false
 })
+
+const walletName = computed(() => avmActiveWallet.value?.metadata?.name)
 
 const routeToBridgeScreen = () => {
   console.log('route', route)
@@ -86,7 +88,7 @@ const optinUsingUseWallet = async () => {
     })
 
     state.signInWallet = true
-    const signed = await avmActiveWallet.value?.signTransactions([tx])
+    const signed = await avmSignTransactions([tx])
     state.signInWallet = false
     if (signed && signed[0]) {
       state.sendingOptin = true
@@ -130,7 +132,7 @@ const optinUsingUseWallet = async () => {
     <p v-if="store.state.destinationToken"><CopyIcon :text="store.state.destinationToken" :title="store.state.destinationToken"></CopyIcon> {{ store.state.destinationToken }}</p>
 
     <div v-if="activeAccount?.address == store.state.destinationAddress">
-      <p v-if="state.signInWallet"><img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> Please sign your transaction in your {{ avmActiveWallet?.name }} wallet</p>
+      <p v-if="state.signInWallet"><img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> Please sign your transaction in your {{ walletName }} wallet</p>
       <p v-if="state.sendingOptin"><img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> Sending optin to the {{ store.state.destinationChainConfiguration?.name }}</p>
       <MainActionButton @click="optinUsingUseWallet">Opt in</MainActionButton>
     </div>

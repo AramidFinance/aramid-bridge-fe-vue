@@ -1,5 +1,4 @@
 import { useAppStore } from '@/stores/app'
-import type { Transaction } from 'algosdk'
 import BigNumber from 'bignumber.js'
 import { executeWithIndexerFailover } from './getIndexerClientByChainIdWithFailover'
 
@@ -17,7 +16,7 @@ export const checkSourceAlgoTx = async () => {
       'checkSourceAlgoTx lookupAccountTransactions'
     )
 
-    for (const tx of txs.transactions.filter((tx: Transaction) => tx.sender.toString() == store.state.sourceAddress && tx.note.length > 0)) {
+    for (const tx of txs.transactions.filter((tx) => tx.sender.toString() == store.state.sourceAddress && tx.note && tx.note.length > 0)) {
       // check asset and amount
       if (store.state.sourceToken === '0') {
         // native token transfer
