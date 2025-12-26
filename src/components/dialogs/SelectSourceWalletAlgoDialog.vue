@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { useAppStore } from '@/stores/app'
-import WalletButton from '../ui/WalletButton.vue'
+import { isWalletForChain } from '@/scripts/algo/isWalletForChain'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
-import { onMounted, reactive } from 'vue'
-import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
+import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
+import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
+import { useAppStore } from '@/stores/app'
 import { useWallet, type Wallet } from '@txnlab/use-wallet-vue'
 import algosdk from 'algosdk'
 import { useToast } from 'primevue/usetoast'
-import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
+import { onMounted, reactive } from 'vue'
 import DialogTitle from '../ui/DialogTitle.vue'
-import { isWalletForChain } from '@/scripts/algo/isWalletForChain'
+import WalletButton from '../ui/WalletButton.vue'
 
 const toast = useToast()
 
@@ -21,12 +21,23 @@ const store = useAppStore()
 const walletButtonClick = async (wallet: Wallet) => {
   console.log('source.wallet', wallet, activeWallet, activeAccount)
   await wallet.connect()
-  console.log('source.wallet2', wallet, activeWallet, activeAccount)
+  console.log('source.wallet2', wallet, activeWallet.value, activeAccount.value)
   if (activeAccount.value?.address) {
     store.state.sourceAddress = activeAccount.value?.address
     store.state.sourceAlgoConnectorType = AlgoConnectorType.UseWallet
     store.state.connectedSourceChain = store.state.sourceChain
   }
+  // else {
+  //   if (wallet.accounts.length > 0) {
+  //     console.log('setting active account to first account', wallet.accounts[0].address)
+  //     await wallet.setActive()
+  //     await wallet.setActiveAccount(wallet.accounts[0].address)
+
+  //     store.state.sourceAddress = wallet.accounts[0].address
+  //     store.state.sourceAlgoConnectorType = AlgoConnectorType.UseWallet
+  //     store.state.connectedSourceChain = store.state.sourceChain
+  //   }
+  // }
   store.state.dialogSelectSourceWalletIsOpen = false
 }
 const qrPaymentClick = () => {

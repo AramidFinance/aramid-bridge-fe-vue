@@ -4,6 +4,7 @@ import { executeWithIndexerFailover } from './getIndexerClientByChainIdWithFailo
 
 const getAlgoAccountTokenOptedIn = async (chainId: number, accountAddress: string, asa: number): Promise<boolean | undefined> => {
   try {
+    const asaBigInt = BigInt(asa)
     const secureConfiguration = await getSecureConfiguration()
     if (!secureConfiguration?.chains || !secureConfiguration.chains[chainId]) return undefined
 
@@ -21,7 +22,7 @@ const getAlgoAccountTokenOptedIn = async (chainId: number, accountAddress: strin
       return account.account.amount > 0n
     }
     if (!account.account.assets) return false
-    const asaItem = account.account.assets[asa]
+    const asaItem = account.account.assets.find((a) => a.assetId == asaBigInt)
     if (!asaItem) return false
     const ret = !!asaItem.optedInAtRound && asaItem.optedInAtRound > 0n && !asaItem.isFrozen && !asaItem.deleted
     console.log(`optin:${chainId}:${accountAddress}:${asa}:${ret}`)

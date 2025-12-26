@@ -36,14 +36,14 @@ const networks = new NetworkConfigBuilder()
       token: ''
     }
   })
-  .addNetwork('voimain', {
+  .voimain({
     algod: {
       baseServer: 'https://mainnet-api.voi.nodely.dev',
       port: '443',
       token: ''
     }
   })
-  .addNetwork('aramidmain', {
+  .aramidmain({
     algod: {
       baseServer: 'https://aramidmain-algod-public.de.nodes.biatec.io',
       port: '443',
