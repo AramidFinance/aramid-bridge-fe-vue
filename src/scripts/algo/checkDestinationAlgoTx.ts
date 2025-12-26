@@ -22,7 +22,7 @@ export const checkDestinationAlgoTx = async () => {
     )) {
       try {
         // check asset and amount
-        let note = Buffer.from(tx.note, 'base64').toString('utf-8')
+        let note = Buffer.from(tx.note ?? '').toString('utf-8')
         if (!note.startsWith('aramid-confirm/v1:j')) continue
         note = note.substring('aramid-confirm/v1:j'.length)
         const noteJson = JSON.parse(note)

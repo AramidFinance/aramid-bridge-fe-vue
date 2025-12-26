@@ -2,20 +2,20 @@ import { getBridgeLog } from '../algo/getBridgeLog'
 import type { IClaim } from '../interface/aramid/IClaim'
 import type { IEthIPFSData } from '../interface/aramid/IEthIPFSData'
 
-export const getClaimTx = async (txHash: string): Promise<string | null> => {
+export const getClaimTx = async (txHash: string): Promise<string | undefined> => {
   const bridgeLog = await getBridgeLog()
   console.log('bridgeLog', bridgeLog)
-  if (!bridgeLog) return null
+  if (!bridgeLog) return undefined
   console.log('aramid transactions:', bridgeLog)
   const transactions = bridgeLog.transactions
-  if (!bridgeLog || !bridgeLog.transactions) return null
+  if (!bridgeLog || !bridgeLog.transactions) return undefined
   console.log('searching transactions for', txHash)
   for (const currTx of transactions) {
     if (!currTx.note) {
       console.error('!currTx.note', currTx)
       continue
     }
-    const decodedNote = Buffer.from(currTx.note, 'base64').toString('utf-8') // decode from base64
+    const decodedNote = Buffer.from(currTx.note).toString('utf-8') // decode from base64
     if (!decodedNote) continue
     const index = decodedNote.indexOf(':')
     if (index <= 0) continue
@@ -36,5 +36,5 @@ export const getClaimTx = async (txHash: string): Promise<string | null> => {
       return currTx.id
     }
   }
-  return null
+  return undefined
 }

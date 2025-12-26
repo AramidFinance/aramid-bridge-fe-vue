@@ -1,32 +1,32 @@
 <script setup lang="ts">
-import { useAppStore } from '@/stores/app'
-import CopyIcon from './ui/CopyIcon.vue'
-import MainBox from './ui/MainBox.vue'
-import WalletAddress from './ui/WalletAddress.vue'
-import { onMounted, ref, onBeforeUnmount } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import StatusBar from './status/StatusBar.vue'
-import QRCodeVue3 from 'qrcode-vue3'
-import { makeNoteField } from '@/scripts/aramid/makeNoteField'
 import loader from '@/assets/images/loading-buffering.gif'
-import { checkSourceAlgoTx } from '@/scripts/algo/checkSourceAlgoTx'
-import ShortTx from './ui/ShortTx.vue'
 import { checkDestinationAlgoTx } from '@/scripts/algo/checkDestinationAlgoTx'
-import FireworksEffect from './ui/FireworksEffect.vue'
-import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
-import { useWallet } from '@txnlab/use-wallet-vue'
-import { useWallet as useAvmWallet } from 'avm-wallet-vue'
-import algosdk from 'algosdk'
-import getAlgodClientByChainId from '@/scripts/algo/getAlgodClientByChainId'
-import { useToast } from 'primevue/usetoast'
-import MainActionButton from './ui/MainActionButton.vue'
-import { getClaimTx } from '@/scripts/aramid/getClaimTx'
-import { getTxClaimData } from '@/scripts/aramid/getTxClaimData'
-import { resetStateSoft } from '@/scripts/common/resetStateSoft'
-import { CONTRACT, abi } from 'ulujs'
-import { BigNumber } from 'bignumber.js'
+import { checkSourceAlgoTx } from '@/scripts/algo/checkSourceAlgoTx'
 import getAlgoAccountTokenBalance from '@/scripts/algo/getAlgoAccountTokenBalance'
 import getAlgoAcountTokenOptin from '@/scripts/algo/getAlgoAccountTokenOptedIn'
+import getAlgodClientByChainId from '@/scripts/algo/getAlgodClientByChainId'
+import { getClaimTx } from '@/scripts/aramid/getClaimTx'
+import { getTxClaimData } from '@/scripts/aramid/getTxClaimData'
+import { makeNoteField } from '@/scripts/aramid/makeNoteField'
+import { resetStateSoft } from '@/scripts/common/resetStateSoft'
+import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
+import { useAppStore } from '@/stores/app'
+import { useWallet } from '@txnlab/use-wallet-vue'
+import algosdk from 'algosdk'
+import { useWallet as useAvmWallet } from 'avm-wallet-vue'
+import { BigNumber } from 'bignumber.js'
+import { useToast } from 'primevue/usetoast'
+import QRCodeVue3 from 'qrcode-vue3'
+import { CONTRACT, abi } from 'ulujs'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import StatusBar from './status/StatusBar.vue'
+import CopyIcon from './ui/CopyIcon.vue'
+import FireworksEffect from './ui/FireworksEffect.vue'
+import MainActionButton from './ui/MainActionButton.vue'
+import MainBox from './ui/MainBox.vue'
+import ShortTx from './ui/ShortTx.vue'
+import WalletAddress from './ui/WalletAddress.vue'
 
 const saw200ABI = {
   name: 'saw200',
@@ -363,16 +363,16 @@ const signWithUseWallet = async () => {
         Number(store.state.sourceToken) > 0
           ? algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
               amount: BigInt(store.state.sourceAmount),
-              from: store.state.sourceAddress,
-              to: store.state.sourceBridgeAddress,
+              sender: store.state.sourceAddress,
+              receiver: store.state.sourceBridgeAddress,
               suggestedParams: params,
               note: new Uint8Array(Buffer.from(store.state.sourceTxNote)),
               assetIndex: Number(store.state.sourceToken)
             })
           : algosdk.makePaymentTxnWithSuggestedParamsFromObject({
               amount: BigInt(store.state.sourceAmount),
-              from: store.state.sourceAddress,
-              to: store.state.sourceBridgeAddress,
+              sender: store.state.sourceAddress,
+              receiver: store.state.sourceBridgeAddress,
               suggestedParams: params,
               note: new Uint8Array(Buffer.from(store.state.sourceTxNote))
             })
@@ -429,7 +429,7 @@ const claimButtonClick = async () => {
     // get asset balance
     if (!store.state.destinationAddress) throw Error('Destination address is not set')
     const accAssetInfo = await algodClient.accountAssetInformation(store.state.destinationAddress, Number(store.state.destinationToken)).do()
-    const assetBalance = accAssetInfo['asset-holding']['amount']
+    const assetBalance = accAssetInfo.assetHolding?.amount
 
     // Initialize the main contract interface
     const ci = new CONTRACT(Number(store.state.destinationTokenConfiguration.arc200TokenId), algodClient, undefined, abi.custom, {
@@ -588,7 +588,7 @@ const claimButtonClick = async () => {
         </div>
       </div>
       <div v-if="store.state.sourceAlgoConnectorType == AlgoConnectorType.UseWallet" class="text-center font-bold m-4">
-        <p><img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> Please sign your transaction in your {{ activeWallet?.name }} wallet</p>
+        <p><img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> Please sign your transaction in your {{ activeWallet?.metadata?.name }} wallet</p>
       </div>
     </div>
     <div v-else-if="store.state.bridgeTx && !store.state.claimTx">

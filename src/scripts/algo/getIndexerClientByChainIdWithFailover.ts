@@ -1,8 +1,7 @@
-import algosdk from 'algosdk'
+import algosdk, { type CustomTokenHeader } from 'algosdk'
 import getLogger from '../common/getLogger'
 import getSecureConfiguration from '../common/getSecureConfiguration'
 import type { AlgoPrivateConfiguration } from '../interface/algo/AlgoPrivateConfiguration'
-import type { CustomTokenHeader } from 'algosdk/dist/types/client/urlTokenBaseHTTPClient'
 import { getPublicIndexerProviders } from './getPublicProviders'
 
 interface IndexerProvider {

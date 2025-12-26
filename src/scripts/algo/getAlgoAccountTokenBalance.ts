@@ -1,8 +1,8 @@
+import algosdk from 'algosdk'
 import BigNumber from 'bignumber.js'
+import asyncdelay from '../common/asyncDelay'
 import getSecureConfiguration from '../common/getSecureConfiguration'
 import { executeWithIndexerFailover } from './getIndexerClientByChainIdWithFailover'
-import asyncdelay from '../common/asyncDelay'
-import algosdk from 'algosdk'
 
 const getAlgoAccountTokenBalance = async (chainId: number, accountAddress: string, asa: number): Promise<BigNumber | null> => {
   try {
@@ -22,7 +22,7 @@ const getAlgoAccountTokenBalance = async (chainId: number, accountAddress: strin
     //console.log('algo.account', chainId, account)
     if (!account || !account.account) return new BigNumber('0')
     if (asa == 0) {
-      return account.account.amount
+      return new BigNumber(account.account.amount)
     }
     if (!account.account.assets) return new BigNumber('0')
     const asaItem = account.account.assets.find((a: any) => a['asset-id'] == asa)

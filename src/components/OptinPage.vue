@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import { useAppStore } from '@/stores/app'
-import CopyIcon from './ui/CopyIcon.vue'
-import MainBox from './ui/MainBox.vue'
-import WalletAddress from './ui/WalletAddress.vue'
-import { onMounted, reactive } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import MainActionButton from './ui/MainActionButton.vue'
-import { useToast } from 'primevue/usetoast'
 import loader from '@/assets/images/loading-buffering.gif'
-import { useWallet } from 'avm-wallet-vue'
-import QRCodeVue3 from 'qrcode-vue3'
 import getAlgoAccountTokenOptedIn from '@/scripts/algo/getAlgoAccountTokenOptedIn'
 import getAlgodClientByChainId from '@/scripts/algo/getAlgodClientByChainId'
+import { useAppStore } from '@/stores/app'
 import algosdk from 'algosdk'
+import { useWallet } from 'avm-wallet-vue'
+import { useToast } from 'primevue/usetoast'
+import QRCodeVue3 from 'qrcode-vue3'
+import { onMounted, reactive } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import CopyIcon from './ui/CopyIcon.vue'
+import MainActionButton from './ui/MainActionButton.vue'
+import MainBox from './ui/MainBox.vue'
+import WalletAddress from './ui/WalletAddress.vue'
 const { avmActiveWallet, activeAccount } = useWallet()
 
 const store = useAppStore()
@@ -78,8 +78,8 @@ const optinUsingUseWallet = async () => {
     const params = await algodClient.getTransactionParams().do()
     const tx = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
       amount: 0,
-      from: store.state.destinationAddress,
-      to: store.state.destinationAddress,
+      sender: store.state.destinationAddress,
+      receiver: store.state.destinationAddress,
       suggestedParams: params,
       note: new Uint8Array(Buffer.from('aramid-optin')),
       assetIndex: Number(store.state.destinationToken)
