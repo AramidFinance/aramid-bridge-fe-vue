@@ -82,6 +82,9 @@ const logState = () => {
             ></path>
           </svg>
         </a>
+        <a href="https://explorer.aramid.finance" target="_blank" rel="noopener noreferrer" class="text-dark-placeholder transition duration-100 ease-in-out hover:text-dark-label text-sm">
+          Explorer
+        </a>
       </div>
     </div>
   </footer>
