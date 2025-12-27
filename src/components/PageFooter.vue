@@ -9,7 +9,8 @@ const logState = () => {
 }
 </script>
 <template>
-  <footer @click="logState" class="flex flex-none w-full bg-white-rgba border-t border-dark-elevation py-2 sticky top-[100vh] justify-center gap-4 backdrop-blur-xl">
+  <div class="h-18 bg-black w-full fixed bottom-0">&nbsp;</div>
+  <footer @click="logState" class="h-18 flex flex-none w-full bg-white-rgba border-t border-dark-elevation py-2 fixed bottom-0 justify-center gap-4 backdrop-blur-xl">
     <div class="flex items-center gap-4">
       <LanguageSelector />
       <div class="flex gap-4">

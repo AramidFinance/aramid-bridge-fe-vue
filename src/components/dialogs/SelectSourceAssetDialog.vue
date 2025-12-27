@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { useAppStore } from '@/stores/app'
-import AssetButton from '../ui/AssetButton.vue'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
-import { onMounted, reactive, watch, computed, ref } from 'vue'
-import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
-import type { TokenItem } from '@/scripts/interface/mapping/TokenItem'
+import { fillDestinationTokenConfiguration } from '@/scripts/events/fillDestinationTokenConfiguration'
+import { fillRouteInfo } from '@/scripts/events/fillRouteInfo'
 import { fillSourceTokenConfiguration } from '@/scripts/events/fillSourceTokenConfiguration'
 import { resetDestinationTokenIfNotMatched } from '@/scripts/events/resetDestinationTokenIfNotMatched'
-import { fillDestinationTokenConfiguration } from '@/scripts/events/fillDestinationTokenConfiguration'
+import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
+import type { TokenItem } from '@/scripts/interface/mapping/TokenItem'
+import { useAppStore } from '@/stores/app'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import AssetButton from '../ui/AssetButton.vue'
 import DialogTitle from '../ui/DialogTitle.vue'
-import { fillRouteInfo } from '@/scripts/events/fillRouteInfo'
 
 const store = useAppStore()
 const searchQuery = ref('')
@@ -155,7 +155,7 @@ watch(
         <div v-if="!state.assets?.length" class="text-white text-center py-4">No assets available</div>
 
         <!-- Scrollable content area -->
-        <div v-else class="flex-1 overflow-y-auto space-y-3">
+        <div v-else class="flex-1 overflow-y-auto space-y-3 max-h-[60vh]">
           <!-- Popular Tokens Section -->
           <div v-if="!searchQuery.trim() && popularAssets.length > 0">
             <h3 class="text-white/80 text-sm font-medium mb-2 px-2">Popular Tokens</h3>
