@@ -8,6 +8,7 @@ import { useWallet } from 'avm-wallet-vue'
 import { useToast } from 'primevue/usetoast'
 import QRCodeVue3 from 'qrcode-vue3'
 import { computed, onMounted, reactive } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import CopyIcon from './ui/CopyIcon.vue'
 import MainActionButton from './ui/MainActionButton.vue'
@@ -19,6 +20,7 @@ const store = useAppStore()
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const { t } = useI18n()
 
 const state = reactive({
   signInWallet: false,
@@ -56,7 +58,7 @@ const checkOptIn = async () => {
     } else {
       toast.add({
         severity: 'error',
-        detail: `Account is not yet opted in to asset ${store.state.destinationToken}`,
+        detail: t('error.accountNotOptedIn', { assetId: store.state.destinationToken }),
         life: 3000
       })
     }
@@ -122,29 +124,28 @@ const optinUsingUseWallet = async () => {
         <div class="flex flex-row-reverse items-center">
           <img alt="CaretLeftIcon" loading="lazy" width="20" height="20" decoding="async" src="../assets/images/CaretLeft.svg" style="color: transparent" />
         </div>
-        Back
+        {{ t('common.back') }}
       </div>
-      <div class="font-bold text-xl">Destination account optin required</div>
+      <div class="font-bold text-xl">{{ t('optin.destinationAccountRequired') }}</div>
     </div>
 
-    <p>On {{ store.state.destinationChainConfiguration?.name }} chain the standard assets require to be opted in to the asset before third party can do deposit.</p>
+    <p>{{ t('optin.chainRequirement', { chain: store.state.destinationChainConfiguration?.name }) }}</p>
 
     <p v-if="store.state.destinationToken"><CopyIcon :text="store.state.destinationToken" :title="store.state.destinationToken"></CopyIcon> {{ store.state.destinationToken }}</p>
 
     <div v-if="activeAccount?.address == store.state.destinationAddress">
-      <p v-if="state.signInWallet"><img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> Please sign your transaction in your {{ walletName }} wallet</p>
-      <p v-if="state.sendingOptin"><img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> Sending optin to the {{ store.state.destinationChainConfiguration?.name }}</p>
-      <MainActionButton @click="optinUsingUseWallet">Opt in</MainActionButton>
+      <p v-if="state.signInWallet"><img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> {{ t('sign.signInWallet', { wallet: walletName || '' }) }}</p>
+      <p v-if="state.sendingOptin">
+        <img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> {{ t('optin.sending', { chain: store.state.destinationChainConfiguration?.name }) }}
+      </p>
+      <MainActionButton @click="optinUsingUseWallet">{{ t('optin.optInButton') }}</MainActionButton>
     </div>
     <div v-else>
-      <p>
-        If you are owner of the account please opt in by scanning the QR code in ARC26 QR Code capable wallet or do self signed zero amount tx manually with asset {{ store.state.destinationToken }} in
-        your wallet. If you want to send the assets to someone else, ask him to opt in to asset {{ store.state.destinationToken }}.
-      </p>
+      <p>{{ t('optin.instructions', { token: store.state.destinationToken }) }}</p>
       <table class="w-full">
         <tbody>
           <tr>
-            <th>Account</th>
+            <th>{{ t('optin.accountLabel') }}</th>
             <th><CopyIcon :text="store.state.destinationAddress"></CopyIcon></th>
             <td>
               <div class="w-full block md:hidden">
@@ -159,14 +160,14 @@ const optinUsingUseWallet = async () => {
             </td>
           </tr>
           <tr>
-            <th>Asset ID</th>
+            <th>{{ t('optin.assetIdLabel') }}</th>
             <th><CopyIcon :text="store.state.destinationToken"></CopyIcon></th>
             <td>{{ store.state.destinationToken }}</td>
           </tr>
         </tbody>
       </table>
       <QRCodeVue3 :width="200" :height="200" :value="optInQrContent()" class="m-auto w-full" myclass="m-auto w-full" imgclass="m-auto h-40 w-40" />
-      <MainActionButton @click="checkOptIn">Account has been opted in</MainActionButton>
+      <MainActionButton @click="checkOptIn">{{ t('optin.accountOptedInButton') }}</MainActionButton>
     </div>
   </MainBox>
 </template>

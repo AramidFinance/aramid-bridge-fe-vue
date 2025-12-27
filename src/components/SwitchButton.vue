@@ -6,8 +6,10 @@ import { useAppStore } from '@/stores/app'
 import { useWallet } from 'avm-wallet-vue'
 import base64url from 'base64url'
 import BigNumber from 'bignumber.js'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 const { activeAddress } = useWallet()
+const { t } = useI18n()
 const store = useAppStore()
 const route = useRoute()
 const router = useRouter()
@@ -194,7 +196,7 @@ const switchClick = () => {
 }
 </script>
 <template>
-  <div class="text-[12px] text-center 3xl:text-xl 4xl:text-2xl my-2">Origin</div>
+  <div class="text-[12px] text-center 3xl:text-xl 4xl:text-2xl my-2">{{ t('chain.originLabel') }}</div>
   <div class="flex flex-row items-center justify-between">
     <hr class="h-px my-6 w-4/12 md:w-7/12 bg-[#F6F6F629] border-0 dark:bg-gray-700" />
     <div class="w-10 p-2 cursor-pointer bg-[#190B29] border-[#FB7EFF99] border-2 rounded-full hover:bg-white-0.2" @click="switchClick">
@@ -202,8 +204,8 @@ const switchClick = () => {
         <img
           color="red"
           id="reverse-button"
-          alt="reverse"
-          title="Reverse the direction"
+          :alt="t('bridge.reverseDirection')"
+          :title="t('bridge.reverseDirection')"
           loading="lazy"
           width="20"
           height="20"
@@ -217,5 +219,5 @@ const switchClick = () => {
     </div>
     <hr class="h-px my-6 w-4/12 md:w-7/12 bg-[#F6F6F629] border-0 dark:bg-gray-700" />
   </div>
-  <div class="text-[12px] text-center 3xl:text-xl 4xl:text-2xl my-2">Destination</div>
+  <div class="text-[12px] text-center 3xl:text-xl 4xl:text-2xl my-2">{{ t('chain.destinationLabel') }}</div>
 </template>

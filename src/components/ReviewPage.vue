@@ -1,26 +1,28 @@
 CopyIcon
 <script setup lang="ts">
+import loader from '@/assets/images/loading-buffering.gif'
+import { executeEthApproveTx } from '@/scripts/eth/executeEthApproveTx'
+import { executeEthLockNativeTx } from '@/scripts/eth/executeEthLockNativeTx'
+import { executeEthLockTokensTx } from '@/scripts/eth/executeEthLockTokensTx'
+import getWeb3Modal from '@/scripts/eth/getWeb3Modal'
 import { useAppStore } from '@/stores/app'
-import CopyIcon from './ui/CopyIcon.vue'
-import MainBox from './ui/MainBox.vue'
-import WalletAddress from './ui/WalletAddress.vue'
+import { useSwitchNetwork, useWeb3ModalAccount, useWeb3ModalProvider } from '@web3modal/ethers/vue'
+import base64url from 'base64url'
+import { useToast } from 'primevue/usetoast'
 import { onMounted, reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import StatusBar from './status/StatusBar.vue'
+import CopyIcon from './ui/CopyIcon.vue'
 import MainActionButton from './ui/MainActionButton.vue'
-import base64url from 'base64url'
-import getWeb3Modal from '@/scripts/eth/getWeb3Modal'
-import { useSwitchNetwork, useWeb3ModalAccount, useWeb3ModalProvider } from '@web3modal/ethers/vue'
-import { useToast } from 'primevue/usetoast'
-import { executeEthApproveTx } from '@/scripts/eth/executeEthApproveTx'
-import { executeEthLockTokensTx } from '@/scripts/eth/executeEthLockTokensTx'
-import { executeEthLockNativeTx } from '@/scripts/eth/executeEthLockNativeTx'
-import loader from '@/assets/images/loading-buffering.gif'
+import MainBox from './ui/MainBox.vue'
 import ShortTx from './ui/ShortTx.vue'
+import WalletAddress from './ui/WalletAddress.vue'
 const store = useAppStore()
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const { t } = useI18n()
 
 const state = reactive({
   switchingNetwork: false,
@@ -269,9 +271,9 @@ watch(
         <div class="flex flex-row-reverse items-center">
           <img alt="CaretLeftIcon" loading="lazy" width="20" height="20" decoding="async" src="../assets/images/CaretLeft.svg" style="color: transparent" />
         </div>
-        Back
+        {{ t('common.back') }}
       </div>
-      <div class="font-bold text-xl">Review your transaction</div>
+      <div class="font-bold text-xl">{{ t('transaction.review') }}</div>
     </div>
 
     <div class="text-sm border border-bottom-1 border-[#F6F6F61A] border-x-0 w-full pb-8">
@@ -283,52 +285,52 @@ watch(
         </div>
         <div class="text-lg font-bold my-2 mr-4">{{ store.state.sourceChainConfiguration?.name }}</div>
         <hr class="h-[1px] my-6 w-full bg-[#F6F6F629] border-0 dark:bg-gray-700" />
-        <div class="my-3 min-w-32 mx-auto text-center">Source chain</div>
+        <div class="my-3 min-w-32 mx-auto text-center">{{ t('chain.source') }}</div>
         <hr class="h-[1px] my-6 w-full bg-[#F6F6F629] border-0 dark:bg-gray-700" />
       </div>
       <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">
-        <div class="md:min-w-44 font-bold">Amount to send</div>
+        <div class="md:min-w-44 font-bold">{{ t('amount.toSend') }}</div>
         <div class="w-full" :title="`Base amount: ${store.state.sourceAmount}`">{{ store.state.sourceAmountFormatted }}</div>
       </div>
       <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">
-        <div class="md:min-w-44 font-bold">Token name</div>
+        <div class="md:min-w-44 font-bold">{{ t('asset.tokenName') }}</div>
         <div class="w-full">{{ store.state.sourceTokenConfiguration?.name }}</div>
       </div>
       <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">
-        <div class="md:min-w-44 font-bold">Token ID</div>
+        <div class="md:min-w-44 font-bold">{{ t('asset.tokenId') }}</div>
         <div class="w-full">
           {{ store.state.sourceTokenConfiguration?.tokenId }}
-          <CopyIcon :text="store.state.sourceTokenConfiguration?.tokenId" :title="`Copy token ID: ${store.state.sourceTokenConfiguration?.tokenId}`"></CopyIcon>
+          <CopyIcon :text="store.state.sourceTokenConfiguration?.tokenId" :title="t('address.copyToken', { tokenId: store.state.sourceTokenConfiguration?.tokenId })"></CopyIcon>
         </div>
       </div>
       <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">
-        <div class="md:min-w-44 font-bold">Origin address</div>
+        <div class="md:min-w-44 font-bold">{{ t('address.origin') }}</div>
         <div class="w-full block md:hidden">
           <WalletAddress :address="store.state.sourceAddress" :length="4"></WalletAddress>
-          <CopyIcon :text="store.state.sourceAddress" :title="`Copy origin address: ${store.state.sourceAddress}`"></CopyIcon>
+          <CopyIcon :text="store.state.sourceAddress" :title="t('address.copyOrigin', { address: store.state.sourceAddress })"></CopyIcon>
         </div>
         <div class="w-full hidden md:block lg:hidden">
           <WalletAddress :address="store.state.sourceAddress" :length="6"></WalletAddress>
-          <CopyIcon :text="store.state.sourceAddress" :title="`Copy origin address: ${store.state.sourceAddress}`"></CopyIcon>
+          <CopyIcon :text="store.state.sourceAddress" :title="t('address.copyOrigin', { address: store.state.sourceAddress })"></CopyIcon>
         </div>
         <div class="w-full hidden lg:block">
           <WalletAddress :address="store.state.sourceAddress" :length="30"></WalletAddress>
-          <CopyIcon :text="store.state.sourceAddress" :title="`Copy origin address: ${store.state.sourceAddress}`"></CopyIcon>
+          <CopyIcon :text="store.state.sourceAddress" :title="t('address.copyOrigin', { address: store.state.sourceAddress })"></CopyIcon>
         </div>
       </div>
       <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">
-        <div class="md:min-w-44 font-bold">Bridge address</div>
+        <div class="md:min-w-44 font-bold">{{ t('address.bridge') }}</div>
         <div class="w-full block md:hidden">
           <WalletAddress :address="store.state.sourceBridgeAddress" :length="4"></WalletAddress>
-          <CopyIcon :text="store.state.sourceBridgeAddress" :title="`Copy source chain bridge address: ${store.state.sourceBridgeAddress}`"></CopyIcon>
+          <CopyIcon :text="store.state.sourceBridgeAddress" :title="t('address.copyBridgeSource', { address: store.state.sourceBridgeAddress })"></CopyIcon>
         </div>
         <div class="w-full hidden md:block lg:hidden">
           <WalletAddress :address="store.state.sourceBridgeAddress" :length="6"></WalletAddress>
-          <CopyIcon :text="store.state.sourceBridgeAddress" :title="`Copy source chain bridge address: ${store.state.sourceBridgeAddress}`"></CopyIcon>
+          <CopyIcon :text="store.state.sourceBridgeAddress" :title="t('address.copyBridgeSource', { address: store.state.sourceBridgeAddress })"></CopyIcon>
         </div>
         <div class="w-full hidden lg:block">
           <WalletAddress :address="store.state.sourceBridgeAddress" :length="30"></WalletAddress>
-          <CopyIcon :text="store.state.sourceBridgeAddress" :title="`Copy source chain bridge address: ${store.state.sourceBridgeAddress}`"></CopyIcon>
+          <CopyIcon :text="store.state.sourceBridgeAddress" :title="t('address.copyBridgeSource', { address: store.state.sourceBridgeAddress })"></CopyIcon>
         </div>
       </div>
 
@@ -340,84 +342,86 @@ watch(
         </div>
         <div class="text-lg font-bold my-2 mr-4">{{ store.state.destinationChainConfiguration?.name }}</div>
         <hr class="h-[1px] my-6 w-full bg-[#F6F6F629] border-0 dark:bg-gray-700" />
-        <div class="my-3 min-w-32 mx-auto text-center">Destination chain</div>
+        <div class="my-3 min-w-32 mx-auto text-center">{{ t('chain.destination') }}</div>
         <hr class="h-[1px] my-6 w-full bg-[#F6F6F629] border-0 dark:bg-gray-700" />
       </div>
 
       <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">
-        <div class="md:min-w-44 font-bold">Amount to receive</div>
+        <div class="md:min-w-44 font-bold">{{ t('amount.toReceive') }}</div>
         <div class="w-full" :title="`Base amount: ${store.state.destinationAmount}`">{{ store.state.destinationAmountFormatted }}</div>
       </div>
       <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">
-        <div class="md:min-w-44 font-bold">Token name</div>
+        <div class="md:min-w-44 font-bold">{{ t('asset.tokenName') }}</div>
         <div class="w-full">{{ store.state.destinationTokenConfiguration?.name }}</div>
       </div>
       <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">
-        <div class="md:min-w-44 font-bold">Token ID</div>
+        <div class="md:min-w-44 font-bold">{{ t('asset.tokenId') }}</div>
         <div class="w-full">
           {{ store.state.destinationTokenConfiguration?.tokenId }}
-          <CopyIcon :text="store.state.destinationTokenConfiguration?.tokenId" :title="`Copy token ID: ${store.state.destinationTokenConfiguration?.tokenId}`"></CopyIcon>
+          <CopyIcon :text="store.state.destinationTokenConfiguration?.tokenId" :title="t('address.copyToken', { tokenId: store.state.destinationTokenConfiguration?.tokenId })"></CopyIcon>
         </div>
       </div>
       <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">
-        <div class="md:min-w-44 font-bold">Destination address</div>
+        <div class="md:min-w-44 font-bold">{{ t('address.destination') }}</div>
         <div class="w-full block md:hidden">
           <WalletAddress :address="store.state.destinationAddress" :length="4"></WalletAddress>
-          <CopyIcon :text="store.state.destinationAddress" :title="`Copy origin address: ${store.state.destinationAddress}`"></CopyIcon>
+          <CopyIcon :text="store.state.destinationAddress" :title="t('address.copyDestination', { address: store.state.destinationAddress })"></CopyIcon>
         </div>
         <div class="w-full hidden md:block lg:hidden">
           <WalletAddress :address="store.state.destinationAddress" :length="6"></WalletAddress>
-          <CopyIcon :text="store.state.destinationAddress" :title="`Copy origin address: ${store.state.destinationAddress}`"></CopyIcon>
+          <CopyIcon :text="store.state.destinationAddress" :title="t('address.copyDestination', { address: store.state.destinationAddress })"></CopyIcon>
         </div>
         <div class="w-full hidden lg:block">
           <WalletAddress :address="store.state.destinationAddress" :length="30"></WalletAddress>
-          <CopyIcon :text="store.state.destinationAddress" :title="`Copy origin address: ${store.state.destinationAddress}`"></CopyIcon>
+          <CopyIcon :text="store.state.destinationAddress" :title="t('address.copyDestination', { address: store.state.destinationAddress })"></CopyIcon>
         </div>
       </div>
       <div class="flex flex-col md:flex-row mt-2 text-center md:text-left" v-if="store.state.memo && store.state.memo != 'aramid'">
-        <div class="md:min-w-44 font-bold">Data transfer</div>
-        <div class="w-full">{{ store.state.memo }} <CopyIcon :text="store.state.memo" :title="`Copy origin address: ${store.state.memo}`"></CopyIcon></div>
+        <div class="md:min-w-44 font-bold">{{ t('transaction.dataTransfer') }}</div>
+        <div class="w-full">{{ store.state.memo }} <CopyIcon :text="store.state.memo" :title="t('address.copyMemo', { memo: store.state.memo })"></CopyIcon></div>
       </div>
       <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">
-        <div class="md:min-w-44 font-bold">Bridge address</div>
+        <div class="md:min-w-44 font-bold">{{ t('address.bridge') }}</div>
         <div class="w-full block md:hidden">
           <WalletAddress :address="store.state.destinationBridgeAddress" :length="4"></WalletAddress>
-          <CopyIcon :text="store.state.destinationBridgeAddress" :title="`Copy destination chain bridge address: ${store.state.destinationBridgeAddress}`"></CopyIcon>
+          <CopyIcon :text="store.state.destinationBridgeAddress" :title="t('address.copyBridgeDestination', { address: store.state.destinationBridgeAddress })"></CopyIcon>
         </div>
         <div class="w-full hidden md:block lg:hidden">
           <WalletAddress :address="store.state.destinationBridgeAddress" :length="6"></WalletAddress>
-          <CopyIcon :text="store.state.destinationBridgeAddress" :title="`Copy destination chain bridge address: ${store.state.destinationBridgeAddress}`"></CopyIcon>
+          <CopyIcon :text="store.state.destinationBridgeAddress" :title="t('address.copyBridgeDestination', { address: store.state.destinationBridgeAddress })"></CopyIcon>
         </div>
         <div class="w-full hidden lg:block">
           <WalletAddress :address="store.state.destinationBridgeAddress" :length="30"></WalletAddress>
-          <CopyIcon :text="store.state.destinationBridgeAddress" :title="`Copy destination chain bridge address: ${store.state.destinationBridgeAddress}`"></CopyIcon>
+          <CopyIcon :text="store.state.destinationBridgeAddress" :title="t('address.copyBridgeDestination', { address: store.state.destinationBridgeAddress })"></CopyIcon>
         </div>
       </div>
     </div>
     <StatusBar></StatusBar>
-    <MainActionButton @click="signButtonClick" v-if="store.state.sourceChainConfiguration?.type == 'algo'">Sign</MainActionButton>
+    <MainActionButton @click="signButtonClick" v-if="store.state.sourceChainConfiguration?.type == 'algo'">{{ t('transaction.sign') }}</MainActionButton>
 
-    <div v-if="state.inApproval"><img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> Please check your wallet to approve the spending cap and sign the transaction.</div>
+    <div v-if="state.inApproval"><img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> {{ t('wallet.checkWalletApprove') }}</div>
     <div v-if="state.inApprovalMinting">
-      <img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> Your approval transaction is being submitted to {{ store.state.sourceChainConfiguration?.name }}
+      <img :src="loader" alt="Loading" height="18" width="18" class="inline-block" />
+      {{ t('transaction.submittingApproval', { chain: store.state.sourceChainConfiguration?.name }) }}
       <span v-if="state.approvalHash"><ShortTx :txId="state.approvalHash" :length="6" :chain="store.state.sourceChain"></ShortTx></span>
     </div>
-    <div v-if="state.inSign"><img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> Please check your wallet to sign the transaction.</div>
+    <div v-if="state.inSign"><img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> {{ t('wallet.checkWallet') }}</div>
     <div v-if="state.inSignMinting">
-      <img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> Your bridge transaction is being submitted to {{ store.state.sourceChainConfiguration?.name }}
+      <img :src="loader" alt="Loading" height="18" width="18" class="inline-block" />
+      {{ t('transaction.submitting', { chain: store.state.sourceChainConfiguration?.name }) }}
     </div>
-    <div v-if="state.switchingNetwork"><img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> Please check your wallet for switch network request</div>
+    <div v-if="state.switchingNetwork"><img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> {{ t('wallet.checkWalletSwitch') }}</div>
     <div v-if="store.state.sourceChainConfiguration?.type == 'eth'" class="w-full">
-      <MainActionButton v-if="chainId != store.state.sourceChain" @click="switchNetworkClick">Switch your wallet to {{ store.state.sourceChainConfiguration?.name }}</MainActionButton>
+      <MainActionButton v-if="chainId != store.state.sourceChain" @click="switchNetworkClick">{{ t('bridge.switchNetwork', { chain: store.state.sourceChainConfiguration?.name }) }}</MainActionButton>
       <div v-else-if="store.state.sourceToken == '0x0000000000000000000000000000000000000000'">
-        <MainActionButton @click="payNativeButtonClick"> Bridge native token </MainActionButton>
+        <MainActionButton @click="payNativeButtonClick"> {{ t('bridge.bridgeNativeToken') }} </MainActionButton>
       </div>
       <div v-else class="w-full">
         <MainActionButton @click="approveButtonClick" v-if="store.state.sourceChainConfiguration?.type == 'eth' && !state.approved && !state.inApproval && !state.inApprovalMinting">
-          Approve
+          {{ t('common.approve') }}
         </MainActionButton>
         <MainActionButton @click="lockButtonClick" v-if="store.state.sourceChainConfiguration?.type == 'eth' && state.approved && !state.inSign && !state.inSignMinting">
-          Sign bridge TXN
+          {{ t('bridge.signTransaction') }}
         </MainActionButton>
       </div>
     </div>

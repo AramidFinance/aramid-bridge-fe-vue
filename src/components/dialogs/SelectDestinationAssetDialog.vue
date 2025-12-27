@@ -8,6 +8,7 @@ import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/Public
 import type { TokenItem } from '@/scripts/interface/mapping/TokenItem'
 import { useAppStore } from '@/stores/app'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import AssetButton from '../ui/AssetButton.vue'
 import DialogTitle from '../ui/DialogTitle.vue'
 
@@ -33,6 +34,7 @@ const state: IState = reactive({
   publicConfiguration: null,
   assets: null
 })
+const { t } = useI18n()
 
 // Popular tokens that should appear at the top
 const popularTokenSymbols = ['USDC', 'ETH', 'BTC', 'ALGO', 'VOI', 'WBTC', 'cbBTC']
@@ -111,25 +113,25 @@ watch(
     <div class="full-screen backdrop-blur-sm z-[100]" @click="store.state.dialogSelectDestinationAssetIsOpen = false"></div>
     <div class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col z-[101] max-h-[80vh] w-[90vw] max-w-[600px]">
       <div class="bg-gradient-to-r from-topleft-purple to-bottomright-purple drop-shadow-menu-default rounded-[26px] p-3 flex flex-col h-full">
-        <DialogTitle>Select asset which you want to receive on other chain</DialogTitle>
+        <DialogTitle>{{ t('dialogs.selectDestinationAsset') }}</DialogTitle>
 
         <!-- Search Bar -->
         <div class="mb-4">
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="Search tokens by name, symbol, or address..."
+            :placeholder="t('dialogs.searchTokensPlaceholder')"
             class="w-full px-4 py-2 rounded-[16px] bg-white/10 border border-white/20 text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-transparent"
           />
         </div>
 
-        <div v-if="!state.assets?.length" class="text-white text-center py-4">No assets available</div>
+        <div v-if="!state.assets?.length" class="text-white text-center py-4">{{ t('dialogs.noAssetsAvailable') }}</div>
 
         <!-- Scrollable content area -->
         <div v-else class="flex-1 overflow-y-auto space-y-3 max-h-[60vh]">
           <!-- Popular Tokens Section -->
           <div v-if="!searchQuery.trim() && popularAssets.length > 0">
-            <h3 class="text-white/80 text-sm font-medium mb-2 px-2">Popular Tokens</h3>
+            <h3 class="text-white/80 text-sm font-medium mb-2 px-2">{{ t('dialogs.popularTokens') }}</h3>
             <div class="space-y-1">
               <template v-for="(item, index) in popularAssets" :key="'popular-' + index">
                 <AssetButton
@@ -145,7 +147,7 @@ watch(
 
           <!-- Other Tokens Section -->
           <div v-if="otherAssets.length > 0">
-            <h3 v-if="!searchQuery.trim() && popularAssets.length > 0" class="text-white/80 text-sm font-medium mb-2 px-2 mt-4">All Tokens</h3>
+            <h3 v-if="!searchQuery.trim() && popularAssets.length > 0" class="text-white/80 text-sm font-medium mb-2 px-2 mt-4">{{ t('dialogs.allTokens') }}</h3>
             <div class="space-y-1">
               <template v-for="(item, index) in otherAssets" :key="'other-' + index">
                 <AssetButton
@@ -162,8 +164,8 @@ watch(
           <!-- No results message -->
           <div v-if="searchQuery.trim() && filteredAssets.length === 0" class="text-white/60 text-center py-8">
             <div class="text-lg mb-2">🔍</div>
-            <div>No tokens found matching "{{ searchQuery }}"</div>
-            <div class="text-sm mt-1">Try searching by name, symbol, or token address</div>
+            <div>{{ t('dialogs.noTokensFound', { query: searchQuery }) }}</div>
+            <div class="text-sm mt-1">{{ t('dialogs.trySearching') }}</div>
           </div>
         </div>
       </div>

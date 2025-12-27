@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import loader from '@/assets/images/loading-buffering.gif'
+import MainBox from '@/components/ui/MainBox.vue'
+import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import { onMounted, reactive } from 'vue'
+import { useI18n } from 'vue-i18n'
 import PageFooter from '../components/PageFooter.vue'
 import ReviewPage from '../components/ReviewPage.vue'
-import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
-import MainBox from '@/components/ui/MainBox.vue'
-import loader from '@/assets/images/loading-buffering.gif'
+
+const { t } = useI18n()
 const state = reactive({
   loaded: false
 })
@@ -21,7 +24,7 @@ onMounted(async () => {
       <ReviewPage></ReviewPage>
     </div>
     <div class="flex flex-col flex-1" v-else>
-      <MainBox><img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> Loading bridge configuration. Please wait a second please. </MainBox>
+      <MainBox><img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> {{ t('loading.bridgeConfiguration') }} </MainBox>
     </div>
     <PageFooter />
   </main>

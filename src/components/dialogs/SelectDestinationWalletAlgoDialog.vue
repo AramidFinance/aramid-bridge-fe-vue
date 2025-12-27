@@ -1,23 +1,24 @@
 <script setup lang="ts">
-import { useAppStore } from '@/stores/app'
-import WalletButton from '../ui/WalletButton.vue'
-import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
-import { onMounted, reactive } from 'vue'
-import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
-import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
-import { useWallet, type Wallet } from 'avm-wallet-vue'
-import algosdk from 'algosdk'
-import { useToast } from 'primevue/usetoast'
-import WalletAddress from '../ui/WalletAddress.vue'
-import DialogTitle from '../ui/DialogTitle.vue'
-import DialogButton from '../ui/DialogButton.vue'
 import { isWalletForChain } from '@/scripts/algo/isWalletForChain'
+import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
+import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
+import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
+import { useAppStore } from '@/stores/app'
+import algosdk from 'algosdk'
+import { useWallet, type Wallet } from 'avm-wallet-vue'
+import { useToast } from 'primevue/usetoast'
+import { onMounted, reactive } from 'vue'
+import { useI18n } from 'vue-i18n'
+import DialogButton from '../ui/DialogButton.vue'
+import DialogTitle from '../ui/DialogTitle.vue'
+import WalletButton from '../ui/WalletButton.vue'
 
 const toast = useToast()
 
 const { wallets, activeAccount } = useWallet()
 
 const store = useAppStore()
+const { t } = useI18n()
 
 const walletButtonClick = async (wallet: Wallet) => {
   console.log('destination.wallet', wallet, activeAccount)
@@ -37,8 +38,8 @@ const useAddressClick = () => {
     console.error(`AVM address ${state.addressInput} is not valid`, e)
     toast.add({
       severity: 'error',
-      summary: 'AVM address verification',
-      detail: 'AVM address is not valid',
+      summary: t('dialogs.avmAddressVerification'),
+      detail: t('dialogs.avmAddressInvalid'),
       life: 3000
     })
   }
@@ -78,7 +79,7 @@ const closeDialog = () => {
     <div class="full-screen backdrop-blur-sm z-[100]" @click="closeDialog"></div>
     <div class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col z-[101]">
       <ul class="bg-gradient-to-r from-topleft-purple to-bottomright-purple drop-shadow-menu-default rounded-[26px] p-3">
-        <DialogTitle>Choose AVM destination wallet</DialogTitle>
+        <DialogTitle>{{ t('dialogs.chooseAvmDestinationWallet') }}</DialogTitle>
 
         <WalletButton
           v-for="wallet in wallets.filter((w) => isWalletForChain(w.id, store.state.destinationChain ?? 0))"
@@ -88,13 +89,13 @@ const closeDialog = () => {
           @click="walletButtonClick(wallet)"
         />
         <div>
-          <div>Or enter your AVM address</div>
+          <div>{{ t('dialogs.enterAvmDestinationAddress') }}</div>
           <textarea
             v-model="state.addressInput"
             class="bg-white-rgba rounded-[10px] focus:outline-none w-full mt-1 3xl:mt-3 4xl:mt-6 p-1 3xl:p-3 4xl:p-6 text-base h-[80px] 3xl:h-[112px] 4xl:h-[157px] w-full"
             rows="3"
           ></textarea>
-          <DialogButton @click="useAddressClick">Use this address</DialogButton>
+          <DialogButton @click="useAddressClick">{{ t('dialogs.useThisAddress') }}</DialogButton>
         </div>
       </ul>
     </div>

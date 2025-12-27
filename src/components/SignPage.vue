@@ -19,6 +19,7 @@ import { useToast } from 'primevue/usetoast'
 import QRCodeVue3 from 'qrcode-vue3'
 import { CONTRACT, abi } from 'ulujs'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import StatusBar from './status/StatusBar.vue'
 import CopyIcon from './ui/CopyIcon.vue'
@@ -112,6 +113,7 @@ const store = useAppStore()
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const { t } = useI18n()
 const { activeWallet, signTransactions: useWalletSignTransactions } = useWallet()
 const { avmActiveWallet, activeAccount, signTransactions: avmSignTransactions } = useAvmWallet()
 
@@ -144,7 +146,7 @@ const matchBridgeTxByDataClick = async () => {
   if (!store.state.bridgeTx) {
     toast.add({
       severity: 'error',
-      detail: 'Transaction has not yet been found',
+      detail: t('sign.transactionNotFound'),
       life: 3000
     })
   }
@@ -193,7 +195,7 @@ onMounted(async () => {
   ) {
     toast.add({
       severity: 'error',
-      detail: 'Please connect the destination wallet address',
+      detail: t('sign.connectDestinationWallet'),
       life: 3000
     })
     routeToReviewScreen()
@@ -215,10 +217,10 @@ const signWithUseWallet = async () => {
     if (!store.state.sourceToken) return
     if (!store.state.sourceAddress) return
     if (!store.state.sourceTxNote) return
-    if (!activeWallet) throw Error('Use wallet is not initialized properly. Missing activeWallet')
+    if (!activeWallet) throw Error(t('sign.useWalletNotInitialized'))
 
     const algodClient = await getAlgodClientByChainId(store.state.sourceChain)
-    if (!algodClient) throw Error('Algod client not initialized')
+    if (!algodClient) throw Error(t('sign.algodClientNotInitialized'))
     const params = await algodClient.getTransactionParams().do()
 
     let signed: any
@@ -422,16 +424,16 @@ const claimButtonClick = async () => {
     if (!store.state.destinationTokenConfiguration?.arc200TokenId) return
 
     // Check for destination wallet connection
-    if (!avmActiveWallet?.value) throw Error('Destination wallet not connected')
+    if (!avmActiveWallet?.value) throw Error(t('sign.destinationWalletNotConnected'))
     if (activeAccount.value?.address !== store.state.destinationAddress) {
-      throw Error('Please connect the destination wallet address')
+      throw Error(t('sign.connectDestinationWallet'))
     }
-    if (!store.state.destinationChain) throw Error('Destination chain is not set')
+    if (!store.state.destinationChain) throw Error(t('sign.destinationChainMissing'))
     const algodClient = await getAlgodClientByChainId(store.state.destinationChain)
-    if (!algodClient) throw Error('Algod client not initialized')
+    if (!algodClient) throw Error(t('sign.algodClientNotInitialized'))
 
     // get asset balance
-    if (!store.state.destinationAddress) throw Error('Destination address is not set')
+    if (!store.state.destinationAddress) throw Error(t('sign.destinationAddressMissing'))
     const accAssetInfo = await algodClient.accountAssetInformation(store.state.destinationAddress, Number(store.state.destinationToken)).do()
     const assetBalance = accAssetInfo.assetHolding?.amount
 
@@ -524,7 +526,7 @@ const claimButtonClick = async () => {
     // Filter out any null values to satisfy the type requirement
     const filteredSigned = signed.filter((s: Uint8Array | null): s is Uint8Array => s !== null)
     if (filteredSigned.length === 0) {
-      throw Error('No transactions signed')
+      throw Error(t('sign.noTransactionsSigned'))
     }
     const result = await algodClient.sendRawTransaction(filteredSigned).do()
 
@@ -534,7 +536,7 @@ const claimButtonClick = async () => {
 
     toast.add({
       severity: 'success',
-      detail: 'Successfully claimed tokens',
+      detail: t('sign.claimSuccess'),
       life: 3000
     })
 
@@ -565,68 +567,83 @@ const claimButtonClick = async () => {
         <div class="flex flex-row-reverse items-center">
           <img alt="CaretLeftIcon" loading="lazy" width="20" height="20" decoding="async" src="../assets/images/CaretLeft.svg" style="color: transparent" />
         </div>
-        Back
+        {{ t('common.back') }}
       </div>
-      <div v-if="!store.state.bridgeTx" class="font-bold text-xl">Sign the transaction</div>
-      <div v-else-if="store.state.claimTx" class="font-bold text-xl">Successful bridging</div>
+      <div v-if="!store.state.bridgeTx" class="font-bold text-xl">{{ t('sign.signTransactionTitle') }}</div>
+      <div v-else-if="store.state.claimTx" class="font-bold text-xl">{{ t('sign.successfulBridgingTitle') }}</div>
     </div>
 
     <StatusBar></StatusBar>
     <div v-if="!store.state.bridgeTx">
       <div v-if="store.state.sourceAlgoConnectorType == AlgoConnectorType.QRCode">
         <p>
-          Make sure you send {{ store.state.sourceAmountFormatted }} {{ store.state.sourceTokenConfiguration?.name }}
-          <span v-if="Number(store.state.sourceTokenConfiguration?.tokenId) > 0"> ({{ store.state.sourceTokenConfiguration?.tokenId }}) </span> to bridge address
-          <WalletAddress :address="store.state.sourceBridgeAddress"></WalletAddress> <CopyIcon :text="store.state.sourceBridgeAddress"></CopyIcon> at the
-          {{ store.state.sourceChainConfiguration?.name }} chain with note field <CopyIcon :text="store.state.sourceTxNote"></CopyIcon>
+          {{
+            t('sign.sendReminder', {
+              amount: store.state.sourceAmountFormatted,
+              token: store.state.sourceTokenConfiguration?.name
+            })
+          }}
+          <span v-if="Number(store.state.sourceTokenConfiguration?.tokenId) > 0"> ({{ store.state.sourceTokenConfiguration?.tokenId }}) </span>
+          &nbsp;{{ t('sign.toBridgeAddress') }}
+          <WalletAddress :address="store.state.sourceBridgeAddress"></WalletAddress>
+          <CopyIcon :text="store.state.sourceBridgeAddress"></CopyIcon>
+          &nbsp;{{ t('sign.onChain', { chain: store.state.sourceChainConfiguration?.name }) }} &nbsp;{{ t('sign.withNoteField') }}
+          <CopyIcon :text="store.state.sourceTxNote"></CopyIcon>
         </p>
         <div class="text-center">
-          <p>Scan the QR Code with your wallet, or tap it to use the wallet on the same device.</p>
+          <p>{{ t('sign.scanQrDescription') }}</p>
           <a v-if="store.state.qrContent" :href="`web+${store.state.qrContent}`" class="m-auto my-2" style="width: 200px; height: 200px; display: inline-block">
             <QRCodeVue3 :width="200" :height="200" :value="store.state.qrContent" myclass="m-auto" />
           </a>
         </div>
         <div class="text-center font-bold m-4">
-          <img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> Please scan QR code, and send the transaction to the blockchain from your wallet
-          <MainActionButton @click="matchBridgeTxByDataClick">Transaction has been submitted</MainActionButton>
+          <img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> {{ t('sign.scanQrPrompt') }}
+          <MainActionButton @click="matchBridgeTxByDataClick">{{ t('sign.transactionSubmitted') }}</MainActionButton>
         </div>
       </div>
       <div v-if="store.state.sourceAlgoConnectorType == AlgoConnectorType.UseWallet" class="text-center font-bold m-4">
-        <p><img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> Please sign your transaction in your {{ activeWallet?.metadata?.name }} wallet</p>
+        <p>
+          <img :src="loader" alt="Loading" height="18" width="18" class="inline-block" />
+          {{ t('sign.signInWallet', { wallet: activeWallet?.metadata?.name || '' }) }}
+        </p>
       </div>
     </div>
     <div v-else-if="store.state.bridgeTx && !store.state.claimTx">
-      <img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> This step usually takes less then 3 minutes. Your transaction ID:
+      <img :src="loader" alt="Loading" height="18" width="18" class="inline-block" />
+      {{ t('sign.processingInfo') }} {{ t('sign.yourTransactionId') }}
       <ShortTx :txId="store.state.bridgeTx" :length="6" :chain="store.state.sourceChain"></ShortTx>
     </div>
     <div v-else-if="store.state.claimTx && store.state.destinationChainConfiguration?.type == 'algo'">
       <div v-if="store.state.destinationChainConfiguration?.name === 'Voi'">
-        <p>Your assets have been bridged successfully!</p>
-        <p>Transaction ID: <ShortTx :txId="store.state.claimTx" :length="6" :chain="store.state.destinationChain"></ShortTx></p>
-        <p>Please check your wallet to verify the received assets.</p>
+        <p>{{ t('sign.bridgeSuccess') }}</p>
+        <p>{{ t('sign.transactionIdLabel') }} <ShortTx :txId="store.state.claimTx" :length="6" :chain="store.state.destinationChain"></ShortTx></p>
+        <p>{{ t('sign.verifyAssets') }}</p>
         <div v-if="store.state.destinationTokenConfiguration?.arc200TokenId">
           <template v-if="claimTxPending">
             <p class="text-center">
               <img :src="loader" alt="Loading" height="18" width="18" class="inline-block" />
-              Claiming transaction in progress...
+              {{ t('sign.claimingInProgress') }}
             </p>
           </template>
           <template v-else>
-            <MainActionButton @click="claimButtonClick" tooltip="The bridged asset may need to be claimed to be used in the ecosystem"> Claim Assets </MainActionButton>
+            <MainActionButton @click="claimButtonClick" :tooltip="t('sign.claimTooltip')"> {{ t('sign.claimAssets') }} </MainActionButton>
           </template>
         </div>
         <FireworksEffect></FireworksEffect>
-        <MainActionButton @click="resetButtonClick">Bridge again</MainActionButton>
+        <MainActionButton @click="resetButtonClick">{{ t('sign.bridgeAgain') }}</MainActionButton>
       </div>
       <div v-else>
-        <p>Bridging successful! The assets are at the destination account. TXN ID: <ShortTx :txId="store.state.claimTx" :length="6" :chain="store.state.destinationChain"></ShortTx></p>
+        <p>
+          {{ t('sign.bridgeSuccessShort') }} {{ t('sign.txnIdPrefix') }}
+          <ShortTx :txId="store.state.claimTx" :length="6" :chain="store.state.destinationChain"></ShortTx>
+        </p>
         <FireworksEffect></FireworksEffect>
-        <MainActionButton @click="resetButtonClick">Bridge again</MainActionButton>
+        <MainActionButton @click="resetButtonClick">{{ t('sign.bridgeAgain') }}</MainActionButton>
       </div>
     </div>
     <div v-else>
-      <img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> Please wait a minute.
-      <span v-if="store.state.bridgeTx">Your transaction ID: <ShortTx :txId="store.state.bridgeTx" :length="6" :chain="store.state.sourceChain"></ShortTx></span>
+      <img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> {{ t('sign.pleaseWait') }}
+      <span v-if="store.state.bridgeTx">{{ t('sign.yourTransactionId') }} <ShortTx :txId="store.state.bridgeTx" :length="6" :chain="store.state.sourceChain"></ShortTx></span>
     </div>
   </MainBox>
 </template>
