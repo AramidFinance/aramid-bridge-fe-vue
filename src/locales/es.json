@@ -241,6 +241,7 @@
     "algodClientNotInitialized": "El cliente Algod no está inicializado.",
     "destinationChainMissing": "La blockchain de destino no está configurada.",
     "destinationAddressMissing": "La dirección de destino no está configurada.",
-    "noTransactionsSigned": "No se firmó ninguna transacción."
+    "noTransactionsSigned": "No se firmó ninguna transacción.",
+    "destinationTokenMissing": "Destination token is not set."
   }
 }

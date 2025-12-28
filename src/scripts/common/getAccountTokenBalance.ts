@@ -1,9 +1,9 @@
 import BigNumber from 'bignumber.js'
+import moment from 'moment'
 import getAlgoAccountTokenBalance from '../algo/getAlgoAccountTokenBalance'
 import getEthAccountTokenBalance from '../eth/getEthAccountTokenBalance'
-import getChainType from './getChainTypeAsync'
-import moment from 'moment'
 import { getNearAccountTokenBalance } from '../near/getNearAccountTokenBalance'
+import getChainType from './getChainTypeAsync'
 interface CacheItem {
   time: string
   value: string
@@ -29,7 +29,8 @@ const getAccountTokenBalance = async (chain: number, account: string, token: str
         ret = await getEthAccountTokenBalance(chain, account, token)
         break
       case 'algo':
-        ret = await getAlgoAccountTokenBalance(chain, account, +token)
+        const algoBalance = await getAlgoAccountTokenBalance(chain, account, BigInt(token))
+        ret = new BigNumber(algoBalance?.toString() ?? '0')
         break
       case 'near':
         ret = await getNearAccountTokenBalance(nearWallet, token, account)

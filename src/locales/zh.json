@@ -241,6 +241,7 @@
     "algodClientNotInitialized": "Algod 客户端尚未初始化。",
     "destinationChainMissing": "尚未设置目标 blockchain。",
     "destinationAddressMissing": "尚未设置目标地址。",
-    "noTransactionsSigned": "没有任何交易被签名。"
+    "noTransactionsSigned": "没有任何交易被签名。",
+    "destinationTokenMissing": "Destination token is not set."
   }
 }

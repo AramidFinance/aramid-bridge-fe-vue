@@ -124,7 +124,6 @@ const executeWithIndexerFailover = async <T>(chainId: number, operation: (client
 
 /**
  * Legacy compatibility function - gets first available indexer client
- * @deprecated Use executeWithIndexerFailover instead for better reliability
  */
 const getIndexerClientByChainId = async (chainId: number): Promise<algosdk.Indexer | null> => {
   try {

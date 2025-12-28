@@ -124,7 +124,6 @@ const executeWithAlgodFailover = async <T>(chainId: number, operation: (client: 
 
 /**
  * Legacy compatibility function - gets first available algod client
- * @deprecated Use executeWithAlgodFailover instead for better reliability
  */
 const getAlgodClientByChainId = async (chainId: number): Promise<algosdk.Algodv2 | null> => {
   try {

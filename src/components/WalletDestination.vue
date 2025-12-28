@@ -14,6 +14,7 @@ import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/Public
 import { useAppStore } from '@/stores/app'
 import { useWeb3ModalAccount } from '@web3modal/ethers/vue'
 import { useWallet } from 'avm-wallet-vue'
+import BigNumber from 'bignumber.js'
 import { useToast } from 'primevue/usetoast'
 import { onMounted, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -216,7 +217,8 @@ const onDestinationAddressChange = async () => {
         let bridgeBalance
 
         if (destinationTokenType == 'algo') {
-          bridgeBalance = await getAlgoAccountTokenBalance(store.state.destinationChain, store.state.destinationBridgeAddress!, Number(store.state.destinationToken))
+          const balance = await getAlgoAccountTokenBalance(store.state.destinationChain, store.state.destinationBridgeAddress!, Number(store.state.destinationToken))
+          bridgeBalance = new BigNumber(balance?.toString() || '0')
         } else if (destinationTokenType == 'eth' && store.state.destinationToken) {
           bridgeBalance = await getEthAccountTokenBalance(store.state.destinationChain, store.state.destinationBridgeAddress!, store.state.destinationToken)
         }

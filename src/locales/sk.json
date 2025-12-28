@@ -241,6 +241,7 @@
     "algodClientNotInitialized": "Algod klient nie je inicializovaný.",
     "destinationChainMissing": "Cieľový blockchain nie je nastavený.",
     "destinationAddressMissing": "Cieľová adresa nie je nastavená.",
-    "noTransactionsSigned": "Žiadne transakcie neboli podpísané."
+    "noTransactionsSigned": "Žiadne transakcie neboli podpísané.",
+    "destinationTokenMissing": "Destination token is not set."
   }
 }

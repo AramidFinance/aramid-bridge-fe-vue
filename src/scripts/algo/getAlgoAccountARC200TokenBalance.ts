@@ -7,7 +7,7 @@ import getSecureConfiguration from '../common/getSecureConfiguration'
 import getAlgodClientByChainId from './getAlgodClientByChainId'
 import getIndexerClientByChainId from './getIndexerClientByChainId'
 
-const getAlgoAccountTokenBalance = async (chainId: number, accountAddress: string, contractId: number, assetId: number): Promise<BigNumber | null> => {
+const getAlgoAccountARC200TokenBalance = async (chainId: number, accountAddress: string, contractId: number, assetId: number): Promise<BigNumber | null> => {
   try {
     if (!algosdk.isValidAddress(accountAddress)) return new BigNumber('0')
     const secureConfiguration = await getSecureConfiguration()
@@ -54,4 +54,4 @@ const getAlgoAccountTokenBalance = async (chainId: number, accountAddress: strin
     return new BigNumber('0')
   }
 }
-export default getAlgoAccountTokenBalance
+export default getAlgoAccountARC200TokenBalance

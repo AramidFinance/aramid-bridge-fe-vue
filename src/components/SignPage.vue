@@ -2,7 +2,6 @@
 import loader from '@/assets/images/loading-buffering.gif'
 import { checkDestinationAlgoTx } from '@/scripts/algo/checkDestinationAlgoTx'
 import { checkSourceAlgoTx } from '@/scripts/algo/checkSourceAlgoTx'
-import getAlgoAccountTokenBalance from '@/scripts/algo/getAlgoAccountTokenBalance'
 import getAlgoAcountTokenOptin from '@/scripts/algo/getAlgoAccountTokenOptedIn'
 import getAlgodClientByChainId from '@/scripts/algo/getAlgodClientByChainId'
 import { getClaimTx } from '@/scripts/aramid/getClaimTx'
@@ -11,16 +10,21 @@ import { makeNoteField } from '@/scripts/aramid/makeNoteField'
 import { resetStateSoft } from '@/scripts/common/resetStateSoft'
 import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import { useAppStore } from '@/stores/app'
+import { AlgorandClient, populateAppCallResources } from '@algorandfoundation/algokit-utils'
+import { AlgoAmount } from '@algorandfoundation/algokit-utils/types/amount'
+import { TransactionComposer } from '@algorandfoundation/algokit-utils/types/composer'
 import { useWallet } from '@txnlab/use-wallet-vue'
-import algosdk from 'algosdk'
+import algosdk, { Address } from 'algosdk'
+import { type Arc200ExchangeInfo, getArc200ASAClient } from 'arc200-client'
 import { useWallet as useAvmWallet } from 'avm-wallet-vue'
 import { BigNumber } from 'bignumber.js'
 import { useToast } from 'primevue/usetoast'
 import QRCodeVue3 from 'qrcode-vue3'
-import { CONTRACT, abi } from 'ulujs'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+import getAlgoAccountTokenBalance from '../scripts/algo/getAlgoAccountTokenBalance'
+import getIndexerClientByChainId from '../scripts/algo/getIndexerClientByChainId'
 import StatusBar from './status/StatusBar.vue'
 import CopyIcon from './ui/CopyIcon.vue'
 import FireworksEffect from './ui/FireworksEffect.vue'
@@ -28,86 +32,6 @@ import MainActionButton from './ui/MainActionButton.vue'
 import MainBox from './ui/MainBox.vue'
 import ShortTx from './ui/ShortTx.vue'
 import WalletAddress from './ui/WalletAddress.vue'
-
-const saw200ABI = {
-  name: 'saw200',
-  desc: 'saw200 is an intra-chain bridge for ARC200 to ASA conversion',
-  methods: [
-    {
-      name: 'deposit',
-      args: [
-        {
-          type: 'uint64'
-        }
-      ],
-      returns: {
-        type: 'void'
-      }
-    },
-    {
-      name: 'withdraw',
-      args: [
-        {
-          type: 'uint64'
-        }
-      ],
-      returns: {
-        type: 'void'
-      }
-    }
-  ],
-  events: []
-}
-
-const arc200ExchangeABI = {
-  name: 'arc200Exchange',
-  desc: 'arc200Exchange is an exchange for ARC200 to ASA conversion',
-  methods: [
-    ...abi.arc200.methods,
-    {
-      name: 'arc200_exchange',
-      args: [],
-      readonly: false,
-      returns: {
-        type: '(uint64,address)'
-      },
-      desc: 'ARC-200 exchange info (external)'
-    },
-    {
-      name: 'arc200_redeem',
-      args: [
-        {
-          type: 'uint64',
-          name: 'amount',
-          desc: 'amount of ASA to redeem'
-        }
-      ],
-      readonly: false,
-      returns: {
-        type: 'void',
-        desc: 'None'
-      },
-      desc: 'Redeem ASA for ARC-200'
-    },
-    {
-      name: 'arc200_swapBack',
-      args: [
-        {
-          type: 'uint64',
-          name: 'amount',
-          desc: 'amount of ARC-200 to swap back'
-        }
-      ],
-      readonly: false,
-      returns: {
-        type: 'void',
-        desc: 'None'
-      },
-      desc: 'Swap ARC-200 back to ASA'
-    }
-  ],
-  events: []
-}
 
 const store = useAppStore()
 const route = useRoute()
@@ -211,6 +135,54 @@ onMounted(async () => {
   }
 })
 
+const getAlgoClient = async (chainId: number): Promise<AlgorandClient> => {
+  if (!chainId) throw new Error('Chain ID is not set')
+  const algodClient = await getAlgodClientByChainId(chainId)
+  if (!algodClient) throw new Error('Algod client not initialized')
+
+  const algoClient = AlgorandClient.fromClients({
+    algod: algodClient
+  })
+  return algoClient
+}
+const getExchangeInfo = async (): Promise<Arc200ExchangeInfo | undefined> => {
+  try {
+    if (!store.state.sourceChain) return undefined
+    if (!store.state.sourceTokenConfiguration?.asa2arc200BridgeAppId) return undefined
+    if (!store.state.sourceTokenConfiguration?.arc200TokenId) return undefined
+
+    const algodClient = await getAlgodClientByChainId(store.state.sourceChain)
+    if (!algodClient) return undefined
+
+    const algoClient = await getAlgoClient(store.state.sourceChain)
+
+    const dummyAddress = 'TESTNTTTJDHIF5PJZUBTTDYYSKLCLM6KXCTWIOOTZJX5HO7263DPPMM2SU'
+    const dummyTransactionSigner = async (txnGroup: algosdk.Transaction[], indexesToSign: number[]): Promise<Uint8Array[]> => {
+      console.log('transactionSigner', txnGroup, indexesToSign)
+      return [] as Uint8Array[]
+    }
+    const clientArc200AsaDummySigner = getArc200ASAClient({
+      algorand: algoClient,
+      appId: BigInt(store.state.sourceTokenConfiguration.arc200TokenId),
+      appName: 'asa2arc200Bridge',
+      approvalSourceMap: undefined,
+      clearSourceMap: undefined,
+      defaultSender: dummyAddress,
+      defaultSigner: dummyTransactionSigner
+    })
+
+    const loadedExchangeInfo: Arc200ExchangeInfo = await clientArc200AsaDummySigner.arc200Exchange({ args: {} })
+    if (loadedExchangeInfo.exchangeAsset >= 0n) {
+      return loadedExchangeInfo
+    }
+  } catch (e) {
+    console.error('Error loading exchange info', e)
+  }
+  return undefined
+}
+const dummyTransactionSigner = async (txnGroup: algosdk.Transaction[], indexesToSign: number[]): Promise<Uint8Array[]> => {
+  return [] as Uint8Array[]
+}
 const signWithUseWallet = async () => {
   try {
     if (!store.state.sourceChain) return
@@ -227,141 +199,136 @@ const signWithUseWallet = async () => {
 
     // smart asset (arc200)
     const config = store.state.sourceTokenConfiguration
-    if (config?.arc200TokenId || config?.asa2arc200BridgeAppId) {
+    if (config && config.asa2arc200BridgeAppId && config.arc200TokenId) {
       const arc200TokenId = config.arc200TokenId
       const asa2arc200BridgeAppId = config.asa2arc200BridgeAppId
-      const decimals = config.decimals
-      const name = config.name
       const chainId = config.chainId
 
       const sourceAddress = store.state?.sourceAddress || ''
       const tokenId = store.state.sourceToken
-      const amount = BigInt(store.state.sourceAmount)
+      const sourceAmount = BigInt(store.state.sourceAmount)
       const asaOptin = await getAlgoAcountTokenOptin(chainId, sourceAddress, Number(tokenId))
-      const asaAmount = BigInt((await getAlgoAccountTokenBalance(chainId, sourceAddress, Number(tokenId)))?.toFixed(0) || '0')
-      const approveAmount = asaAmount > amount ? BigInt(0) : amount - asaAmount
-      const normalizedAmount = new BigNumber(BigInt(store.state.sourceAmount).toString()).div(10 ** decimals).toFixed(decimals)
-      // TODO subtract the amount of ASA from the amount of ARC200
-      const ci = new CONTRACT(Number(asa2arc200BridgeAppId), algodClient, undefined, abi.custom, {
-        addr: sourceAddress,
-        sk: new Uint8Array()
+
+      // For ARC200 we need both algod and indexer clients, but we'll use the first available
+      // since arc200 library expects specific client instances
+      const indexerClient = await getIndexerClientByChainId(chainId)
+      const algodClient = await getAlgodClientByChainId(chainId)
+
+      if (!indexerClient || !algodClient) {
+        console.error('Failed to get algod or indexer client for ARC200')
+        return new BigNumber('0')
+      }
+      const algoClient = await getAlgoClient(store.state.sourceChain)
+
+      const clientArc200UserSender = getArc200ASAClient({
+        algorand: algoClient,
+        appId: BigInt(arc200TokenId),
+        appName: 'asa2arc200Bridge',
+        approvalSourceMap: undefined,
+        clearSourceMap: undefined,
+        defaultSender: sourceAddress,
+        defaultSigner: undefined
       })
-      // const ciSaw200 = new CONTRACT(Number(asa2arc200BridgeAppId), algodClient, undefined, abi.custom, {
-      //   addr: sourceAddress,
-      //   sk: new Uint8Array()
-      // })
-      const ciArc200 = new CONTRACT(Number(arc200TokenId), algodClient, undefined, arc200ExchangeABI, {
-        addr: sourceAddress,
-        sk: new Uint8Array()
+      const clientArc200AsaUserSender = getArc200ASAClient({
+        algorand: algoClient,
+        appId: BigInt(arc200TokenId),
+        appName: 'asa2arc200Bridge',
+        approvalSourceMap: undefined,
+        clearSourceMap: undefined,
+        defaultSender: sourceAddress,
+        defaultSigner: undefined
       })
-      const makeConstructor = (contractId: string, abi: any) => {
-        return new CONTRACT(
-          Number(contractId),
-          algodClient,
-          undefined,
-          abi,
-          {
-            addr: sourceAddress,
-            sk: new Uint8Array()
-          },
-          true,
-          false,
-          true
+
+      const exchangeInfo: Arc200ExchangeInfo | undefined = await getExchangeInfo()
+
+      // withdraw asa from the arc200 contract and send it to the bridge address
+      // if user is not opted in to the asa, opt in him
+
+      let txToSign: algosdk.Transaction[] = []
+
+      if (!asaOptin) {
+        txToSign.push(
+          algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+            amount: 0n,
+            sender: sourceAddress,
+            receiver: sourceAddress,
+            suggestedParams: params,
+            assetIndex: Number(tokenId)
+          })
         )
+        console.log('Added optin txn for ASA', tokenId)
       }
-      const builder = {
-        arc200: makeConstructor(String(arc200TokenId), arc200ExchangeABI)
-        //saw200: makeConstructor(asa2arc200BridgeAppId, saw200ABI)
-      }
-      // transaction group
-      //   conditional asset optin
-      //   arc200_swapBack
-      //   aramid bridge txn (axfer w/ note)
-      // TODO convert only old UNIT to ARC200 using saw200
-      const buildN = []
-      // REM converts old UNIT to ARC200 using saw200
-      // {
-      //   const txnO = (await builder.arc200.arc200_approve(algosdk.getApplicationAddress(Number(unitAppId)), approveAmount))?.obj
-      //   const msg = `Approving ARC200 to ASA conversion for ${normalizedAmount} ${name}`
-      //   buildN.push({
-      //     ...txnO,
-      //     note: new TextEncoder().encode(msg)
-      //   })
-      // }
-      // {
-      //   const txnO = (await builder.saw200.deposit(approveAmount))?.obj
-      //   const msg = `Depositing ${normalizedAmount} ${name} for ARC200 to ASA conversion`
-      //   const assetOptin = {
-      //     xaid: Number(tokenId),
-      //     snd: sourceAddress,
-      //     arcv: sourceAddress
-      //   }
-      //   buildN.push({
-      //     ...txnO,
-      //     ...assetOptin,
-      //     note: new TextEncoder().encode(msg)
-      //   })
-      // }
-      // REM use arc200 exchange to convert stray VSA to ARC200
-      if (asaAmount > 0) {
-        const txnO = (await builder.arc200.arc200_redeem(asaAmount))?.obj
-        const note = new TextEncoder().encode(`Converting ${asaAmount} ${name} VSA to ARC200`)
-        const assetTransfer = {
-          type: 'axfer',
-          xaid: Number(tokenId),
-          aamt: asaAmount,
-          arcv: algosdk.getApplicationAddress(Number(arc200TokenId))
+
+      // if exchangeInfo is defined, we use exchange method to withdraw ASA otherwise we use wnnt200
+      // for both we need to add approve txn first
+
+      const approveTxs = await clientArc200UserSender.createTransaction.arc200Approve({
+        args: {
+          spender: exchangeInfo?.sink ?? algosdk.getApplicationAddress(Number(asa2arc200BridgeAppId)).toString(),
+          value: sourceAmount
         }
-        buildN.push({
-          ...txnO,
-          ...assetTransfer,
-          note
+      })
+      // there must be only one txn
+      approveTxs.transactions.forEach((tx) => txToSign.push(tx))
+      console.log('Added approve txn for ARC200', arc200TokenId, sourceAmount)
+      if (exchangeInfo?.sink) {
+        const exchangeTxs = await clientArc200AsaUserSender.createTransaction.arc200SwapBack({
+          args: {
+            amount: sourceAmount
+          },
+          staticFee: AlgoAmount.MicroAlgos(2000)
         })
-      }
-      // REM use arc200 exchange to convert UNIT to VSA
-      // REM <https://docs.google.com/document/d/1Uy9kbWF6yfM7W_VbBp1W5c2VqVdcoCj_hyoXUf1FIV0>
-      // REM <https://github.com/NautilusOSS/nautilus-interface/blob/beta/src/components/Tools/Arc200VsaConverter/index.tsx#L687>
-      {
-        const txnO = (await builder.arc200.arc200_swapBack(BigInt(store.state.sourceAmount)))?.obj // ignored
-        const assetOptin =
-          asaAmount === BigInt(0)
-            ? {
-                xaid: Number(tokenId),
-                snd: store.state.sourceAddress,
-                arcv: store.state.sourceAddress
-              }
-            : {}
-        const note = new TextEncoder().encode(`Converting ${normalizedAmount} ${name} ARC200 to VSA`)
-        buildN.push({
-          ...txnO,
-          ...assetOptin,
-          note
+        exchangeTxs.transactions.forEach((tx) => txToSign.push(tx))
+        console.log('Added exchange arc200SwapBack txn for ARC200', arc200TokenId, sourceAmount)
+      } else {
+        const wnnt200Txs = await clientArc200AsaUserSender.createTransaction.withdraw({
+          args: {
+            amount: sourceAmount
+          },
+          staticFee: AlgoAmount.MicroAlgos(2000)
         })
+        wnnt200Txs.transactions.forEach((tx) => txToSign.push(tx))
+        console.log('Added wnnt200 withdraw txn for ARC200', arc200TokenId, sourceAmount)
       }
-      {
-        const txnO = (await builder.arc200.arc200_approve(algosdk.getApplicationAddress(Number(arc200TokenId)), 0))?.obj // ignored
-        const assetTransfer = {
-          xaid: Number(tokenId),
-          snd: sourceAddress,
-          arcv: store.state.sourceBridgeAddress,
-          xamt: BigInt(store.state.sourceAmount),
-          xano: new Uint8Array(Buffer.from(store.state.sourceTxNote))
-        }
-        buildN.push({
-          ...txnO,
-          ...assetTransfer,
-          ignore: true
-        })
-      }
-      ci.setFee(2000)
-      ci.setEnableGroupResourceSharing(true)
-      ci.setExtraTxns(buildN)
-      //ci.setGroupResourceSharingStrategy('merge')
-      const customR = await ci.custom()
-      if (!customR.success) {
-        throw Error(customR.error)
-      }
-      signed = await useWalletSignTransactions(customR.txns.map((txn: string) => new Uint8Array(Buffer.from(txn, 'base64'))))
+
+      // finally send to bridge address
+
+      const tx =
+        Number(store.state.sourceToken) > 0
+          ? algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+              amount: BigInt(store.state.sourceAmount),
+              sender: store.state.sourceAddress,
+              receiver: store.state.sourceBridgeAddress,
+              suggestedParams: params,
+              note: new Uint8Array(Buffer.from(store.state.sourceTxNote)),
+              assetIndex: Number(store.state.sourceToken)
+            })
+          : algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+              amount: BigInt(store.state.sourceAmount),
+              sender: store.state.sourceAddress,
+              receiver: store.state.sourceBridgeAddress,
+              suggestedParams: params,
+              note: new Uint8Array(Buffer.from(store.state.sourceTxNote))
+            })
+      txToSign.push(tx)
+      console.log('Added bridge txn', tx, store.state.sourceTxNote)
+
+      // fill in the resources
+      const composer = new TransactionComposer({
+        algod: algodClient,
+        getSigner: (address: string | Address) => dummyTransactionSigner
+      })
+      txToSign.forEach((txn) => {
+        composer.addTransaction(txn)
+      })
+      const { atc } = await composer.build()
+      const populatedAtc = await populateAppCallResources(atc, algodClient)
+      const group = populatedAtc.buildGroup()
+      const toSignFinal = group.map((txnWithSigner) => {
+        return txnWithSigner.txn
+      })
+      console.log('signing txns', toSignFinal)
+      signed = await useWalletSignTransactions(toSignFinal)
     }
     // algo or asa
     else {
@@ -388,6 +355,7 @@ const signWithUseWallet = async () => {
     if (signed && signed.length > 0) {
       // res.txId is the txId of the first transaction in the signed array
       // algosdk.decodeSignedTransaction(signed.pop()).txn.txID() is the txId of the last transaction in the signed array
+      console.log('Signed txns', signed)
       await algodClient.sendRawTransaction(signed).do()
       const tx = algosdk.decodeSignedTransaction(signed.pop()).txn.txID()
       store.state.bridgeTx = tx
@@ -422,126 +390,114 @@ const claimButtonClick = async () => {
   try {
     claimTxPending.value = true
     if (!store.state.destinationTokenConfiguration?.arc200TokenId) return
-
+    const arc200TokenId = store.state.destinationTokenConfiguration.arc200TokenId
     // Check for destination wallet connection
     if (!avmActiveWallet?.value) throw Error(t('sign.destinationWalletNotConnected'))
     if (activeAccount.value?.address !== store.state.destinationAddress) {
       throw Error(t('sign.connectDestinationWallet'))
     }
     if (!store.state.destinationChain) throw Error(t('sign.destinationChainMissing'))
+    console.log('store.state.destinationChain', store.state.destinationChain)
     const algodClient = await getAlgodClientByChainId(store.state.destinationChain)
     if (!algodClient) throw Error(t('sign.algodClientNotInitialized'))
-
     // get asset balance
     if (!store.state.destinationAddress) throw Error(t('sign.destinationAddressMissing'))
-    const accAssetInfo = await algodClient.accountAssetInformation(store.state.destinationAddress, Number(store.state.destinationToken)).do()
-    const assetBalance = accAssetInfo.assetHolding?.amount
+    const destinationAddress = store.state.destinationAddress
+    let destinationAmount = BigInt(store.state.destinationAmount)
+    const exchangeInfo: Arc200ExchangeInfo | undefined = await getExchangeInfo()
+    // at this point we received ASA on our destination address. now we can swap asa to arc200.
+    // when token is excchangeable, we use arc200_exchange arc200_redeem otherwise we use wnnt200 deposit
+    if (store.state.destinationToken === undefined) throw Error(t('sign.destinationTokenMissing'))
+    const tokenId = BigInt(store.state.destinationToken)
 
-    // Initialize the main contract interface
-    const ci = new CONTRACT(Number(store.state.destinationTokenConfiguration.arc200TokenId), algodClient, undefined, abi.custom, {
-      addr: store.state.destinationAddress,
-      sk: new Uint8Array()
+    // first tx is the asset transfer from destination address to arc200 contract
+    const params = await algodClient.getTransactionParams().do()
+
+    let txToSign: algosdk.Transaction[] = []
+    const sinkAddress = exchangeInfo?.sink ? exchangeInfo.sink : algosdk.getApplicationAddress(Number(store.state.destinationTokenConfiguration.arc200TokenId))
+    txToSign.push(
+      algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+        amount: 0n,
+        sender: destinationAddress,
+        receiver: sinkAddress,
+        suggestedParams: params,
+        assetIndex: Number(tokenId)
+      })
+    )
+    console.log('Added transfer from destination address to sink to swap asa with arc200', tokenId, arc200TokenId, sinkAddress)
+    const algoClient = await getAlgoClient(store.state.destinationChain)
+
+    const clientArc200AsaUserSender = getArc200ASAClient({
+      algorand: algoClient,
+      appId: BigInt(arc200TokenId),
+      appName: 'asa2arc200Bridge',
+      approvalSourceMap: undefined,
+      clearSourceMap: undefined,
+      defaultSender: destinationAddress,
+      defaultSigner: undefined
     })
 
-    // TODO depreciate saw200 claim
-    // Create builder
-    const builder = {
-      arc200: new CONTRACT(
-        Number(store.state.destinationTokenConfiguration.arc200TokenId),
-        algodClient,
-        undefined,
-        arc200ExchangeABI,
-        {
-          addr: store.state.destinationAddress,
-          sk: new Uint8Array()
+    const userBalance = await getAlgoAccountTokenBalance(store.state.destinationChain, destinationAddress, Number(tokenId))
+    if (userBalance && userBalance >= destinationAmount) {
+      // if user has unresolved assets on his account, use whole balance to swap to arc200
+      destinationAmount = userBalance
+    }
+
+    if (exchangeInfo?.sink) {
+      const exchangeTxs = await clientArc200AsaUserSender.createTransaction.arc200Redeem({
+        args: {
+          amount: destinationAmount
         },
-        true,
-        false,
-        true
-      )
-      // saw200: new CONTRACT(
-      //   Number(store.state.destinationTokenConfiguration.arc200TokenId),
-      //   algodClient,
-      //   undefined,
-      //   saw200ABI,
-      //   {
-      //     addr: store.state.destinationAddress,
-      //     sk: new Uint8Array()
-      //   },
-      //   true,
-      //   false,
-      //   true
-      // )
-    }
-
-    const buildN = []
-
-    // Add withdrawal transaction (saw200)
-    // {
-    //   const amount = BigInt(store.state.destinationAmount)
-    //   const decimals = store.state.destinationTokenConfiguration.decimals
-    //   const txnO = (await builder.saw200.withdraw(assetBalance))?.obj
-    //   const assetTransfer = {
-    //     type: 'axfer',
-    //     xaid: Number(store.state.destinationToken),
-    //     aamt: assetBalance,
-    //     arcv: algosdk.getApplicationAddress(Number(store.state.destinationTokenConfiguration.arc200TokenId))
-    //   }
-    //   buildN.push({
-    //     ...txnO,
-    //     ...assetTransfer,
-    //     note: new TextEncoder().encode(`Withdrawing ${store.state.destinationAmountFormatted} ${store.state.destinationTokenConfiguration.name}`)
-    //   })
-    // }
-    // arc200_exchange redeem
-    {
-      const amount = BigInt(store.state.destinationAmount)
-      const decimals = store.state.destinationTokenConfiguration.decimals
-      const txnO = (await builder.arc200.arc200_redeem(assetBalance))?.obj
-      const assetTransfer = {
-        type: 'axfer',
-        xaid: Number(store.state.destinationToken),
-        aamt: assetBalance,
-        arcv: algosdk.getApplicationAddress(Number(store.state.destinationTokenConfiguration.arc200TokenId))
-      }
-      buildN.push({
-        ...txnO,
-        ...assetTransfer,
-        note: new TextEncoder().encode(`arc200_exchange redeem ${assetBalance} ${store.state.destinationTokenConfiguration.name}`)
+        staticFee: AlgoAmount.MicroAlgos(2000)
       })
+      exchangeTxs.transactions.forEach((tx) => txToSign.push(tx))
+      console.log('Added exchange arc200SwapBack txn for ARC200', arc200TokenId, destinationAmount)
+    } else {
+      const wnnt200Txs = await clientArc200AsaUserSender.createTransaction.deposit({
+        args: {
+          amount: destinationAmount
+        },
+        staticFee: AlgoAmount.MicroAlgos(2000)
+      })
+      wnnt200Txs.transactions.forEach((tx) => txToSign.push(tx))
+      console.log('Added wnnt200 deposit txn for ARC200', arc200TokenId, destinationAmount)
     }
 
-    // Configure and execute the transaction group
-    ci.setFee(2000)
-    ci.setEnableGroupResourceSharing(true)
-    ci.setExtraTxns(buildN)
-    const customR = await ci.custom()
-    if (!customR.success) {
-      throw Error(customR.error)
-    }
+    // fill in the resources
+    const composer = new TransactionComposer({
+      algod: algodClient,
+      getSigner: (address: string | Address) => dummyTransactionSigner
+    })
+    txToSign.forEach((txn) => {
+      composer.addTransaction(txn)
+    })
+    const { atc } = await composer.build()
+    const populatedAtc = await populateAppCallResources(atc, algodClient)
+    const group = populatedAtc.buildGroup()
+    const toSignFinal = group.map((txnWithSigner) => {
+      return txnWithSigner.txn
+    })
+    console.log('signing txns', toSignFinal)
 
     // Sign with destination wallet
-    const signed = await avmSignTransactions(customR.txns.map((txn: string) => new Uint8Array(Buffer.from(txn, 'base64'))))
-
+    const signed = await avmSignTransactions(toSignFinal)
     // Filter out any null values to satisfy the type requirement
     const filteredSigned = signed.filter((s: Uint8Array | null): s is Uint8Array => s !== null)
     if (filteredSigned.length === 0) {
       throw Error(t('sign.noTransactionsSigned'))
     }
     const result = await algodClient.sendRawTransaction(filteredSigned).do()
-
+    console.log('Claim tx sent with txid', result.txid)
     // Wait for confirmation
-    await algodClient.status().do()
-    await algodClient.pendingTransactionInformation(result.txid).do()
-
+    // await algodClient.status().do()
+    // await algodClient.pendingTransactionInformation(result.txid).do()
     toast.add({
       severity: 'success',
       detail: t('sign.claimSuccess'),
       life: 3000
     })
-
     // Reset state and redirect
-    await resetButtonClick()
+    //await resetButtonClick()
   } catch (e: any) {
     console.error(e)
     toast.add({
