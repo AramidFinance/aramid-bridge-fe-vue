@@ -58,6 +58,7 @@ app.use(WalletManagerPlugin, {
     WalletId.DEFLY,
     WalletId.PERA,
     WalletId.EXODUS,
+    WalletId.LUTE,
     WalletId.KIBISIS,
     {
       id: WalletId.BIATEC,
@@ -93,6 +94,7 @@ app.use(AVMWalletManagerPlugin, {
   wallets: [
     AVMWalletId.DEFLY,
     AVMWalletId.PERA,
+    AVMWalletId.LUTE,
     AVMWalletId.EXODUS,
     AVMWalletId.KIBISIS,
     {

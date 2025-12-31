@@ -10,12 +10,14 @@ export const isWalletForChain = (id: string, chainId: number): boolean => {
       defly: true,
       exodus: true,
       biatec: true,
+      lute: true,
       walletconnect: true
     },
     '416101': {
       walletconnect: true,
       biatec: true,
-      kibisis: true
+      kibisis: true,
+      lute: true
     },
     '416102': {
       walletconnect: true,
