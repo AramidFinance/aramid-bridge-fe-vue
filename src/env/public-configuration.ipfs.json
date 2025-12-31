@@ -877,7 +877,7 @@
           "type": "algo",
           "isPremium": true,
           "logo": "aramid-algo",
-          "asa2arc200BridgeAppId": 747368,
+
           "arc200TokenId": 413153
         },
         "302190": {
@@ -889,7 +889,7 @@
           "type": "algo",
           "isPremium": true,
           "logo": "aramid-usdc",
-          "asa2arc200BridgeAppId": 747368,
+
           "arc200TokenId": 395614
         },
         "302193": {
@@ -901,7 +901,7 @@
           "type": "algo",
           "isPremium": false,
           "logo": "aramid-eth",
-          "asa2arc200BridgeAppId": 747368,
+
           "arc200TokenId": 40153308
         },
         "302228": {
@@ -923,7 +923,7 @@
           "type": "algo",
           "isPremium": false,
           "logo": "unit",
-          "asa2arc200BridgeAppId": 747368,
+
           "arc200TokenId": 420069
         },
         "797369": {
@@ -935,7 +935,7 @@
           "type": "algo",
           "isPremium": false,
           "logo": "finite",
-          "asa2arc200BridgeAppId": 747368,
+
           "arc200TokenId": 859317
         },
         "797372": {
@@ -947,7 +947,7 @@
           "type": "algo",
           "isPremium": false,
           "logo": "vote",
-          "asa2arc200BridgeAppId": 747368,
+
           "arc200TokenId": 859312
         },
         "40152643": {
@@ -959,7 +959,7 @@
           "type": "algo",
           "isPremium": false,
           "logo": "wbtc",
-          "asa2arc200BridgeAppId": 747368,
+
           "arc200TokenId": 40153368
         },
         "40152648": {
@@ -971,7 +971,7 @@
           "type": "algo",
           "isPremium": false,
           "logo": "cbbtc",
-          "asa2arc200BridgeAppId": 747368,
+
           "arc200TokenId": 40153415
         },
         "40152679": {
@@ -983,7 +983,7 @@
           "type": "algo",
           "isPremium": true,
           "logo": "pow",
-          "asa2arc200BridgeAppId": 747368,
+
           "arc200TokenId": 40153155
         },
         "40266605": {
@@ -1085,7 +1085,7 @@
           "type": "algo",
           "isPremium": false,
           "logo": "ammo",
-          "asa2arc200BridgeAppId": 747368,
+
           "arc200TokenId": 798968
         },
         "40266686": {
@@ -1097,7 +1097,7 @@
           "type": "algo",
           "isPremium": false,
           "logo": "corn",
-          "asa2arc200BridgeAppId": 747368,
+
           "arc200TokenId": 412682
         },
         "40266690": {
@@ -1109,7 +1109,7 @@
           "type": "algo",
           "isPremium": false,
           "logo": "unit",
-          "asa2arc200BridgeAppId": 747368,
+
           "arc200TokenId": 420069
         }
       },

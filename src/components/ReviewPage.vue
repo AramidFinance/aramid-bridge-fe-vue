@@ -296,6 +296,16 @@ watch(
         <div class="md:min-w-44 font-bold">{{ t('asset.tokenName') }}</div>
         <div class="w-full">{{ store.state.sourceTokenConfiguration?.name }}</div>
       </div>
+      <div class="flex flex-col md:flex-row mt-2 text-center md:text-left" v-if="store.state.sourceTokenConfiguration?.arc200TokenId">
+        <div class="md:min-w-44 font-bold">ARC200 Token ID</div>
+        <div class="w-full">
+          {{ store.state.sourceTokenConfiguration.arc200TokenId }}
+          <CopyIcon
+            :text="store.state.sourceTokenConfiguration.arc200TokenId.toString()"
+            :title="t('address.copyToken', { tokenId: store.state.sourceTokenConfiguration.arc200TokenId.toString() })"
+          ></CopyIcon>
+        </div>
+      </div>
       <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">
         <div class="md:min-w-44 font-bold">{{ t('asset.tokenId') }}</div>
         <div class="w-full">
@@ -359,6 +369,16 @@ watch(
         <div class="w-full">
           {{ store.state.destinationTokenConfiguration?.tokenId }}
           <CopyIcon :text="store.state.destinationTokenConfiguration?.tokenId" :title="t('address.copyToken', { tokenId: store.state.destinationTokenConfiguration?.tokenId })"></CopyIcon>
+        </div>
+      </div>
+      <div class="flex flex-col md:flex-row mt-2 text-center md:text-left" v-if="store.state.destinationTokenConfiguration?.arc200TokenId">
+        <div class="md:min-w-44 font-bold">ARC200 Token ID</div>
+        <div class="w-full">
+          {{ store.state.destinationTokenConfiguration.arc200TokenId }}
+          <CopyIcon
+            :text="store.state.destinationTokenConfiguration.arc200TokenId.toString()"
+            :title="t('address.copyToken', { tokenId: store.state.destinationTokenConfiguration.arc200TokenId.toString() })"
+          ></CopyIcon>
         </div>
       </div>
       <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">

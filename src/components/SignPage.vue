@@ -112,20 +112,20 @@ onMounted(async () => {
     routeToReviewScreen()
   }
 
-  // Add check for destination wallet connection when bridging to Voi with unitAppId
-  if (
-    store.state.destinationChainConfiguration?.name === 'Voi' &&
-    store.state.destinationTokenConfiguration?.arc200TokenId &&
-    (!avmActiveWallet?.value || activeAccount.value?.address !== store.state.destinationAddress)
-  ) {
-    toast.add({
-      severity: 'error',
-      detail: t('sign.connectDestinationWallet'),
-      life: 3000
-    })
-    routeToReviewScreen()
-    return
-  }
+  // // Add check for destination wallet connection when bridging to Voi with unitAppId
+  // if (
+  //   store.state.destinationChainConfiguration?.name === 'Voi' &&
+  //   store.state.destinationTokenConfiguration?.arc200TokenId &&
+  //   (!avmActiveWallet?.value || activeAccount.value?.address !== store.state.destinationAddress)
+  // ) {
+  //   toast.add({
+  //     severity: 'error',
+  //     detail: t('sign.connectDestinationWallet'),
+  //     life: 3000
+  //   })
+  //   routeToReviewScreen()
+  //   return
+  // }
 
   timerInterval.value = setInterval(checkSourceTx.bind(this), 3000)
   checkSourceTx()
@@ -155,9 +155,8 @@ const signWithUseWallet = async () => {
 
     // smart asset (arc200)
     const config = store.state.sourceTokenConfiguration
-    if (config && config.asa2arc200BridgeAppId && config.arc200TokenId) {
+    if (config && config.arc200TokenId) {
       const arc200TokenId = config.arc200TokenId
-      const asa2arc200BridgeAppId = config.asa2arc200BridgeAppId
       const chainId = config.chainId
 
       const sourceAddress = store.state?.sourceAddress || ''
@@ -220,7 +219,7 @@ const signWithUseWallet = async () => {
 
       const approveTxs = await clientArc200UserSender.createTransaction.arc200Approve({
         args: {
-          spender: exchangeInfo?.sink ?? algosdk.getApplicationAddress(Number(asa2arc200BridgeAppId)).toString(),
+          spender: exchangeInfo?.sink ?? algosdk.getApplicationAddress(Number(arc200TokenId)).toString(),
           value: sourceAmount
         }
       })
@@ -429,12 +428,10 @@ const claimButtonClick = async () => {
     </div>
     <div v-else-if="store.state.claimTx && store.state.destinationChainConfiguration?.type == 'algo'">
       <div v-if="store.state.destinationChainConfiguration?.name === 'Voi' && store.state.destinationTokenConfiguration?.arc200TokenId">
-        <p>{{ t('sign.bridgeSuccess') }}</p>
-        <p>{{ t('sign.transactionIdLabel') }} <ShortTx :txId="store.state.claimTx" :length="6" :chain="store.state.destinationChain"></ShortTx></p>
-        <p>{{ t('sign.verifyAssets') }}</p>
+        <p>Crosschain bridging was successful. If you are owner of the destination address, you can now claim the ARC200 token.</p>
         <MainActionButton @click="claimButtonClick" :tooltip="t('sign.claimTooltip')"> {{ t('sign.claimAssets') }} </MainActionButton>
       </div>
-      <div v-if="store.state.destinationChainConfiguration?.name === 'Voi'">
+      <div v-else-if="store.state.destinationChainConfiguration?.name === 'Voi'">
         <p>{{ t('sign.bridgeSuccess') }}</p>
         <p>{{ t('sign.transactionIdLabel') }} <ShortTx :txId="store.state.claimTx" :length="6" :chain="store.state.destinationChain"></ShortTx></p>
         <p>{{ t('sign.verifyAssets') }}</p>

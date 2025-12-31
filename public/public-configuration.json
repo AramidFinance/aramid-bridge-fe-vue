@@ -1097,7 +1097,7 @@
           "type": "algo",
           "isPremium": false,
           "logo": "unit",
-          "optionalArc200TokenId": 420069
+          "arc200TokenId": 420069
         }
       },
       "soldiersByRound": [
