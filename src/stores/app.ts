@@ -1,7 +1,7 @@
-import { reactive } from 'vue'
-import { defineStore } from 'pinia'
 import type { IAppState } from '@/scripts/interface/aramid/IAppState'
 import { ITxStatus } from '@/scripts/interface/aramid/ITxStatus'
+import { defineStore } from 'pinia'
+import { reactive } from 'vue'
 export const useAppStore = defineStore('app', () => {
   const state = reactive<IAppState>({
     appConfiguration: null,
@@ -44,7 +44,14 @@ export const useAppStore = defineStore('app', () => {
     loadingSourceAddressBalance: false,
     loadingDestinationAddressBalance: false,
     loadingDestinationEscrowAddressBalance: false,
-    lockRouteForSwitch: false
+    lockRouteForSwitch: false,
+
+    dialogSelectArc200BridgeChainIsOpen: false,
+    dialogSelectArc200BridgeAssetIsOpen: false,
+    dialogSelectArc200BridgeWalletIsOpen: false,
+    arc200BridgeAmount: '',
+    arc200BridgeAmountFormatted: '',
+    arc200BridgeDirection: 'ARC200ToASA'
   })
 
   return { state }

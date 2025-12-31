@@ -72,7 +72,7 @@ const onSourceAddressChange = async () => {
       switch (sourceChainName) {
         case 'Voi': {
           if (sourceTokenConfig?.arc200TokenId) {
-            const balance = await getAlgoAccountARC200TokenBalance(store.state.sourceChain, store.state.sourceAddress, Number(sourceTokenConfig?.arc200TokenId), Number(store.state.sourceToken))
+            const balance = await getAlgoAccountARC200TokenBalance(store.state.sourceChain, store.state.sourceAddress, Number(sourceTokenConfig?.arc200TokenId))
             if (balance !== null) {
               store.state.sourceAddressBalance = balance.toString()
               store.state.loadingSourceAddressBalance = false

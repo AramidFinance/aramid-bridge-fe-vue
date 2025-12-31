@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { sanitizeTokenName } from '@/scripts/common/sanitizeTokenName'
 import { highlightAramidText } from '@/scripts/common/highlightAramidText'
-import CopyIcon from './CopyIcon.vue'
+import { sanitizeTokenName } from '@/scripts/common/sanitizeTokenName'
 import { computed } from 'vue'
+import CopyIcon from './CopyIcon.vue'
 
-const props = defineProps({ img: String, text: String, id: String })
+const props = defineProps({ img: String, text: String, id: String, arc200TokenId: String })
 
 const getImageUrl = (name: string | undefined) => {
   const ret = new URL(`../../assets/logos/tokens/${name}.png`, import.meta.url)
@@ -33,7 +33,7 @@ const highlightedTokenName = computed(() => {
     <div class="mr-2.5"></div>
     <div class="text-center flex flex-col justify-center flex-1">
       <div class="w-full text-left" v-html="highlightedTokenName.html"></div>
-      <div class="hidden md:inline-block text-left text-sm">({{ props.id }})</div>
+      <div class="hidden md:inline-block text-left text-sm">({{ props.id }}{{ props.arc200TokenId ? ` <> ${props.arc200TokenId}` : '' }})</div>
     </div>
     <div class="">
       <CopyIcon :text="props.id" :title="`Copy asset ID: ${props.id}`"></CopyIcon>

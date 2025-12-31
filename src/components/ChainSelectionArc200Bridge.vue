@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import SelectDestinationChainDialog from './dialogs/SelectDestinationChainDialog.vue'
+import SelectArc200BridgeChainDialog from './dialogs/SelectArc200BridgeChainDialog.vue'
 import DropDown from './ui/DropDown.vue'
 import SimpleLabel from './ui/SimpleLabel.vue'
 
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
-import { fillDestinationChainConfiguration } from '@/scripts/events/fillDestinationChainConfiguration'
+import { fillArc200BridgeChainConfiguration } from '@/scripts/events/fillArc200BridgeChainConfiguration'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
@@ -24,7 +24,7 @@ interface IState {
 }
 const state: IState = reactive({
   publicConfiguration: null,
-  chain: store.state.destinationChainConfiguration as ChainItem
+  chain: store.state.arc200BridgeChainConfiguration as ChainItem
 })
 onMounted(async () => {
   state.publicConfiguration = await getPublicConfiguration(false)
@@ -33,10 +33,9 @@ onMounted(async () => {
 const fillInState = () => {
   try {
     if (!state.publicConfiguration) return
-    if (!store.state.sourceChain) return
 
-    if (!store.state.destinationChainConfiguration) {
-      fillDestinationChainConfiguration(undefined, route.params['destinationChain'])
+    if (!store.state.arc200BridgeChainConfiguration) {
+      fillArc200BridgeChainConfiguration(undefined, route.params['destinationChain'])
     }
   } catch (e: any) {
     console.error(e)
@@ -60,11 +59,11 @@ watch(
     <SimpleLabel>{{ t('chain.destinationChain') }}</SimpleLabel>
     <DropDown
       v-tooltip.top="t('chain.tooltipDestination')"
-      v-if="store.state.destinationChainConfiguration"
-      :img="`logos/chains/${store.state.destinationChainConfiguration?.logo}.png`"
-      :text="store.state.destinationChainConfiguration.name"
-      @click="store.state.dialogSelectDestinationChainIsOpen = true"
+      v-if="store.state.arc200BridgeChainConfiguration"
+      :img="`logos/chains/${store.state.arc200BridgeChainConfiguration?.logo}.png`"
+      :text="store.state.arc200BridgeChainConfiguration.name"
+      @click="store.state.dialogSelectArc200BridgeChainIsOpen = true"
     ></DropDown>
-    <SelectDestinationChainDialog :arc200TokensOnly="props.arc200TokensOnly"></SelectDestinationChainDialog>
+    <SelectArc200BridgeChainDialog :arc200TokensOnly="props.arc200TokensOnly"></SelectArc200BridgeChainDialog>
   </div>
 </template>

@@ -1,15 +1,14 @@
 import { AlgorandClient } from '@algorandfoundation/algokit-utils'
 import algosdk from 'algosdk'
 import { getArc200Client } from 'arc200-client'
-import BigNumber from 'bignumber.js'
 import asyncdelay from '../common/asyncDelay'
 import getSecureConfiguration from '../common/getSecureConfiguration'
 import getAlgodClientByChainId from './getAlgodClientByChainId'
 import getIndexerClientByChainId from './getIndexerClientByChainId'
 
-const getAlgoAccountARC200TokenBalance = async (chainId: number, accountAddress: string, contractId: number, assetId: number): Promise<BigNumber | null> => {
+const getAlgoAccountARC200TokenBalance = async (chainId: number, accountAddress: string, contractId: number): Promise<bigint | null> => {
   try {
-    if (!algosdk.isValidAddress(accountAddress)) return new BigNumber('0')
+    if (!algosdk.isValidAddress(accountAddress)) return 0n
     const secureConfiguration = await getSecureConfiguration()
     if (!secureConfiguration?.chains || !secureConfiguration.chains[chainId]) return null
 
@@ -22,14 +21,14 @@ const getAlgoAccountARC200TokenBalance = async (chainId: number, accountAddress:
 
     if (!indexerClient || !algodClient) {
       console.error('Failed to get algod or indexer client for ARC200')
-      return new BigNumber('0')
+      return 0n
     }
     const dummyAddress = 'TESTNTTTJDHIF5PJZUBTTDYYSKLCLM6KXCTWIOOTZJX5HO7263DPPMM2SU'
     const dummyTransactionSigner = async (txnGroup: algosdk.Transaction[], indexesToSign: number[]): Promise<Uint8Array[]> => {
       console.log('transactionSigner', txnGroup, indexesToSign)
       return [] as Uint8Array[]
     }
-    var algoClient = AlgorandClient.fromClients({
+    const algoClient = AlgorandClient.fromClients({
       algod: algodClient,
       indexer: indexerClient
     })
@@ -45,13 +44,13 @@ const getAlgoAccountARC200TokenBalance = async (chainId: number, accountAddress:
 
     const balance = await client.arc200BalanceOf({ args: { owner: accountAddress } })
 
-    if (balance == BigInt(0)) return new BigNumber('0') // if no ARC200-ASA and no ARC200, return 0
+    if (balance == BigInt(0)) return 0n // if no ARC200-ASA and no ARC200, return 0
 
-    const ret = new BigNumber(balance.toString())
+    const ret = BigInt(balance)
     return ret
   } catch (e) {
     console.error(e)
-    return new BigNumber('0')
+    return 0n
   }
 }
 export default getAlgoAccountARC200TokenBalance

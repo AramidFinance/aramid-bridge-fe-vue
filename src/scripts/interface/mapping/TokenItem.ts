@@ -9,4 +9,5 @@ export type TokenItem = {
   isPremium: boolean
   asa2arc200BridgeAppId?: number
   arc200TokenId?: number
+  optionalArc200TokenId?: number
 }

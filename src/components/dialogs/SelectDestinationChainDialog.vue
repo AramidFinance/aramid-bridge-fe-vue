@@ -12,10 +12,12 @@ import { resetSourceTokenIfNotMatched } from '@/scripts/events/resetSourceTokenI
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
-import { onMounted, reactive, watch } from 'vue'
+import { computed, defineProps, onMounted, reactive, watch, withDefaults } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ChainButton from '../ui/ChainButton.vue'
 import DialogTitle from '../ui/DialogTitle.vue'
+
+const props = withDefaults(defineProps<{ arc200TokensOnly?: boolean }>(), { arc200TokensOnly: false })
 
 const store = useAppStore()
 const { t } = useI18n()
@@ -55,6 +57,15 @@ const state: IState = reactive({
   publicConfiguration: null,
   chains: null
 })
+
+const displayedChains = computed(() => {
+  if (!state.chains) return null
+  if (props.arc200TokensOnly) {
+    return state.chains.filter((chain) => chain.type === 'algo')
+  }
+  return state.chains
+})
+
 onMounted(async () => {
   state.publicConfiguration = await getPublicConfiguration(false)
   if (!state.publicConfiguration) return
@@ -69,7 +80,7 @@ onMounted(async () => {
       <ul class="bg-gradient-to-r from-topleft-purple to-bottomright-purple drop-shadow-menu-default rounded-[26px] p-3">
         <DialogTitle>{{ t('dialogs.selectDestinationNetwork') }}</DialogTitle>
 
-        <ChainButton v-for="(item, index) in state.chains" :key="index" :img="item.logo" :text="item.name" @click="chainButtonClick(item.chainId)"></ChainButton>
+        <ChainButton v-for="(item, index) in displayedChains" :key="index" :img="item.logo" :text="item.name" @click="chainButtonClick(item.chainId)"></ChainButton>
       </ul>
     </div>
   </div>

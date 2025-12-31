@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAppStore } from '@/stores/app'
+import { RouterLink } from 'vue-router'
 import LanguageSelector from './LanguageSelector.vue'
 
 const store = useAppStore()
@@ -82,6 +83,8 @@ const logState = () => {
             ></path>
           </svg>
         </a>
+        <RouterLink to="/claim" class="text-dark-placeholder transition duration-100 ease-in-out hover:text-dark-label text-sm"> EVM Claim </RouterLink>
+        <RouterLink to="/arc200-claim" class="text-dark-placeholder transition duration-100 ease-in-out hover:text-dark-label text-sm"> ARC200 Claim </RouterLink>
         <a href="https://explorer.aramid.finance" target="_blank" rel="noopener noreferrer" class="text-dark-placeholder transition duration-100 ease-in-out hover:text-dark-label text-sm">
           Explorer
         </a>

@@ -19,6 +19,7 @@ import DialogTitle from '../ui/DialogTitle.vue'
 
 const store = useAppStore()
 const { t } = useI18n()
+const props = withDefaults(defineProps<{ arc200TokensOnly?: boolean }>(), { arc200TokensOnly: false })
 
 const chainButtonClick = (chainId: number) => {
   fillSourceChainConfiguration(chainId)

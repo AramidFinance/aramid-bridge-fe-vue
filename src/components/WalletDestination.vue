@@ -153,12 +153,7 @@ const onDestinationAddressChange = async () => {
       switch (destinationChainName) {
         case 'Voi': {
           if (destinationTokenConfig?.arc200TokenId) {
-            const balance = await getAlgoAccountARC200TokenBalance(
-              store.state.destinationChain,
-              store.state.destinationAddress,
-              Number(destinationTokenConfig?.arc200TokenId),
-              Number(store.state.destinationToken)
-            )
+            const balance = await getAlgoAccountARC200TokenBalance(store.state.destinationChain, store.state.destinationAddress, Number(destinationTokenConfig?.arc200TokenId))
             if (balance !== null) {
               store.state.destinationAddressBalance = balance.toString()
               store.state.loadingDestinationAddressBalance = false

@@ -10,7 +10,7 @@ import { makeNoteField } from '@/scripts/aramid/makeNoteField'
 import { resetStateSoft } from '@/scripts/common/resetStateSoft'
 import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import { useAppStore } from '@/stores/app'
-import { AlgorandClient, populateAppCallResources } from '@algorandfoundation/algokit-utils'
+import { populateAppCallResources } from '@algorandfoundation/algokit-utils'
 import { AlgoAmount } from '@algorandfoundation/algokit-utils/types/amount'
 import { TransactionComposer } from '@algorandfoundation/algokit-utils/types/composer'
 import { useWallet } from '@txnlab/use-wallet-vue'
@@ -23,7 +23,8 @@ import QRCodeVue3 from 'qrcode-vue3'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
-import getAlgoAccountTokenBalance from '../scripts/algo/getAlgoAccountTokenBalance'
+import getAlgoClient from '../scripts/algo/getAlgoClient'
+import getExchangeInfo from '../scripts/algo/getExchangeInfo'
 import getIndexerClientByChainId from '../scripts/algo/getIndexerClientByChainId'
 import StatusBar from './status/StatusBar.vue'
 import CopyIcon from './ui/CopyIcon.vue'
@@ -135,51 +136,6 @@ onMounted(async () => {
   }
 })
 
-const getAlgoClient = async (chainId: number): Promise<AlgorandClient> => {
-  if (!chainId) throw new Error('Chain ID is not set')
-  const algodClient = await getAlgodClientByChainId(chainId)
-  if (!algodClient) throw new Error('Algod client not initialized')
-
-  const algoClient = AlgorandClient.fromClients({
-    algod: algodClient
-  })
-  return algoClient
-}
-const getExchangeInfo = async (): Promise<Arc200ExchangeInfo | undefined> => {
-  try {
-    if (!store.state.sourceChain) return undefined
-    if (!store.state.sourceTokenConfiguration?.asa2arc200BridgeAppId) return undefined
-    if (!store.state.sourceTokenConfiguration?.arc200TokenId) return undefined
-
-    const algodClient = await getAlgodClientByChainId(store.state.sourceChain)
-    if (!algodClient) return undefined
-
-    const algoClient = await getAlgoClient(store.state.sourceChain)
-
-    const dummyAddress = 'TESTNTTTJDHIF5PJZUBTTDYYSKLCLM6KXCTWIOOTZJX5HO7263DPPMM2SU'
-    const dummyTransactionSigner = async (txnGroup: algosdk.Transaction[], indexesToSign: number[]): Promise<Uint8Array[]> => {
-      console.log('transactionSigner', txnGroup, indexesToSign)
-      return [] as Uint8Array[]
-    }
-    const clientArc200AsaDummySigner = getArc200ASAClient({
-      algorand: algoClient,
-      appId: BigInt(store.state.sourceTokenConfiguration.arc200TokenId),
-      appName: 'asa2arc200Bridge',
-      approvalSourceMap: undefined,
-      clearSourceMap: undefined,
-      defaultSender: dummyAddress,
-      defaultSigner: dummyTransactionSigner
-    })
-
-    const loadedExchangeInfo: Arc200ExchangeInfo = await clientArc200AsaDummySigner.arc200Exchange({ args: {} })
-    if (loadedExchangeInfo.exchangeAsset >= 0n) {
-      return loadedExchangeInfo
-    }
-  } catch (e) {
-    console.error('Error loading exchange info', e)
-  }
-  return undefined
-}
 const dummyTransactionSigner = async (txnGroup: algosdk.Transaction[], indexesToSign: number[]): Promise<Uint8Array[]> => {
   return [] as Uint8Array[]
 }
@@ -239,7 +195,7 @@ const signWithUseWallet = async () => {
         defaultSigner: undefined
       })
 
-      const exchangeInfo: Arc200ExchangeInfo | undefined = await getExchangeInfo()
+      const exchangeInfo: Arc200ExchangeInfo | undefined = await getExchangeInfo('source')
 
       // withdraw asa from the arc200 contract and send it to the bridge address
       // if user is not opted in to the asa, opt in him
@@ -388,114 +344,16 @@ const claimTxPending = ref(false)
 const claimButtonClick = async () => {
   console.log('claimButtonClick')
   try {
-    claimTxPending.value = true
-    if (!store.state.destinationTokenConfiguration?.arc200TokenId) return
-    const arc200TokenId = store.state.destinationTokenConfiguration.arc200TokenId
-    // Check for destination wallet connection
-    if (!avmActiveWallet?.value) throw Error(t('sign.destinationWalletNotConnected'))
-    if (activeAccount.value?.address !== store.state.destinationAddress) {
-      throw Error(t('sign.connectDestinationWallet'))
-    }
-    if (!store.state.destinationChain) throw Error(t('sign.destinationChainMissing'))
-    console.log('store.state.destinationChain', store.state.destinationChain)
-    const algodClient = await getAlgodClientByChainId(store.state.destinationChain)
-    if (!algodClient) throw Error(t('sign.algodClientNotInitialized'))
-    // get asset balance
-    if (!store.state.destinationAddress) throw Error(t('sign.destinationAddressMissing'))
-    const destinationAddress = store.state.destinationAddress
-    let destinationAmount = BigInt(store.state.destinationAmount)
-    const exchangeInfo: Arc200ExchangeInfo | undefined = await getExchangeInfo()
-    // at this point we received ASA on our destination address. now we can swap asa to arc200.
-    // when token is excchangeable, we use arc200_exchange arc200_redeem otherwise we use wnnt200 deposit
-    if (store.state.destinationToken === undefined) throw Error(t('sign.destinationTokenMissing'))
-    const tokenId = BigInt(store.state.destinationToken)
-
-    // first tx is the asset transfer from destination address to arc200 contract
-    const params = await algodClient.getTransactionParams().do()
-
-    let txToSign: algosdk.Transaction[] = []
-    const sinkAddress = exchangeInfo?.sink ? exchangeInfo.sink : algosdk.getApplicationAddress(Number(store.state.destinationTokenConfiguration.arc200TokenId))
-    txToSign.push(
-      algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-        amount: 0n,
-        sender: destinationAddress,
-        receiver: sinkAddress,
-        suggestedParams: params,
-        assetIndex: Number(tokenId)
-      })
-    )
-    console.log('Added transfer from destination address to sink to swap asa with arc200', tokenId, arc200TokenId, sinkAddress)
-    const algoClient = await getAlgoClient(store.state.destinationChain)
-
-    const clientArc200AsaUserSender = getArc200ASAClient({
-      algorand: algoClient,
-      appId: BigInt(arc200TokenId),
-      appName: 'asa2arc200Bridge',
-      approvalSourceMap: undefined,
-      clearSourceMap: undefined,
-      defaultSender: destinationAddress,
-      defaultSigner: undefined
+    router.push({
+      name: 'arc200-claim-t',
+      params: {
+        network: 'voimain',
+        tokenId: store.state.destinationToken,
+        amount: store.state.destinationAmount,
+        direction: 'ASAToARC200'
+      }
     })
 
-    const userBalance = await getAlgoAccountTokenBalance(store.state.destinationChain, destinationAddress, Number(tokenId))
-    if (userBalance && userBalance >= destinationAmount) {
-      // if user has unresolved assets on his account, use whole balance to swap to arc200
-      destinationAmount = userBalance
-    }
-
-    if (exchangeInfo?.sink) {
-      const exchangeTxs = await clientArc200AsaUserSender.createTransaction.arc200Redeem({
-        args: {
-          amount: destinationAmount
-        },
-        staticFee: AlgoAmount.MicroAlgos(2000)
-      })
-      exchangeTxs.transactions.forEach((tx) => txToSign.push(tx))
-      console.log('Added exchange arc200SwapBack txn for ARC200', arc200TokenId, destinationAmount)
-    } else {
-      const wnnt200Txs = await clientArc200AsaUserSender.createTransaction.deposit({
-        args: {
-          amount: destinationAmount
-        },
-        staticFee: AlgoAmount.MicroAlgos(2000)
-      })
-      wnnt200Txs.transactions.forEach((tx) => txToSign.push(tx))
-      console.log('Added wnnt200 deposit txn for ARC200', arc200TokenId, destinationAmount)
-    }
-
-    // fill in the resources
-    const composer = new TransactionComposer({
-      algod: algodClient,
-      getSigner: (address: string | Address) => dummyTransactionSigner
-    })
-    txToSign.forEach((txn) => {
-      composer.addTransaction(txn)
-    })
-    const { atc } = await composer.build()
-    const populatedAtc = await populateAppCallResources(atc, algodClient)
-    const group = populatedAtc.buildGroup()
-    const toSignFinal = group.map((txnWithSigner) => {
-      return txnWithSigner.txn
-    })
-    console.log('signing txns', toSignFinal)
-
-    // Sign with destination wallet
-    const signed = await avmSignTransactions(toSignFinal)
-    // Filter out any null values to satisfy the type requirement
-    const filteredSigned = signed.filter((s: Uint8Array | null): s is Uint8Array => s !== null)
-    if (filteredSigned.length === 0) {
-      throw Error(t('sign.noTransactionsSigned'))
-    }
-    const result = await algodClient.sendRawTransaction(filteredSigned).do()
-    console.log('Claim tx sent with txid', result.txid)
-    // Wait for confirmation
-    // await algodClient.status().do()
-    // await algodClient.pendingTransactionInformation(result.txid).do()
-    toast.add({
-      severity: 'success',
-      detail: t('sign.claimSuccess'),
-      life: 3000
-    })
     // Reset state and redirect
     //await resetButtonClick()
   } catch (e: any) {
@@ -570,21 +428,17 @@ const claimButtonClick = async () => {
       <ShortTx :txId="store.state.bridgeTx" :length="6" :chain="store.state.sourceChain"></ShortTx>
     </div>
     <div v-else-if="store.state.claimTx && store.state.destinationChainConfiguration?.type == 'algo'">
+      <div v-if="store.state.destinationChainConfiguration?.name === 'Voi' && store.state.destinationTokenConfiguration?.arc200TokenId">
+        <p>{{ t('sign.bridgeSuccess') }}</p>
+        <p>{{ t('sign.transactionIdLabel') }} <ShortTx :txId="store.state.claimTx" :length="6" :chain="store.state.destinationChain"></ShortTx></p>
+        <p>{{ t('sign.verifyAssets') }}</p>
+        <MainActionButton @click="claimButtonClick" :tooltip="t('sign.claimTooltip')"> {{ t('sign.claimAssets') }} </MainActionButton>
+      </div>
       <div v-if="store.state.destinationChainConfiguration?.name === 'Voi'">
         <p>{{ t('sign.bridgeSuccess') }}</p>
         <p>{{ t('sign.transactionIdLabel') }} <ShortTx :txId="store.state.claimTx" :length="6" :chain="store.state.destinationChain"></ShortTx></p>
         <p>{{ t('sign.verifyAssets') }}</p>
-        <div v-if="store.state.destinationTokenConfiguration?.arc200TokenId">
-          <template v-if="claimTxPending">
-            <p class="text-center">
-              <img :src="loader" alt="Loading" height="18" width="18" class="inline-block" />
-              {{ t('sign.claimingInProgress') }}
-            </p>
-          </template>
-          <template v-else>
-            <MainActionButton @click="claimButtonClick" :tooltip="t('sign.claimTooltip')"> {{ t('sign.claimAssets') }} </MainActionButton>
-          </template>
-        </div>
+
         <FireworksEffect></FireworksEffect>
         <MainActionButton @click="resetButtonClick">{{ t('sign.bridgeAgain') }}</MainActionButton>
       </div>
