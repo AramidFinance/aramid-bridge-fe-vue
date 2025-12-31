@@ -1,14 +1,14 @@
-import BigNumber from 'bignumber.js'
-import getSecureConfiguration from '../common/getSecureConfiguration'
-import getIndexerClientByChainId from './getIndexerClientByChainId'
-import asyncdelay from '../common/asyncDelay'
+import { AlgorandClient } from '@algorandfoundation/algokit-utils'
 import algosdk from 'algosdk'
+import { getArc200Client } from 'arc200-client'
+import asyncdelay from '../common/asyncDelay'
+import getSecureConfiguration from '../common/getSecureConfiguration'
 import getAlgodClientByChainId from './getAlgodClientByChainId'
-import { arc200 } from 'ulujs'
+import getIndexerClientByChainId from './getIndexerClientByChainId'
 
-const getAlgoAccountTokenBalance = async (chainId: number, accountAddress: string, contractId: number, assetId: number): Promise<BigNumber | null> => {
+const getAlgoAccountARC200TokenBalance = async (chainId: number, accountAddress: string, contractId: number): Promise<bigint | null> => {
   try {
-    if (!algosdk.isValidAddress(accountAddress)) return new BigNumber('0')
+    if (!algosdk.isValidAddress(accountAddress)) return 0n
     const secureConfiguration = await getSecureConfiguration()
     if (!secureConfiguration?.chains || !secureConfiguration.chains[chainId]) return null
 
@@ -21,33 +21,36 @@ const getAlgoAccountTokenBalance = async (chainId: number, accountAddress: strin
 
     if (!indexerClient || !algodClient) {
       console.error('Failed to get algod or indexer client for ARC200')
-      return new BigNumber('0')
+      return 0n
     }
+    const dummyAddress = 'TESTNTTTJDHIF5PJZUBTTDYYSKLCLM6KXCTWIOOTZJX5HO7263DPPMM2SU'
+    const dummyTransactionSigner = async (txnGroup: algosdk.Transaction[], indexesToSign: number[]): Promise<Uint8Array[]> => {
+      console.log('transactionSigner', txnGroup, indexesToSign)
+      return [] as Uint8Array[]
+    }
+    const algoClient = AlgorandClient.fromClients({
+      algod: algodClient,
+      indexer: indexerClient
+    })
+    const client = getArc200Client({
+      algorand: algoClient,
+      appId: BigInt(contractId),
+      defaultSender: dummyAddress,
+      defaultSigner: dummyTransactionSigner,
+      appName: 'arc200',
+      approvalSourceMap: undefined,
+      clearSourceMap: undefined
+    })
 
-    // balance, how much ARC200 is in the account
-    const ci = new arc200(contractId, algodClient, indexerClient)
-    const balanceR = await ci.arc200_balanceOf(accountAddress)
-    const balance = balanceR.success ? balanceR.returnValue : BigInt(0)
-    //const account = await indexerClient?.lookupAccountByID(accountAddress).do()
-    //if (!account || !account.account) return new BigNumber('0')
-    // assetItem, how much ARC200-ASA is in the account with default 0
-    //if (!account.account.assets) return new BigNumber('0') // removed because of ARC200
-    // const asaItem = account.account?.assets?.find((a: any) => a['asset-id'] == assetId) || {
-    //   ['asset-id']: assetId,
-    //   amount: 0
-    // }
-    //const asaAmount = asaItem ? BigInt(asaItem.amount) : BigInt(0)
-    const asaAmount = BigInt(0)
+    const balance = await client.arc200BalanceOf({ args: { owner: accountAddress } })
 
-    if (balance == BigInt(0)) return new BigNumber('0') // if no ARC200-ASA and no ARC200, return 0
+    if (balance == BigInt(0)) return 0n // if no ARC200-ASA and no ARC200, return 0
 
-    //console.log('algo.account', chainId, accountAddress, contractId, assetId, balance, asaAmount)
-    const ret = new BigNumber((asaAmount + balance).toString()) // combine ARC200 and ARC200-ASA
-    //console.log('account.amount', ret.toFixed(0, 1))
+    const ret = BigInt(balance)
     return ret
   } catch (e) {
     console.error(e)
-    return new BigNumber('0')
+    return 0n
   }
 }
-export default getAlgoAccountTokenBalance
+export default getAlgoAccountARC200TokenBalance

@@ -68,6 +68,16 @@ const router = createRouter({
       path: '/claim/:sourceTxId',
       name: 'claim-t',
       component: () => import('../views/ClaimView.vue')
+    },
+    {
+      path: '/arc200-claim/',
+      name: 'arc200-claim',
+      component: () => import('../views/Arc200ClaimView.vue')
+    },
+    {
+      path: '/arc200-claim/:network/:tokenId/:amount/:direction',
+      name: 'arc200-claim-t',
+      component: () => import('../views/Arc200ClaimView.vue')
     }
     // {
     //   path: '/about',

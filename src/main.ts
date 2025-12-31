@@ -1,19 +1,19 @@
-import './assets/main.css'
 import { NetworkId, WalletId, WalletManagerPlugin } from '@txnlab/use-wallet-vue'
-import { NetworkId as AVMNetworkId, WalletId as AVMWalletId, WalletManagerPlugin as AVMWalletManagerPlugin } from 'avm-wallet-vue'
+import { WalletId as AVMWalletId, WalletManagerPlugin as AVMWalletManagerPlugin, NetworkConfigBuilder } from 'avm-wallet-vue'
+import './assets/main.css'
 
-import { createApp } from 'vue'
 import { createPinia } from 'pinia'
+import { createApp } from 'vue'
 
-import App from './App.vue'
-import router from './router'
 import PrimeVue from 'primevue/config'
+import App from './App.vue'
 import i18n from './i18n'
+import router from './router'
 
+import Aura from '@/presets/lara' //import preset
 import ToastService from 'primevue/toastservice'
 import Tooltip from 'primevue/tooltip'
 import './assets/base.css'
-import Aura from '@/presets/lara' //import preset
 const app = createApp(App)
 
 app.use(createPinia())
@@ -26,6 +26,31 @@ app.use(PrimeVue, {
 })
 app.directive('tooltip', Tooltip)
 app.use(ToastService)
+
+// Customize Algorand networks
+const networks = new NetworkConfigBuilder()
+  .mainnet({
+    algod: {
+      baseServer: 'https://mainnet-api.4160.nodely.dev',
+      port: '443',
+      token: ''
+    }
+  })
+  .voimain({
+    algod: {
+      baseServer: 'https://mainnet-api.voi.nodely.dev',
+      port: '443',
+      token: ''
+    }
+  })
+  .aramidmain({
+    algod: {
+      baseServer: 'https://aramidmain-algod-public.de.nodes.biatec.io',
+      port: '443',
+      token: ''
+    }
+  })
+  .build()
 
 // Install the plugin
 app.use(WalletManagerPlugin, {
@@ -60,7 +85,8 @@ app.use(WalletManagerPlugin, {
     }
   ],
 
-  network: NetworkId.MAINNET
+  defaultNetwork: NetworkId.MAINNET,
+  networks
 })
 // Install the plugin
 app.use(AVMWalletManagerPlugin, {
@@ -94,7 +120,8 @@ app.use(AVMWalletManagerPlugin, {
       }
     }
   ],
-  network: AVMNetworkId.MAINNET
+  defaultNetwork: NetworkId.MAINNET,
+  networks
 })
 
 app.mount('#app')

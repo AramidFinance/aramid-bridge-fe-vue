@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { RouterView } from 'vue-router'
-import Toast from 'primevue/toast'
 import { Buffer } from 'buffer'
-import getWeb3Modal from './scripts/eth/getWeb3Modal'
+import Toast from 'primevue/toast'
+import { RouterView } from 'vue-router'
 // @ts-ignore
 window.Buffer = Buffer
 

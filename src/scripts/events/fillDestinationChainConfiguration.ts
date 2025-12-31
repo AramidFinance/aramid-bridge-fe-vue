@@ -1,7 +1,7 @@
 import { useAppStore } from '@/stores/app'
+import { useConfigStore } from '@/stores/config'
 import getChainConfigurationSync from '../common/getChainConfigurationSync'
 import { fillRouteInfo } from './fillRouteInfo'
-import { useConfigStore } from '@/stores/config'
 
 export const fillDestinationChainConfiguration = (chainId: number | undefined = undefined, paramValue: string | string[] | undefined = undefined) => {
   const store = useAppStore()

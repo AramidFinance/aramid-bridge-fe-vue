@@ -1,12 +1,12 @@
-import BigNumber from 'bignumber.js'
+import algosdk from 'algosdk'
+import asyncdelay from '../common/asyncDelay'
 import getSecureConfiguration from '../common/getSecureConfiguration'
 import { executeWithIndexerFailover } from './getIndexerClientByChainIdWithFailover'
-import asyncdelay from '../common/asyncDelay'
-import algosdk from 'algosdk'
 
-const getAlgoAccountTokenBalance = async (chainId: number, accountAddress: string, asa: number): Promise<BigNumber | null> => {
+const getAlgoAccountTokenBalance = async (chainId: number, accountAddress: string, asa: number | bigint): Promise<bigint | null> => {
   try {
-    if (!algosdk.isValidAddress(accountAddress)) return new BigNumber('0')
+    const asaBigInt = BigInt(asa)
+    if (!algosdk.isValidAddress(accountAddress)) return 0n
     const secureConfiguration = await getSecureConfiguration()
     if (!secureConfiguration?.chains || !secureConfiguration.chains[chainId]) return null
 
@@ -19,20 +19,24 @@ const getAlgoAccountTokenBalance = async (chainId: number, accountAddress: strin
       `getAlgoAccountTokenBalance lookupAccountByID(${accountAddress})`
     )
 
-    //console.log('algo.account', chainId, account)
-    if (!account || !account.account) return new BigNumber('0')
-    if (asa == 0) {
-      return account.account.amount
+    console.log('algo.account', asaBigInt, chainId, account, account.account.amount.toString())
+    if (!account || !account.account) return 0n
+    console.log('algo.account', asaBigInt, chainId, account, account.account.amount.toString())
+    if (asaBigInt == 0n) {
+      const ret = BigInt(account.account.amount.toString())
+      console.log('account.amount', ret)
+      return ret
     }
-    if (!account.account.assets) return new BigNumber('0')
-    const asaItem = account.account.assets.find((a: any) => a['asset-id'] == asa)
-    if (!asaItem) return new BigNumber('0')
-    const ret = new BigNumber(asaItem.amount)
-    //console.log('account.amount', ret.toFixed(0, 1))
+    if (!account.account.assets) return 0n
+    const asaItem = account.account.assets.find((a) => a.assetId == asaBigInt)
+    console.log('algo.asaItem', chainId, asaItem)
+    if (!asaItem) return 0n
+    const ret = BigInt(asaItem.amount.toString())
+    console.log('account.amount', ret)
     return ret
   } catch (e) {
     console.error(e)
-    return new BigNumber('0')
+    return 0n
   }
 }
 export default getAlgoAccountTokenBalance

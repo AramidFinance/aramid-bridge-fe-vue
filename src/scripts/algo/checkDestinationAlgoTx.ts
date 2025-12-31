@@ -16,13 +16,11 @@ export const checkDestinationAlgoTx = async () => {
     )
 
     for (const tx of txs.transactions.filter(
-      (tx: any) =>
-        (tx['asset-transfer-transaction'] && tx['asset-transfer-transaction'].receiver == store.state.destinationAddress) ||
-        (tx['payment-transaction'] && tx['payment-transaction'].receiver == store.state.destinationAddress && !!tx.note)
+      (tx) => tx.assetTransferTransaction?.receiver == store.state.destinationAddress || (tx.paymentTransaction?.receiver == store.state.destinationAddress && tx?.note?.length && tx?.note?.length > 0)
     )) {
       try {
         // check asset and amount
-        let note = Buffer.from(tx.note, 'base64').toString('utf-8')
+        let note = Buffer.from(tx.note ?? '').toString('utf-8')
         if (!note.startsWith('aramid-confirm/v1:j')) continue
         note = note.substring('aramid-confirm/v1:j'.length)
         const noteJson = JSON.parse(note)

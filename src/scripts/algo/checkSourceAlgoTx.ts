@@ -1,6 +1,6 @@
 import { useAppStore } from '@/stores/app'
-import { executeWithIndexerFailover } from './getIndexerClientByChainIdWithFailover'
 import BigNumber from 'bignumber.js'
+import { executeWithIndexerFailover } from './getIndexerClientByChainIdWithFailover'
 
 export const checkSourceAlgoTx = async () => {
   const store = useAppStore()
@@ -16,36 +16,36 @@ export const checkSourceAlgoTx = async () => {
       'checkSourceAlgoTx lookupAccountTransactions'
     )
 
-    for (const tx of txs.transactions.filter((tx: any) => tx.sender == store.state.sourceAddress && !!tx.note)) {
+    for (const tx of txs.transactions.filter((tx) => tx.sender.toString() == store.state.sourceAddress && tx.note && tx.note.length > 0)) {
       // check asset and amount
       if (store.state.sourceToken === '0') {
         // native token transfer
-        if (tx['tx-type'] !== 'pay') {
+        if (tx.txType !== 'pay') {
           console.log('is not pay')
           continue
         }
-        if (!tx['payment-transaction'] || new BigNumber(tx['payment-transaction']['amount']).toFixed(0, 1) != store.state.sourceAmount) {
-          console.log('amount does not match', new BigNumber(tx['payment-transaction']['amount']).toFixed(0, 1), store.state.sourceAmount)
+        if (!tx.paymentTransaction || new BigNumber(tx.paymentTransaction.amount).toFixed(0, 1) != store.state.sourceAmount) {
+          console.log('amount does not match', new BigNumber(tx.paymentTransaction?.amount ?? 0).toFixed(0, 1), store.state.sourceAmount)
           continue
         }
       } else {
-        if (tx['tx-type'] !== 'axfer') {
+        if (tx.txType !== 'axfer') {
           console.log('is not axfer')
           continue
         }
-        if (!tx['asset-transfer-transaction'] || tx['asset-transfer-transaction']['asset-id'] != store.state.sourceToken) {
-          console.log('asset ID does not match', tx['asset-transfer-transaction']['asset-id'], store.state.sourceToken)
+        if (!tx.assetTransferTransaction || tx.assetTransferTransaction.assetId != BigInt(store.state.sourceToken ?? 0n)) {
+          console.log('asset ID does not match', tx.assetTransferTransaction?.assetId, store.state.sourceToken)
           continue
         }
-        if (new BigNumber(tx['asset-transfer-transaction']['amount']).toFixed(0, 1) != store.state.sourceAmount) {
-          console.log('amount does not match', new BigNumber(tx['asset-transfer-transaction']['amount']).toFixed(0, 1), store.state.sourceAmount)
+        if (new BigNumber(tx.assetTransferTransaction.amount).toFixed(0, 1) != store.state.sourceAmount) {
+          console.log('amount does not match', new BigNumber(tx.assetTransferTransaction.amount).toFixed(0, 1), store.state.sourceAmount)
           continue
         }
       }
 
       // check note field
-      if (store.state.sourceTxNote != Buffer.from(tx['note'], 'base64').toString('utf-8')) {
-        console.log('everything matches except of the note field', store.state.sourceTxNote, Buffer.from(tx['note'], 'base64').toString('utf-8'))
+      if (store.state.sourceTxNote != Buffer.from(tx.note ?? '').toString('utf-8')) {
+        console.log('everything matches except of the note field', store.state.sourceTxNote, Buffer.from(tx.note ?? '').toString('utf-8'))
         continue
       }
       console.log('match', tx)

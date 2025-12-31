@@ -1,26 +1,28 @@
 <script setup lang="ts">
-import { useAppStore } from '@/stores/app'
-import MainBox from './ui/MainBox.vue'
-import WalletAddress from './ui/WalletAddress.vue'
-import { onMounted, reactive } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import SimpleLabel from './ui/SimpleLabel.vue'
-import validEthTxHash from '@/scripts/eth/validEthTxHash'
+import validAlgoTxHash from '@/scripts/algo/validAlgoTxHash'
 import { getClaimTx } from '@/scripts/aramid/getClaimTx'
 import { getTxClaimData } from '@/scripts/aramid/getTxClaimData'
-import validAlgoTxHash from '@/scripts/algo/validAlgoTxHash'
-import CopyIcon from './ui/CopyIcon.vue'
-import MainActionButton from './ui/MainActionButton.vue'
-import { useToast } from 'primevue/usetoast'
-import getWeb3Modal from '@/scripts/eth/getWeb3Modal'
-import { useSwitchNetwork, useWeb3ModalAccount, useWeb3ModalProvider } from '@web3modal/ethers/vue'
-import FireworksEffect from './ui/FireworksEffect.vue'
-import ShortTx from './ui/ShortTx.vue'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
-import { executeEthRedeemTx } from '@/scripts/eth/executeEthRedeemTx'
-import { fillInStateFromClaimData } from '@/scripts/events/fillInStateFromClaimData'
 import { resetStateSoft } from '@/scripts/common/resetStateSoft'
+import { executeEthRedeemTx } from '@/scripts/eth/executeEthRedeemTx'
+import getWeb3Modal from '@/scripts/eth/getWeb3Modal'
+import validEthTxHash from '@/scripts/eth/validEthTxHash'
+import { fillInStateFromClaimData } from '@/scripts/events/fillInStateFromClaimData'
+import { useAppStore } from '@/stores/app'
+import { useSwitchNetwork, useWeb3ModalAccount, useWeb3ModalProvider } from '@web3modal/ethers/vue'
+import { useToast } from 'primevue/usetoast'
+import { onMounted, reactive } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
+import CopyIcon from './ui/CopyIcon.vue'
+import FireworksEffect from './ui/FireworksEffect.vue'
+import MainActionButton from './ui/MainActionButton.vue'
+import MainBox from './ui/MainBox.vue'
+import ShortTx from './ui/ShortTx.vue'
+import SimpleLabel from './ui/SimpleLabel.vue'
+import WalletAddress from './ui/WalletAddress.vue'
 const toast = useToast()
+const { t } = useI18n()
 const router = useRouter()
 const store = useAppStore()
 const state = reactive({
@@ -75,10 +77,10 @@ const searchForTx = async (searchTxHash: string) => {
   } else if (validEthTxHash(searchTxHash)) {
     console.log('validEthTxHash:', searchTxHash)
     setIsSearching(true)
-    getClaimTx(searchTxHash).then((res: string | null) => {
+    getClaimTx(searchTxHash).then((res: string | undefined) => {
       console.log('claim tx:', res)
       if (!res) {
-        setClaimErrorMessage('Transaction not found.')
+        setClaimErrorMessage(t('transaction.notFound'))
         setIsSearching(false)
         return
       }
@@ -155,7 +157,7 @@ const claimButtonClick = async () => {
       await modal?.open()
     }
     if (!web3ModalProvider.walletProvider.value) {
-      throw Error(`Please connect ${store.state.destinationChainConfiguration?.name} in your wallet`)
+      throw Error(t('wallet.connectToChain', { chain: store.state.destinationChainConfiguration?.name }))
     }
 
     if (store.state.destinationChain) {
@@ -164,7 +166,7 @@ const claimButtonClick = async () => {
         //provider.open()
         toast.add({
           severity: 'warn',
-          detail: `Please switch to ${store.state.destinationChainConfiguration?.name} in your wallet, and claim again`,
+          detail: t('claim.switchNetworkPrompt', { chain: store.state.destinationChainConfiguration?.name }),
           life: 10000
         })
         console.log('switching network to', store.state.destinationChain)
@@ -204,10 +206,10 @@ const resetButtonClick = async () => {
 <template>
   <MainBox>
     <div class="w-[80vw] md:w-full flex flex-col gap-4 items-center mb-4">
-      <div class="font-bold text-xl">Claim EVM transaction</div>
+      <div class="font-bold text-xl">{{ t('claim.evmTitle') }}</div>
 
       <div v-if="!store.state.claimData?.maxClaimRound" class="w-full">
-        <SimpleLabel>Source chain TXN ID</SimpleLabel>
+        <SimpleLabel>{{ t('claim.sourceTxnId') }}</SimpleLabel>
         <input
           :disabled="state.fromRoute"
           :maxlength="50"
@@ -226,49 +228,52 @@ const resetButtonClick = async () => {
           </div>
           <div class="text-lg font-bold my-2 mr-4">{{ store.state.sourceChainConfiguration?.name }}</div>
           <hr class="h-[1px] my-6 w-full bg-[#F6F6F629] border-0 dark:bg-gray-700" />
-          <div class="my-3 min-w-32 mx-auto text-center">Source chain</div>
+          <div class="my-3 min-w-32 mx-auto text-center">{{ t('chain.source') }}</div>
           <hr class="h-[1px] my-6 w-full bg-[#F6F6F629] border-0 dark:bg-gray-700" />
         </div>
         <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">
-          <div class="md:min-w-44 font-bold">Transaction ID</div>
+          <div class="md:min-w-44 font-bold">{{ t('transaction.hash') }}</div>
           <div class="w-full block md:hidden">
-            <WalletAddress :address="state.inputTx" :length="4"></WalletAddress> <CopyIcon :text="state.inputTx" :title="`Source chain TXN ID: ${state.inputTx}`"></CopyIcon>
+            <WalletAddress :address="state.inputTx" :length="4"></WalletAddress>
+            <CopyIcon :text="state.inputTx" :title="t('claim.copySourceTxnId', { txId: state.inputTx })"></CopyIcon>
           </div>
           <div class="w-full hidden md:block lg:hidden">
-            <WalletAddress :address="state.inputTx" :length="6"></WalletAddress> <CopyIcon :text="state.inputTx" :title="`Source chain TXN ID: ${state.inputTx}`"></CopyIcon>
+            <WalletAddress :address="state.inputTx" :length="6"></WalletAddress>
+            <CopyIcon :text="state.inputTx" :title="t('claim.copySourceTxnId', { txId: state.inputTx })"></CopyIcon>
           </div>
           <div class="w-full hidden lg:block">
-            <WalletAddress :address="state.inputTx" :length="30"></WalletAddress> <CopyIcon :text="state.inputTx" :title="`Source chain TXN ID: ${state.inputTx}`"></CopyIcon>
+            <WalletAddress :address="state.inputTx" :length="30"></WalletAddress>
+            <CopyIcon :text="state.inputTx" :title="t('claim.copySourceTxnId', { txId: state.inputTx })"></CopyIcon>
           </div>
         </div>
         <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">
-          <div class="md:min-w-44 font-bold">Origin address</div>
+          <div class="md:min-w-44 font-bold">{{ t('address.origin') }}</div>
           <div class="w-full block md:hidden">
             <WalletAddress :address="store.state.sourceAddress" :length="4"></WalletAddress>
-            <CopyIcon :text="store.state.sourceAddress" :title="`Copy origin address: ${store.state.sourceAddress}`"></CopyIcon>
+            <CopyIcon :text="store.state.sourceAddress" :title="t('address.copyOrigin', { address: store.state.sourceAddress })"></CopyIcon>
           </div>
           <div class="w-full hidden md:block lg:hidden">
             <WalletAddress :address="store.state.sourceAddress" :length="6"></WalletAddress>
-            <CopyIcon :text="store.state.sourceAddress" :title="`Copy origin address: ${store.state.sourceAddress}`"></CopyIcon>
+            <CopyIcon :text="store.state.sourceAddress" :title="t('address.copyOrigin', { address: store.state.sourceAddress })"></CopyIcon>
           </div>
           <div class="w-full hidden lg:block">
             <WalletAddress :address="store.state.sourceAddress" :length="30"></WalletAddress>
-            <CopyIcon :text="store.state.sourceAddress" :title="`Copy origin address: ${store.state.sourceAddress}`"></CopyIcon>
+            <CopyIcon :text="store.state.sourceAddress" :title="t('address.copyOrigin', { address: store.state.sourceAddress })"></CopyIcon>
           </div>
         </div>
         <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">
-          <div class="md:min-w-44 font-bold">Amount</div>
+          <div class="md:min-w-44 font-bold">{{ t('common.amount') }}</div>
           <div class="w-full" :title="`Base amount: ${store.state.sourceAmount}`">{{ store.state.sourceAmountFormatted }}</div>
         </div>
         <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">
-          <div class="md:min-w-44 font-bold">Token name</div>
+          <div class="md:min-w-44 font-bold">{{ t('asset.tokenName') }}</div>
           <div class="w-full">{{ store.state.sourceTokenConfiguration?.name }}</div>
         </div>
         <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">
-          <div class="md:min-w-44 font-bold">Token ID</div>
+          <div class="md:min-w-44 font-bold">{{ t('asset.tokenId') }}</div>
           <div class="w-full">
             {{ store.state.sourceTokenConfiguration?.tokenId }}
-            <CopyIcon :text="store.state.sourceTokenConfiguration?.tokenId" :title="`Copy token ID: ${store.state.sourceTokenConfiguration?.tokenId}`"></CopyIcon>
+            <CopyIcon :text="store.state.sourceTokenConfiguration?.tokenId" :title="t('address.copyToken', { tokenId: store.state.sourceTokenConfiguration?.tokenId })"></CopyIcon>
           </div>
         </div>
 
@@ -280,64 +285,64 @@ const resetButtonClick = async () => {
           </div>
           <div class="text-lg font-bold my-2 mr-4">{{ store.state.destinationChainConfiguration?.name }}</div>
           <hr class="h-[1px] my-6 w-full bg-[#F6F6F629] border-0 dark:bg-gray-700" />
-          <div class="my-3 min-w-32 mx-auto text-center">Destination chain</div>
+          <div class="my-3 min-w-32 mx-auto text-center">{{ t('chain.destination') }}</div>
           <hr class="h-[1px] my-6 w-full bg-[#F6F6F629] border-0 dark:bg-gray-700" />
         </div>
 
         <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">
-          <div class="md:min-w-44 font-bold">Destination address</div>
+          <div class="md:min-w-44 font-bold">{{ t('address.destination') }}</div>
           <div class="w-full block md:hidden">
             <WalletAddress :address="store.state.destinationAddress" :length="4"></WalletAddress>
-            <CopyIcon :text="store.state.destinationAddress" :title="`Copy origin address: ${store.state.destinationAddress}`"></CopyIcon>
+            <CopyIcon :text="store.state.destinationAddress" :title="t('address.copyDestination', { address: store.state.destinationAddress })"></CopyIcon>
           </div>
           <div class="w-full hidden md:block lg:hidden">
             <WalletAddress :address="store.state.destinationAddress" :length="6"></WalletAddress>
-            <CopyIcon :text="store.state.destinationAddress" :title="`Copy origin address: ${store.state.destinationAddress}`"></CopyIcon>
+            <CopyIcon :text="store.state.destinationAddress" :title="t('address.copyDestination', { address: store.state.destinationAddress })"></CopyIcon>
           </div>
           <div class="w-full hidden lg:block">
             <WalletAddress :address="store.state.destinationAddress" :length="30"></WalletAddress>
-            <CopyIcon :text="store.state.destinationAddress" :title="`Copy origin address: ${store.state.destinationAddress}`"></CopyIcon>
+            <CopyIcon :text="store.state.destinationAddress" :title="t('address.copyDestination', { address: store.state.destinationAddress })"></CopyIcon>
           </div>
         </div>
         <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">
-          <div class="md:min-w-44 font-bold">Amount to receive</div>
+          <div class="md:min-w-44 font-bold">{{ t('amount.toReceive') }}</div>
           <div class="w-full" :title="`Base amount: ${store.state.destinationAmount}`">{{ store.state.destinationAmountFormatted }}</div>
         </div>
         <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">
-          <div class="md:min-w-44 font-bold">Token name</div>
+          <div class="md:min-w-44 font-bold">{{ t('asset.tokenName') }}</div>
           <div class="w-full">{{ store.state.destinationTokenConfiguration?.name }}</div>
         </div>
         <div class="flex flex-col md:flex-row mt-2 text-center md:text-left">
-          <div class="md:min-w-44 font-bold">Token ID</div>
+          <div class="md.min-w-44 font-bold">{{ t('asset.tokenId') }}</div>
           <div class="w-full">
             {{ store.state.destinationTokenConfiguration?.tokenId }}
-            <CopyIcon :text="store.state.destinationTokenConfiguration?.tokenId" :title="`Copy token ID: ${store.state.destinationTokenConfiguration?.tokenId}`"></CopyIcon>
+            <CopyIcon :text="store.state.destinationTokenConfiguration?.tokenId" :title="t('address.copyToken', { tokenId: store.state.destinationTokenConfiguration?.tokenId })"></CopyIcon>
           </div>
         </div>
 
         <div class="flex flex-col md:flex-row mt-2 text-center md:text-left" v-if="store.state.memo && store.state.memo != 'aramid'">
-          <div class="md:min-w-44 font-bold">Data transfer</div>
-          <div class="w-full">{{ store.state.memo }} <CopyIcon :text="store.state.memo" :title="`Copy origin address: ${store.state.memo}`"></CopyIcon></div>
+          <div class="md:min-w-44 font-bold">{{ t('transaction.dataTransfer') }}</div>
+          <div class="w-full">{{ store.state.memo }} <CopyIcon :text="store.state.memo" :title="t('address.copyMemo', { memo: store.state.memo })"></CopyIcon></div>
         </div>
       </div>
       <div v-if="state.claiming">
-        <p>Please check your wallet to sign the transaction</p>
-        <MainActionButton @click="state.claiming = false">Cancel</MainActionButton>
+        <p>{{ t('wallet.checkWallet') }}</p>
+        <MainActionButton @click="state.claiming = false">{{ t('common.cancel') }}</MainActionButton>
       </div>
       <div class="w-full" v-else-if="!state.claimed">
-        <MainActionButton v-if="chainId == store.state.destinationChain" @click="claimButtonClick">Claim</MainActionButton>
-        <MainActionButton v-else-if="store.state.claimData" @click="claimButtonClick">Switch your wallet to {{ store.state.destinationChainConfiguration?.name }}</MainActionButton>
+        <MainActionButton v-if="chainId == store.state.destinationChain" @click="claimButtonClick">{{ t('claim.claim') }}</MainActionButton>
+        <MainActionButton v-else-if="store.state.claimData" @click="claimButtonClick">{{ t('bridge.switchNetwork', { chain: store.state.destinationChainConfiguration?.name }) }}</MainActionButton>
         <div v-else>
-          <p class="text-red-100 text-center">It seems that the transaction has not been bridged yet or has been bridged too long time ago</p>
+          <p class="text-red-100 text-center">{{ t('claim.notReady') }}</p>
         </div>
       </div>
       <div v-else-if="state.claimed">
         <p>
-          Bridging successful! The assets are at the destination account.
-          <span v-if="state.resultTx">TXN ID: <ShortTx :txId="state.resultTx" :length="6" :chain="store.state.destinationChain"></ShortTx></span>
+          {{ t('sign.bridgeSuccessShort') }}
+          <span v-if="state.resultTx">{{ t('sign.txnIdPrefix') }} <ShortTx :txId="state.resultTx" :length="6" :chain="store.state.destinationChain"></ShortTx></span>
         </p>
         <FireworksEffect></FireworksEffect>
-        <MainActionButton @click="resetButtonClick">Bridge again</MainActionButton>
+        <MainActionButton @click="resetButtonClick">{{ t('sign.bridgeAgain') }}</MainActionButton>
       </div>
     </div>
   </MainBox>

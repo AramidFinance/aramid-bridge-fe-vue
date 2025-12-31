@@ -1,15 +1,14 @@
+import type { IAssetData } from '@/scripts/interface/algo/IAssetData'
+import type { IResult } from '@/scripts/interface/algo/IResult'
+import type { IEthIPFSData } from '@/scripts/interface/aramid/IEthIPFSData'
+import type { ITxStatus } from '@/scripts/interface/aramid/ITxStatus'
 import type { AppConfiguration } from '@/scripts/interface/configuration/AppConfiguration'
-import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import type { SecureConfiguration } from '@/scripts/interface/configuration/SecureConfiguration'
 import type { ChainId2ChainItem } from '@/scripts/interface/mapping/ChainId2ChainItem'
-import type { MappingItem } from '@/scripts/interface/mapping/MappingItem'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
+import type { MappingItem } from '@/scripts/interface/mapping/MappingItem'
+import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import type { TokenItem } from '@/scripts/interface/mapping/TokenItem'
-import type { IEthIPFSData } from '@/scripts/interface/aramid/IEthIPFSData'
-import type { IResult } from '@/scripts/interface/algo/IResult'
-import type { IAssetData } from '@/scripts/interface/algo/IAssetData'
-import type { ITxStatus } from '@/scripts/interface/aramid/ITxStatus'
-import type { TransactionBase } from '@/scripts/interface/TransactionBase'
 import type { AlgoConnectorType } from '../algo/AlgoConnectorType'
 
 export interface IAppState {
@@ -37,6 +36,10 @@ export interface IAppState {
   dialogSelectDestinationAssetIsOpen: boolean
   dialogSelectDestinationWalletAVMIsOpen: boolean
   dialogSelectDestinationWalletIsOpen: boolean
+
+  dialogSelectArc200BridgeChainIsOpen: boolean
+  dialogSelectArc200BridgeAssetIsOpen: boolean
+  dialogSelectArc200BridgeWalletIsOpen: boolean
 
   // app
 
@@ -71,6 +74,20 @@ export interface IAppState {
   destinationAmount: string //base destination amount
   destinationAmountFormatted: string //formatted destination amount
   destinationBridgeAddress: string // aramid msig address of the destination network
+
+  arc200BridgeAddress?: string // receiver address
+  arc200BridgeChain?: number // currently selected network
+  arc200BridgeChainConfiguration?: ChainItem // currently selected network
+  arc200BridgeChainGenesis?: string // the network id for qr code
+  arc200BridgeToken?: string //currently selected token.
+  arc200BridgeTokenConfiguration?: TokenItem // currently selected network
+  arc200BridgeAmount: string //base destination amount
+  arc200BridgeAmountFormatted: string //formatted destination amount
+  arc200BridgeAlgoConnectorType?: AlgoConnectorType // WalletConnect | MyAlgo | QR
+  arc200BridgeAddressASABalance?: string // balance of tokens at the source account
+  arc200BridgeAddressARC200Balance?: string // balance of tokens at the source account
+  arc200BridgeDirection: 'ARC200ToASA' | 'ASAToARC200' // direction for bridginig
+  connectedArc200BridgeChain?: number
 
   feeAmount: string //base fee amount
   feeAmountFormatted: string //formatted fee amount

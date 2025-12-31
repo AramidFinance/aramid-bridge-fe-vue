@@ -14,7 +14,7 @@ export const getTxClaimData = async (claimTx: string): Promise<IEthIPFSData | nu
     console.error('!currTx.note', currTx)
     return null
   }
-  const decodedNote = Buffer.from(currTx.note, 'base64').toString('utf-8') // decode from base64
+  const decodedNote = Buffer.from(currTx.note).toString('utf-8') // decode from base64
   if (!decodedNote) return null
 
   const index = decodedNote.indexOf(':')

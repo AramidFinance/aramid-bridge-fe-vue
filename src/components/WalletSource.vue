@@ -1,31 +1,32 @@
 <script setup lang="ts">
-import SimpleLabel from './ui/SimpleLabel.vue'
 import SelectSourceWalletAlgoDialog from './dialogs/SelectSourceWalletAlgoDialog.vue'
+import SimpleLabel from './ui/SimpleLabel.vue'
 
-import { useAppStore } from '@/stores/app'
-import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
-import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
-import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
-import { onMounted, reactive, watch } from 'vue'
-import RoundButton from './ui/RoundButton.vue'
-import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
-import { useToast } from 'primevue/usetoast'
-import { fillSourceTokenConfiguration } from '@/scripts/events/fillSourceTokenConfiguration'
-import getAlgoAccountTokenBalance from '@/scripts/algo/getAlgoAccountTokenBalance'
 import getAlgoAccountARC200TokenBalance from '@/scripts/algo/getAlgoAccountARC200TokenBalance'
-import { NetworkId, useWallet } from '@txnlab/use-wallet-vue'
-import getWeb3Modal from '@/scripts/eth/getWeb3Modal'
-import { useDisconnect, useWeb3ModalAccount } from '@web3modal/ethers/vue'
-import { useSwitchNetwork } from '@web3modal/ethers/vue'
+import getAlgoAccountTokenBalance from '@/scripts/algo/getAlgoAccountTokenBalance'
 import asyncdelay from '@/scripts/common/asyncDelay'
-import getEthAccountTokenBalance from '@/scripts/eth/getEthAccountTokenBalance'
-import WalletAddress from './ui/WalletAddress.vue'
-import BigNumber from 'bignumber.js'
-import { useI18n } from 'vue-i18n'
 import { formatTooltip } from '@/scripts/common/formatTooltip'
+import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
+import getEthAccountTokenBalance from '@/scripts/eth/getEthAccountTokenBalance'
+import getWeb3Modal from '@/scripts/eth/getWeb3Modal'
+import { fillSourceTokenConfiguration } from '@/scripts/events/fillSourceTokenConfiguration'
+import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
+import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
+import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
+import { useAppStore } from '@/stores/app'
+import { NetworkId, useNetwork, useWallet } from '@txnlab/use-wallet-vue'
+import { useDisconnect, useSwitchNetwork, useWeb3ModalAccount } from '@web3modal/ethers/vue'
+import { useToast } from 'primevue/usetoast'
+import { onMounted, reactive, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import RoundButton from './ui/RoundButton.vue'
+import WalletAddress from './ui/WalletAddress.vue'
 
 const { t } = useI18n()
-const { setActiveNetwork, activeWallet, activeAccount } = useWallet()
+const wallet = useWallet()
+const { activeWallet, activeAccount } = wallet
+
+const network = useNetwork()
 
 const toast = useToast()
 const store = useAppStore()
@@ -63,15 +64,15 @@ const onSourceAddressChange = async () => {
     if (!store.state.sourceTokenConfiguration) return
     const sourceChainConfiguration = store.state.sourceChainConfiguration
     const { name: sourceChainName, type: sourceChainType, chainId: sourceChainId } = sourceChainConfiguration
-    const sourceTokenConfig = store.state.sourceTokenConfiguration as any
-    const { type: sourceTokenType, contractId: sourceTokenContractId, unitAppId: sourceTokenUnitAppId, chainId: sourceTokenChainId } = sourceTokenConfig
+    const sourceTokenConfig = store.state.sourceTokenConfiguration
+    const { type: sourceTokenType } = sourceTokenConfig
     console.log('sourceTokenType', sourceTokenType)
     console.log('sourceTokenConfig', sourceTokenConfig)
     if (sourceTokenType == 'algo') {
       switch (sourceChainName) {
         case 'Voi': {
           if (sourceTokenConfig?.arc200TokenId) {
-            const balance = await getAlgoAccountARC200TokenBalance(store.state.sourceChain, store.state.sourceAddress, Number(sourceTokenConfig?.arc200TokenId), Number(store.state.sourceToken))
+            const balance = await getAlgoAccountARC200TokenBalance(store.state.sourceChain, store.state.sourceAddress, Number(sourceTokenConfig?.arc200TokenId))
             if (balance !== null) {
               store.state.sourceAddressBalance = balance.toString()
               store.state.loadingSourceAddressBalance = false
@@ -158,16 +159,16 @@ watch(
       //console.log('setActiveNetwork', store.state.sourceChainConfiguration.name)
       switch (store.state.sourceChainConfiguration.name) {
         case 'Algorand':
-          setActiveNetwork(NetworkId.MAINNET)
+          network.setActiveNetwork(NetworkId.MAINNET)
           break
         case 'Testnet':
-          setActiveNetwork(NetworkId.TESTNET)
+          network.setActiveNetwork(NetworkId.TESTNET)
           break
         case 'AramidChain':
-          setActiveNetwork(NetworkId.ARAMIDMAIN)
+          network.setActiveNetwork('aramidmain')
           break
         case 'Voi':
-          setActiveNetwork(NetworkId.VOIMAIN)
+          network.setActiveNetwork('voimain')
           break
       }
     }

@@ -4,8 +4,8 @@ import MainBox from '@/components/ui/MainBox.vue'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import { onMounted, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
+import Arc200ClaimPage from '../components/Arc200ClaimPage.vue'
 import PageFooter from '../components/PageFooter.vue'
-import ReviewPage from '../components/ReviewPage.vue'
 
 const { t } = useI18n()
 const state = reactive({
@@ -21,7 +21,7 @@ onMounted(async () => {
 <template>
   <main class="flex flex-col h-full">
     <div class="flex flex-col flex-1" v-if="state.loaded">
-      <ReviewPage></ReviewPage>
+      <Arc200ClaimPage></Arc200ClaimPage>
     </div>
     <div class="flex flex-col flex-1" v-else>
       <MainBox><img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> {{ t('loading.bridgeConfiguration') }} </MainBox>
