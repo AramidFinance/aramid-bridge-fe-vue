@@ -332,10 +332,10 @@ const bridgeAsaToArc200 = async () => {
     const params = await algodClient.getTransactionParams().do()
 
     let txToSign: algosdk.Transaction[] = []
-    const sinkAddress = exchangeInfo?.sink ? exchangeInfo.sink : algosdk.getApplicationAddress(Number(arc200TokenId))
+    const sinkAddress = algosdk.getApplicationAddress(Number(arc200TokenId))
     txToSign.push(
       algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-        amount: 0n,
+        amount: destinationAmount,
         sender: destinationAddress,
         receiver: sinkAddress,
         suggestedParams: params,
@@ -357,6 +357,7 @@ const bridgeAsaToArc200 = async () => {
     })
 
     if (exchangeInfo?.sink) {
+      console.log('addresses sink, appaddress, sender', exchangeInfo?.sink, algosdk.getApplicationAddress(Number(arc200TokenId)).toString(), destinationAddress)
       const exchangeTxs = await clientArc200AsaUserSender.createTransaction.arc200Redeem({
         args: {
           amount: destinationAmount
@@ -382,6 +383,7 @@ const bridgeAsaToArc200 = async () => {
       getSigner: (address: string | Address) => dummyTransactionSigner
     })
     let i = 0
+    console.log('Total tx to sign:', txToSign.length, txToSign)
     txToSign.forEach((txn) => {
       composer.addTransaction(txn)
     })
