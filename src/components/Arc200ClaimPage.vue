@@ -3,7 +3,7 @@ import getAlgoAcountTokenOptin from '@/scripts/algo/getAlgoAccountTokenOptedIn'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import { resetStateSoft } from '@/scripts/common/resetStateSoft'
 import { useAppStore } from '@/stores/app'
-import { populateAppCallResources } from '@algorandfoundation/algokit-utils'
+import { Config, populateAppCallResources } from '@algorandfoundation/algokit-utils'
 import { AlgoAmount } from '@algorandfoundation/algokit-utils/types/amount'
 import { TransactionComposer } from '@algorandfoundation/algokit-utils/types/composer'
 import { useNetwork, useWallet } from '@txnlab/use-wallet-vue'
@@ -29,6 +29,8 @@ import MainActionButton from './ui/MainActionButton.vue'
 import MainBox from './ui/MainBox.vue'
 import ShortTx from './ui/ShortTx.vue'
 import WalletArc200Bridge from './WalletArc200Bridge.vue'
+
+Config.configure({ debug: true })
 
 const { setActiveNetwork, activeNetwork } = useNetwork()
 const { signTransactions } = useWallet()
@@ -269,6 +271,7 @@ const bridgeArc200ToAsa = async () => {
       composer.addTransaction(txn)
     })
     const { atc } = await composer.build()
+    console.log('to populate resources', txToSign)
     const populatedAtc = await populateAppCallResources(atc, algodClient)
     const group = populatedAtc.buildGroup()
     const toSignFinal = group.map((txnWithSigner) => {
@@ -344,6 +347,7 @@ const bridgeAsaToArc200 = async () => {
       defaultSigner: undefined
     })
 
+    const sinkAddress = algosdk.getApplicationAddress(Number(arc200TokenId))
     let txToSign: algosdk.Transaction[] = []
 
     if (!exchangeInfo?.sink) {
@@ -361,12 +365,21 @@ const bridgeAsaToArc200 = async () => {
       }
 
       if (needCreateBox) {
+        txToSign.push(
+          algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+            amount: 28500,
+            sender: destinationAddress,
+            receiver: sinkAddress,
+            suggestedParams: params,
+            note: new TextEncoder().encode('ARC200 Bridge ASA to ARC200 funding for box creation')
+          })
+        )
+
         const createBoxTxs = await clientArc200AsaUserSender.createTransaction.createBalanceBox({ args: { owner: destinationAddress } })
         createBoxTxs.transactions.forEach((tx) => txToSign.push(tx))
         console.log('Added createBalanceBox app call', destinationAddress)
       }
     }
-    const sinkAddress = algosdk.getApplicationAddress(Number(arc200TokenId))
     txToSign.push(
       algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
         amount: destinationAmount,
@@ -410,13 +423,66 @@ const bridgeAsaToArc200 = async () => {
       composer.addTransaction(txn)
     })
     const { atc } = await composer.build()
+    txToSign.map((tx, idx) => {
+      tx.group = undefined
+      console.log('Built tx', idx, tx.txID())
+    })
+    // const sim = await algoClient.setSigner(txToSign[1].sender, dummyTransactionSigner).newGroup().addTransaction(txToSign[0]).addTransaction(txToSign[1]).addTransaction(txToSign[2]).simulate({
+    //   skipSignatures: true,
+    //   allowMoreLogging: true,
+    //   allowUnnamedResources: true
+    // })
+    // const source = await algodClient.getApplicationByID(Number(arc200TokenId)).do()
+    // const disassembled = await algodClient.disassemble(source.params.approvalProgram).do()
+    // console.log('Disassembled approval program:', disassembled)
+    // const compile = await algodClient.compile(disassembled.result).sourcemap(true).do()
+    // if (compile.sourcemap) {
+    //   const raw = compile.sourcemap.data as Map<string, any>
+    //   const map = {
+    //     version: Number(raw.get('version')),
+    //     sources: raw.get('sources'),
+    //     names: raw.get('names'),
+    //     mappings: raw.get('mappings')
+    //   } as {
+    //     version: number
+    //     sources: string[]
+    //     names: string[]
+    //     mappings: string
+    //   }
+    //   console.log('Compiled approval program with sourcemap:', compile, map.version, map)
+
+    //   const sm = new ProgramSourceMap(map) // { version, sources, names, mappings }
+    //   const pcs = sm.getPcs()
+    //   let sourceLines = disassembled.result.split('\n')
+    //   pcs.map((pc) => {
+    //     const lines = sm.getLocationForPc(pc)
+    //     if (lines?.line) {
+    //       const line = lines.line
+    //       if (sourceLines.length > line) {
+    //         // fill in white spaces to length at least 30 chars
+    //         while (sourceLines[line].length < 30) {
+    //           sourceLines[line] = sourceLines[line] + ' '
+    //         }
+
+    //         sourceLines[line] = sourceLines[line] + ` // PC: ${pc}`
+    //       }
+    //     }
+    //   })
+    //   console.log('ProgramSourceMap:', sm, pcs, sourceLines.join('\n'))
+    // }
+    // const sim = await composer.simulate({
+    //   skipSignatures: true,
+    //   allowMoreLogging: true,
+    //   allowUnnamedResources: true
+    // })
+    // console.log('Simulation results:', sim)
+
     const populatedAtc = await populateAppCallResources(atc, algodClient)
     const group = populatedAtc.buildGroup()
     const toSignFinal = group.map((txnWithSigner) => {
       return txnWithSigner.txn
     })
-    console.log('signing txns', toSignFinal)
-
+    console.log('toSignFinal', toSignFinal)
     // Sign with destination wallet
     const signed = await signTransactions(toSignFinal)
     // Filter out any null values to satisfy the type requirement
