@@ -14,6 +14,7 @@ import { onMounted, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import dummyTransactionSigner from '../scripts/algo/dummyTransactionSigner'
+import getAlgoAccountARC200TokenBalance from '../scripts/algo/getAlgoAccountARC200TokenBalance'
 import getAlgoClient from '../scripts/algo/getAlgoClient'
 import getAlgodClientByChainId from '../scripts/algo/getAlgodClientByChainId'
 import getExchangeInfo from '../scripts/algo/getExchangeInfo'
@@ -331,19 +332,6 @@ const bridgeAsaToArc200 = async () => {
     // first tx is the asset transfer from destination address to arc200 contract
     const params = await algodClient.getTransactionParams().do()
 
-    let txToSign: algosdk.Transaction[] = []
-    const sinkAddress = algosdk.getApplicationAddress(Number(arc200TokenId))
-    txToSign.push(
-      algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-        amount: destinationAmount,
-        sender: destinationAddress,
-        receiver: sinkAddress,
-        suggestedParams: params,
-        assetIndex: Number(tokenIdASA),
-        note: new TextEncoder().encode('ARC200 Bridge ASA to ARC200 optin')
-      })
-    )
-    console.log('Added transfer from destination address to sink to swap asa with arc200', tokenIdASA, arc200TokenId, sinkAddress)
     const algoClient = await getAlgoClient(store.state.arc200BridgeChain)
 
     const clientArc200AsaUserSender = getArc200ASAClient({
@@ -356,6 +344,40 @@ const bridgeAsaToArc200 = async () => {
       defaultSigner: undefined
     })
 
+    let txToSign: algosdk.Transaction[] = []
+
+    if (!exchangeInfo?.sink) {
+      // wnnt200 protocol requires to create box first if it does not exists
+      let needCreateBox = false
+      try {
+        const balance = await getAlgoAccountARC200TokenBalance(store.state.arc200BridgeChain, destinationAddress, arc200TokenId)
+        console.log('balance of arc200 for address before box creation check', balance)
+        if (balance === 0n) {
+          needCreateBox = true
+        }
+      } catch (e) {
+        console.log('box for arc200 does not exist, creating it', e)
+        needCreateBox = true
+      }
+
+      if (needCreateBox) {
+        const createBoxTxs = await clientArc200AsaUserSender.createTransaction.createBalanceBox({ args: { owner: destinationAddress } })
+        createBoxTxs.transactions.forEach((tx) => txToSign.push(tx))
+        console.log('Added createBalanceBox app call', destinationAddress)
+      }
+    }
+    const sinkAddress = algosdk.getApplicationAddress(Number(arc200TokenId))
+    txToSign.push(
+      algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+        amount: destinationAmount,
+        sender: destinationAddress,
+        receiver: sinkAddress,
+        suggestedParams: params,
+        assetIndex: Number(tokenIdASA),
+        note: new TextEncoder().encode('ARC200 Bridge ASA to ARC200 optin')
+      })
+    )
+    console.log('Added transfer from destination address to sink to swap asa with arc200', tokenIdASA, arc200TokenId, sinkAddress)
     if (exchangeInfo?.sink) {
       console.log('addresses sink, appaddress, sender', exchangeInfo?.sink, algosdk.getApplicationAddress(Number(arc200TokenId)).toString(), destinationAddress)
       const exchangeTxs = await clientArc200AsaUserSender.createTransaction.arc200Redeem({
