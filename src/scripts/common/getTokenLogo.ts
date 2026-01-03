@@ -25,8 +25,6 @@ const getTokenLogo = (id: string) => {
       return algo
     case 'aramid-dao':
       return adao
-    case 'aramid-usd':
-      return adao
     case 'aramid-algo':
       return aalgo
     case 'aramid-aurora':

@@ -28,10 +28,11 @@ const getAccountTokenBalance = async (chain: number, account: string, token: str
       case 'eth':
         ret = await getEthAccountTokenBalance(chain, account, token)
         break
-      case 'algo':
+      case 'algo': {
         const algoBalance = await getAlgoAccountTokenBalance(chain, account, BigInt(token))
         ret = new BigNumber(algoBalance?.toString() ?? '0')
         break
+      }
       case 'near':
         ret = await getNearAccountTokenBalance(nearWallet, token, account)
         break

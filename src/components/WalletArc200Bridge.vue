@@ -60,8 +60,6 @@ onMounted(async () => {
     store.state.arc200BridgeAlgoConnectorType = AlgoConnectorType.UseWallet
     store.state.connectedArc200BridgeChain = store.state.arc200BridgeChain
   }
-  if (store.state.arc200BridgeAddress) {
-  }
 })
 
 watch(

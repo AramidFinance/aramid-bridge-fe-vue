@@ -170,7 +170,7 @@ const doValidation = (): boolean => {
     } else if (!store.state.destinationBridgeBalance || !store.state.destinationAmount || new BigNumber(store.state.destinationBridgeBalance).lt(new BigNumber(store.state.destinationAmount))) {
       throw Error(t('bridge.amountGreaterThanBridge'))
     }
-    const memoWhiteList = /^[\p{L}\p{N}\s\.,\-_\/@\*\+\$%]*$/u
+    const memoWhiteList = /^[\p{L}\p{N}\s.,\-_/@*+$%]*$/u
     if (store.state.memo && !store.state.memo.match(memoWhiteList)) {
       throw Error(t('bridge.invalidMemo'))
     }
