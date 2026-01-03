@@ -263,18 +263,18 @@ const bridgeArc200ToAsa = async () => {
       }
     }
 
-    const approveTxs = await clientArc200UserSender.createTransaction.arc200Approve({
-      args: {
-        spender: contractAddress,
-        value: sourceAmount
-      }
-    })
-    // there must be only one txn
-    approveTxs.transactions.forEach((tx) => txToSign.push(tx))
-
     console.log('Added approve tx to address', tokenIdASA, arc200TokenId, contractAddress)
     console.log('Added approve txn for ARC200', arc200TokenId, sourceAmount)
     if (exchangeInfo?.sink) {
+      const approveTxs = await clientArc200UserSender.createTransaction.arc200Approve({
+        args: {
+          spender: contractAddress,
+          value: sourceAmount
+        }
+      })
+      // there must be only one txn
+      approveTxs.transactions.forEach((tx) => txToSign.push(tx))
+
       const exchangeTxs = await clientArc200UserSender.createTransaction.arc200SwapBack({
         args: {
           amount: sourceAmount
