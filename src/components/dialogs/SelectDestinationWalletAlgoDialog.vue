@@ -60,15 +60,6 @@ onMounted(async () => {
 
   state.chains = Object.keys(state.publicConfiguration.chains2tokens).map((c) => (state.publicConfiguration as PublicConfigurationRoot).chains[c])
 })
-const qrUrl = () => {
-  const ret = new URL(`../../assets/images/qr-code.png`, import.meta.url)
-  return ret.toString()
-}
-
-const sameAddressYesClick = () => {
-  store.state.destinationAddress = store.state.sourceAddress
-  store.state.dialogSelectDestinationWalletAVMIsOpen = false
-}
 
 const closeDialog = () => {
   store.state.dialogSelectDestinationWalletAVMIsOpen = false

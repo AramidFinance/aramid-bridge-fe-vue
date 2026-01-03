@@ -40,7 +40,7 @@ const router = useRouter()
 const toast = useToast()
 const { t } = useI18n()
 const { activeWallet, signTransactions: useWalletSignTransactions } = useWallet()
-const { avmActiveWallet, activeAccount, signTransactions: avmSignTransactions } = useAvmWallet()
+useAvmWallet()
 
 const routeToReviewScreen = () => {
   console.log('routeToReviewScreen')
@@ -136,7 +136,7 @@ onMounted(async () => {
   }
 })
 
-const dummyTransactionSigner = async (txnGroup: algosdk.Transaction[], indexesToSign: number[]): Promise<Uint8Array[]> => {
+const dummyTransactionSigner = async (_txnGroup: algosdk.Transaction[], _indexesToSign: number[]): Promise<Uint8Array[]> => {
   return [] as Uint8Array[]
 }
 const signWithUseWallet = async () => {
@@ -271,7 +271,7 @@ const signWithUseWallet = async () => {
       // fill in the resources
       const composer = new TransactionComposer({
         algod: algodClient,
-        getSigner: (address: string | Address) => dummyTransactionSigner
+        getSigner: (_address: string | Address) => dummyTransactionSigner
       })
       txToSign.forEach((txn) => {
         composer.addTransaction(txn)

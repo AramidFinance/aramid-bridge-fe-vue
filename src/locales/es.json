@@ -208,7 +208,8 @@
     "avmAddressInvalid": "La dirección de destino no es una cuenta AVM válida.",
     "connectAvmOriginWallet": "Conecta la billetera AVM de origen",
     "enterAvmOriginAddress": "Ingresa la dirección AVM de origen",
-    "qrPayment": "Usar pago con QR"
+    "qrPayment": "Usar pago con QR",
+    "connectWalletDialog": "Conecta tu billetera"
   },
   "sign": {
     "transactionNotFound": "No pudimos encontrar la transacción de origen. Inténtalo nuevamente.",

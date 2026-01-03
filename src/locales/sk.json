@@ -208,7 +208,8 @@
     "avmAddressInvalid": "Cieľová adresa nie je platný AVM účet.",
     "connectAvmOriginWallet": "Pripojte AVM pôvodnú peňaženku",
     "enterAvmOriginAddress": "Zadajte AVM pôvodnú adresu",
-    "qrPayment": "Použiť QR platbu"
+    "qrPayment": "Použiť QR platbu",
+    "connectWalletDialog": "Pripojte svoju peňaženku"
   },
   "sign": {
     "transactionNotFound": "Zdrojovú transakciu sa nepodarilo nájsť. Skúste to prosím znova.",

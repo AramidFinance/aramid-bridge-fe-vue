@@ -208,7 +208,8 @@
     "avmAddressInvalid": "目标地址不是有效的 AVM 账户。",
     "connectAvmOriginWallet": "连接 AVM 源钱包",
     "enterAvmOriginAddress": "输入 AVM 源地址",
-    "qrPayment": "使用二维码付款"
+    "qrPayment": "使用二维码付款",
+    "connectWalletDialog": "连接您的钱包"
   },
   "sign": {
     "transactionNotFound": "无法找到来源交易。请重试。",

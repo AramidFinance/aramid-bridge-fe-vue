@@ -2,7 +2,7 @@ import { useAppStore } from '@/stores/app'
 import getChainConfigurationSync from '../common/getChainConfigurationSync'
 import { fillRouteInfo } from './fillRouteInfo'
 
-export const fillArc200BridgeChainConfiguration = (chainId: number | undefined = undefined, paramValue: string | string[] | undefined = undefined) => {
+export const fillArc200BridgeChainConfiguration = (chainId: number | undefined = undefined, _paramValue: string | string[] | undefined = undefined) => {
   const store = useAppStore()
   console.log('fillArc200BridgeChainConfiguration called')
   if (!store.state.publicConfiguration) return

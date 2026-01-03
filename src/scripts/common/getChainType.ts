@@ -6,7 +6,7 @@ import { NEAR_CHAIN_ID_MAINNET, NEAR_CHAIN_ID_TESTNET } from '../near/constant'
  * @param chain
  * @returns eth|algo
  */
-const getChainType = (chain: number, publicConfiguration: PublicConfigurationRoot): string | null => {
+const getChainType = (chain: number, _publicConfiguration: PublicConfigurationRoot): string | null => {
   if (chain <= 0) return null
   if (chain == 416001) return 'algo'
   if (chain == 416001) return 'algo'

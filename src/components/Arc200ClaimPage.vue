@@ -297,7 +297,7 @@ const bridgeArc200ToAsa = async () => {
     // fill in the resources
     const composer = new TransactionComposer({
       algod: algodClient,
-      getSigner: (address: string | Address) => dummyTransactionSigner
+      getSigner: (_address: string | Address) => dummyTransactionSigner
     })
     txToSign.forEach((txn) => {
       composer.addTransaction(txn)
@@ -447,9 +447,8 @@ const bridgeAsaToArc200 = async () => {
     // fill in the resources
     const composer = new TransactionComposer({
       algod: algodClient,
-      getSigner: (address: string | Address) => dummyTransactionSigner
+      getSigner: (_address: string | Address) => dummyTransactionSigner
     })
-    let i = 0
     console.log('Total tx to sign:', txToSign.length, txToSign)
     txToSign.forEach((txn) => {
       composer.addTransaction(txn)

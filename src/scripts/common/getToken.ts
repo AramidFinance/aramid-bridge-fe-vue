@@ -1,6 +1,5 @@
 import type { PublicConfigurationRoot } from '../interface/mapping/PublicConfigurationRoot'
 import type { TokenItem } from '../interface/mapping/TokenItem'
-import getPublicConfiguration from './getPublicConfiguration'
 
 const getToken = (chain: number, token: string, publicConfiguration: PublicConfigurationRoot): TokenItem | null => {
   if (!publicConfiguration) return null

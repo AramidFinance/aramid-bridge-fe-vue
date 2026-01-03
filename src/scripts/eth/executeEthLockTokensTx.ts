@@ -1,9 +1,6 @@
-import type { IEthIPFSData } from '../interface/aramid/IEthIPFSData'
-import { AppKit } from '@web3modal/base'
-import { type Chain, type EthersStoreUtilState } from '@web3modal/scaffold-utils/ethers'
 import getBridgeContractAddressAsync from '../common/getBridgeContractAddressAsync'
 import chainId2Bridge from './chainId2Bridge'
-import { BrowserProvider, Contract, formatUnits } from 'ethers'
+import { BrowserProvider, Contract } from 'ethers'
 import { useWeb3ModalProvider } from '@web3modal/ethers/vue'
 import { useAppStore } from '@/stores/app'
 

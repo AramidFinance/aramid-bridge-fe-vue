@@ -1,7 +1,7 @@
 import { useAppStore } from '@/stores/app'
 import getToken from '../common/getToken'
 
-export const fillArc200BridgeTokenConfiguration = (tokenId: string | undefined = undefined, paramValue: string | string[] | undefined = undefined) => {
+export const fillArc200BridgeTokenConfiguration = (tokenId: string | undefined = undefined, _paramValue: string | string[] | undefined = undefined) => {
   const store = useAppStore()
   if (!store.state.publicConfiguration) return
   if (!store.state.arc200BridgeChain) return

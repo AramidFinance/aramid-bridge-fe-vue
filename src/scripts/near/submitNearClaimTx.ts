@@ -1,5 +1,3 @@
-import { CONTRACT_ADDRESS } from './constant'
-
 export const submitNearClaimTx = async () => {
   throw Error('Near claim is not yet implemented in aramid vuejs app.')
   // if (isTokenStorageDeposited) {

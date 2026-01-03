@@ -5,9 +5,6 @@ export const NEAR_CHAIN_ID_MAINNET = 102002
 
 export const NEAR_CHAIN_ID_TESTNET = 102001
 // export const CONTRACT_ADDRESS = 'dev-20230308212313-18978146960082';
-const NEAR_TESTNET_CONTRACT_ADDRESS = 'dev-20230308212313-18978146960082'
-
-const NEAR_MAINNET_CONTRACT_ADDRESS = 'dev-20230308212313-18978146960082'
 
 export const CONTRACT_ADDRESS = (networkType: string, publicConfiguration: PublicConfigurationRoot) => {
   if (networkType == 'testnet') {

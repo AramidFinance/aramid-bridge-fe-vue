@@ -70,7 +70,7 @@ const buttonClick = async () => {
     } else if (store.state.destinationChainConfiguration?.type == 'eth') {
       // select address from wc
       const modal = getWeb3Modal()
-      const { address, chainId, isConnected } = useWeb3ModalAccount()
+      const { address, isConnected } = useWeb3ModalAccount()
 
       if (isConnected.value && address.value) {
         store.state.connectedDestinationChain = store.state.destinationChain

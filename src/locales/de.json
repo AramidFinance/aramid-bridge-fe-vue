@@ -208,7 +208,8 @@
     "avmAddressInvalid": "Die Zieladresse ist kein gültiges AVM-Konto.",
     "connectAvmOriginWallet": "AVM-Ursprungswallet verbinden",
     "enterAvmOriginAddress": "AVM-Ursprungsadresse eingeben",
-    "qrPayment": "QR-Zahlung verwenden"
+    "qrPayment": "QR-Zahlung verwenden",
+    "connectWalletDialog": "Verbinde deine Wallet"
   },
   "sign": {
     "transactionNotFound": "Die Ursprungstransaktion wurde nicht gefunden. Bitte versuche es erneut.",

@@ -2,7 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import { ref, watch } from 'vue'
 
-const { locale, availableLocales } = useI18n()
+const { locale } = useI18n()
 
 const languages = [
   { code: 'en', name: 'English', flag: '🇬🇧' },

@@ -208,7 +208,8 @@
     "avmAddressInvalid": "Docelowy adres nie jest prawidłowym kontem AVM.",
     "connectAvmOriginWallet": "Połącz źródłowy portfel AVM",
     "enterAvmOriginAddress": "Wprowadź źródłowy adres AVM",
-    "qrPayment": "Użyj płatności QR"
+    "qrPayment": "Użyj płatności QR",
+    "connectWalletDialog": "Połącz swój portfel"
   },
   "sign": {
     "transactionNotFound": "Nie udało się znaleźć transakcji źródłowej. Spróbuj ponownie.",

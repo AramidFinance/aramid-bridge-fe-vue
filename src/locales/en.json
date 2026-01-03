@@ -208,7 +208,8 @@
     "avmAddressInvalid": "Destination address is not a valid AVM account.",
     "connectAvmOriginWallet": "Connect AVM origin wallet",
     "enterAvmOriginAddress": "Enter AVM origin address",
-    "qrPayment": "Use QR payment"
+    "qrPayment": "Use QR payment",
+    "connectWalletDialog": "Connect your wallet"
   },
   "sign": {
     "transactionNotFound": "We could not find the source transaction. Please try again.",

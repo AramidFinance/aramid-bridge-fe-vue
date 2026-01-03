@@ -4,7 +4,6 @@ import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
 import { computed, defineProps, onMounted, reactive, withDefaults } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { fillArc200BridgeChainConfiguration } from '../../scripts/events/fillArc200BridgeChainConfiguration'
 import ChainButton from '../ui/ChainButton.vue'
 import DialogTitle from '../ui/DialogTitle.vue'
@@ -12,7 +11,6 @@ import DialogTitle from '../ui/DialogTitle.vue'
 const props = withDefaults(defineProps<{ arc200TokensOnly?: boolean }>(), { arc200TokensOnly: false })
 
 const store = useAppStore()
-const { t } = useI18n()
 
 const chainButtonClick = (newDestChainId: number) => {
   store.state.dialogSelectArc200BridgeChainIsOpen = false

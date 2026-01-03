@@ -7,11 +7,10 @@ import { useWallet } from 'avm-wallet-vue'
 import base64url from 'base64url'
 import BigNumber from 'bignumber.js'
 import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 const { activeAddress } = useWallet()
 const { t } = useI18n()
 const store = useAppStore()
-const route = useRoute()
 const router = useRouter()
 
 const fillInRoute = () => {

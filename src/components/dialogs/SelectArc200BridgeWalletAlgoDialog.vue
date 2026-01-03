@@ -6,14 +6,10 @@ import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
 import { useWallet, type Wallet } from '@txnlab/use-wallet-vue'
-import algosdk from 'algosdk'
-import { useToast } from 'primevue/usetoast'
 import { onMounted, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import DialogTitle from '../ui/DialogTitle.vue'
 import WalletButton from '../ui/WalletButton.vue'
-
-const toast = useToast()
 
 const { wallets, activeWallet, activeAccount } = useWallet()
 
@@ -41,23 +37,6 @@ const walletButtonClick = async (wallet: Wallet) => {
   // }
   store.state.dialogSelectArc200BridgeWalletIsOpen = false
 }
-const qrPaymentClick = () => {
-  try {
-    algosdk.decodeAddress(state.addressInput)
-    store.state.dialogSelectArc200BridgeWalletIsOpen = false
-    store.state.arc200BridgeAddress = state.addressInput
-    store.state.arc200BridgeAlgoConnectorType = AlgoConnectorType.QRCode
-    store.state.connectedArc200BridgeChain = store.state.arc200BridgeChainConfiguration?.chainId
-  } catch (e) {
-    console.error(`AVM address ${state.addressInput} is not valid`, e)
-    toast.add({
-      severity: 'error',
-      summary: t('dialogs.avmAddressVerification'),
-      detail: t('dialogs.avmAddressInvalid'),
-      life: 3000
-    })
-  }
-}
 interface IState {
   publicConfiguration: PublicConfigurationRoot | null
   chains: ChainItem[] | null
@@ -75,17 +54,13 @@ onMounted(async () => {
 
   state.chains = Object.keys(state.publicConfiguration.chains2tokens).map((c) => (state.publicConfiguration as PublicConfigurationRoot).chains[c])
 })
-const qrUrl = () => {
-  const ret = new URL(`../../assets/images/qr-code.png`, import.meta.url)
-  return ret.toString()
-}
 </script>
 <template>
   <div v-if="store.state.arc200BridgeChain" :class="store.state.dialogSelectArc200BridgeWalletIsOpen ? '' : 'hidden'">
     <div class="full-screen backdrop-blur-sm z-[100]" @click="store.state.dialogSelectArc200BridgeWalletIsOpen = false"></div>
     <div class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col z-[101]">
       <ul class="bg-gradient-to-r from-topleft-purple to-bottomright-purple drop-shadow-menu-default rounded-[26px] p-3">
-        <DialogTitle>Connect your wallet</DialogTitle>
+        <DialogTitle>{{ t('dialogs.connectWalletDialog') }}</DialogTitle>
 
         <WalletButton
           v-for="wallet in wallets.filter((w) => isWalletForChain(w.id, store.state.arc200BridgeChain ?? 0))"

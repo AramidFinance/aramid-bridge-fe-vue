@@ -63,7 +63,7 @@ const onSourceAddressChange = async () => {
     if (!store.state.sourceAddress) return
     if (!store.state.sourceTokenConfiguration) return
     const sourceChainConfiguration = store.state.sourceChainConfiguration
-    const { name: sourceChainName, type: sourceChainType, chainId: sourceChainId } = sourceChainConfiguration
+    const { name: sourceChainName } = sourceChainConfiguration
     const sourceTokenConfig = store.state.sourceTokenConfiguration
     const { type: sourceTokenType } = sourceTokenConfig
     console.log('sourceTokenType', sourceTokenType)

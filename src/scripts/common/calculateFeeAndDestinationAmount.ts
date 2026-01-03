@@ -40,16 +40,12 @@ const calculateFeeAndDestinationAmount = () => {
   //console.log('fee multiplier:', feeMultiplier, '\nfee token:', feeTokenConfiguration, '\ntoken configs:', store.state.routeConfig, '\ndestination token:', store.state.destinationToken)
   const fee = new BigNumber(sourceAmount.multipliedBy(feeMultiplier))
   const feeAmount = fee.toFixed(0, 0)
-  let updated = false
   store.state.feePercentage = feeMultiplier * 100
   if (store.state.feeAmount != feeAmount) {
     store.state.feeAmount = feeAmount
-    updated = true
-  }
   const feeAmountFormatted = formatBaseAmount(feeAmount, store.state.sourceTokenConfiguration.decimals) // fee token is source token
   if (store.state.feeAmountFormatted != feeAmountFormatted) {
     store.state.feeAmountFormatted = feeAmountFormatted
-    updated = true
   }
 
   const decDiff = store.state.destinationTokenConfiguration.decimals - store.state.sourceTokenConfiguration.decimals
@@ -98,11 +94,9 @@ const calculateFeeAndDestinationAmount = () => {
     } else {
       // take the smaller number
       store.state.sourceAmountNet = store.state.destinationAmount
-      updated = true
     }
   } else if (decDiff > 0) {
     // source token has fewer decimals than destination token
-    const power = new BigNumber(10).pow(decDiff)
     const destinationInSourceDecimals = new BigNumber(store.state.destinationAmount).dividedToIntegerBy(10 ** decDiff).toFixed(0, 1)
     const sourceInDestinationDecimals = new BigNumber(store.state.sourceAmountNet).multipliedBy(10 ** decDiff).toFixed(0, 1)
     if (store.state.destinationAmount != sourceInDestinationDecimals) {
@@ -148,7 +142,6 @@ const calculateFeeAndDestinationAmount = () => {
   const destinationAmountFormatted = formatBaseAmount(store.state.destinationAmount, store.state.destinationTokenConfiguration.decimals)
   if (store.state.destinationAmountFormatted != destinationAmountFormatted) {
     store.state.destinationAmountFormatted = destinationAmountFormatted
-    updated = true
   }
   // if (updated) {
   //   console.log('calculate destination amount update 2:', {
@@ -158,6 +151,7 @@ const calculateFeeAndDestinationAmount = () => {
   //     destinationAmount: store.state.destinationAmount
   //   })
   // }
+}
 }
 
 export default calculateFeeAndDestinationAmount

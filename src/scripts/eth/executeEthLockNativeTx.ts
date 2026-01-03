@@ -1,6 +1,6 @@
 import getBridgeContractAddressAsync from '../common/getBridgeContractAddressAsync'
 import chainId2Bridge from './chainId2Bridge'
-import { BrowserProvider, Contract, formatUnits } from 'ethers'
+import { BrowserProvider, Contract } from 'ethers'
 import { useWeb3ModalProvider } from '@web3modal/ethers/vue'
 import { useAppStore } from '@/stores/app'
 import BigNumber from 'bignumber.js'

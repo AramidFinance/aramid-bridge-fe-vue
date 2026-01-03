@@ -8,13 +8,11 @@ import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/Public
 import { useAppStore } from '@/stores/app'
 import { useToast } from 'primevue/usetoast'
 import { onMounted, reactive, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import SelectArc200BridgeAssetDialog from './dialogs/SelectArc200BridgeAssetDialog.vue'
 import DropDown from './ui/DropDown.vue'
 import SimpleLabel from './ui/SimpleLabel.vue'
 
-const { t } = useI18n()
 const toast = useToast()
 const store = useAppStore()
 const route = useRoute()
