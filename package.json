@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "npm run type-check && npm run build-only",
+    "check-typescript-errors-tsc": "npx tsc --noEmit",
+    "check-typescript-errors-vue": "npx vue-tsc --noEmit",
     "preview": "vite preview",
     "http-server": "http-server build",
     "test:unit": "vitest",
