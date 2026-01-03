@@ -12,7 +12,7 @@ import { resetSourceTokenIfNotMatched } from '@/scripts/events/resetSourceTokenI
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
-import { computed, defineProps, onMounted, reactive, watch, withDefaults } from 'vue'
+import { computed, onMounted, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ChainButton from '../ui/ChainButton.vue'
 import DialogTitle from '../ui/DialogTitle.vue'

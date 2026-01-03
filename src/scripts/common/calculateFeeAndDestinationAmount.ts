@@ -41,6 +41,7 @@ const calculateFeeAndDestinationAmount = () => {
   const fee = new BigNumber(sourceAmount.multipliedBy(feeMultiplier))
   const feeAmount = fee.toFixed(0, 0)
   store.state.feePercentage = feeMultiplier * 100
+  let updated = false
   if (store.state.feeAmount != feeAmount) {
     store.state.feeAmount = feeAmount
     const feeAmountFormatted = formatBaseAmount(feeAmount, store.state.sourceTokenConfiguration.decimals) // fee token is source token
