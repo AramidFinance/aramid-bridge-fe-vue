@@ -1,6 +1,6 @@
+import { useAppStore } from '@/stores/app'
 import algosdk from 'algosdk'
 import { ethers } from 'ethers'
-import { useAppStore } from '@/stores/app'
 import type { ChainItem } from '../interface/mapping/ChainItem'
 
 const isValidSourceAddress = (): boolean => {
