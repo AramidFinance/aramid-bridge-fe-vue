@@ -213,6 +213,8 @@ const bridgeArc200ToAsa = async () => {
       defaultSender: destinationAddress,
       defaultSigner: undefined
     })
+    const sourceAmount = BigInt(store.state.arc200BridgeAmount)
+    const contractAddress = algosdk.getApplicationAddress(Number(arc200TokenId)).toString()
     let txToSign: algosdk.Transaction[] = []
 
     const asaOptin = await getAlgoAcountTokenOptin(store.state.arc200BridgeChain, store.state.arc200BridgeAddress, Number(tokenIdASA))
@@ -229,18 +231,48 @@ const bridgeArc200ToAsa = async () => {
       )
       console.log('Added optin txn for ASA', tokenIdASA)
     }
-    const sourceAmount = BigInt(store.state.arc200BridgeAmount)
-    const sinkAddress = exchangeInfo?.sink ?? algosdk.getApplicationAddress(Number(arc200TokenId)).toString()
+
+    if (!exchangeInfo?.sink) {
+      // wnnt200 protocol requires to create box first if it does not exists
+      let needCreateBox = false
+      try {
+        const balance = await getAlgoAccountARC200TokenBalance(store.state.arc200BridgeChain, contractAddress, arc200TokenId)
+        console.log('balance of arc200 for address before box creation check', balance)
+        if (balance === 0n) {
+          needCreateBox = true
+        }
+      } catch (e) {
+        console.log('box for arc200 does not exist, creating it', e)
+        needCreateBox = true
+      }
+
+      if (needCreateBox) {
+        txToSign.push(
+          algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+            amount: 28500,
+            sender: destinationAddress,
+            receiver: contractAddress,
+            suggestedParams: params,
+            note: new TextEncoder().encode('ARC200 Bridge ASA to ARC200 funding for box creation')
+          })
+        )
+
+        const createBoxTxs = await clientArc200UserSender.createTransaction.createBalanceBox({ args: { owner: contractAddress } })
+        createBoxTxs.transactions.forEach((tx) => txToSign.push(tx))
+        console.log('Added createBalanceBox app call', contractAddress)
+      }
+    }
+
     const approveTxs = await clientArc200UserSender.createTransaction.arc200Approve({
       args: {
-        spender: sinkAddress,
+        spender: contractAddress,
         value: sourceAmount
       }
     })
     // there must be only one txn
     approveTxs.transactions.forEach((tx) => txToSign.push(tx))
 
-    console.log('Added approve tx to sink', tokenIdASA, arc200TokenId, sinkAddress)
+    console.log('Added approve tx to address', tokenIdASA, arc200TokenId, contractAddress)
     console.log('Added approve txn for ARC200', arc200TokenId, sourceAmount)
     if (exchangeInfo?.sink) {
       const exchangeTxs = await clientArc200UserSender.createTransaction.arc200SwapBack({
@@ -347,7 +379,7 @@ const bridgeAsaToArc200 = async () => {
       defaultSigner: undefined
     })
 
-    const sinkAddress = algosdk.getApplicationAddress(Number(arc200TokenId))
+    const contractAddress = algosdk.getApplicationAddress(Number(arc200TokenId))
     let txToSign: algosdk.Transaction[] = []
 
     if (!exchangeInfo?.sink) {
@@ -369,7 +401,7 @@ const bridgeAsaToArc200 = async () => {
           algosdk.makePaymentTxnWithSuggestedParamsFromObject({
             amount: 28500,
             sender: destinationAddress,
-            receiver: sinkAddress,
+            receiver: contractAddress,
             suggestedParams: params,
             note: new TextEncoder().encode('ARC200 Bridge ASA to ARC200 funding for box creation')
           })
@@ -384,13 +416,13 @@ const bridgeAsaToArc200 = async () => {
       algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
         amount: destinationAmount,
         sender: destinationAddress,
-        receiver: sinkAddress,
+        receiver: contractAddress,
         suggestedParams: params,
         assetIndex: Number(tokenIdASA),
         note: new TextEncoder().encode('ARC200 Bridge ASA to ARC200 optin')
       })
     )
-    console.log('Added transfer from destination address to sink to swap asa with arc200', tokenIdASA, arc200TokenId, sinkAddress)
+    console.log('Added transfer from destination address to address to swap asa with arc200', tokenIdASA, arc200TokenId, contractAddress)
     if (exchangeInfo?.sink) {
       console.log('addresses sink, appaddress, sender', exchangeInfo?.sink, algosdk.getApplicationAddress(Number(arc200TokenId)).toString(), destinationAddress)
       const exchangeTxs = await clientArc200AsaUserSender.createTransaction.arc200Redeem({
