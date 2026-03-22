@@ -244,5 +244,10 @@
     "destinationAddressMissing": "Cílová adresa není nastavena.",
     "noTransactionsSigned": "Žádné transakce nebyly podepsány.",
     "destinationTokenMissing": "Destination token is not set."
+  },
+  "systemHealth": {
+    "title": "Zjištěno přerušení služby",
+    "dismiss": "Zavřít",
+    "label": "Degradováno"
   }
 }

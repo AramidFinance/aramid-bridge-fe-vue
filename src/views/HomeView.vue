@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import PageFooter from '../components/PageFooter.vue'
 import BridgePage from '../components/BridgePage.vue'
+import SystemHealthBanner from '@/components/SystemHealthBanner.vue'
 import { onMounted, reactive } from 'vue'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import MainBox from '@/components/ui/MainBox.vue'
@@ -20,6 +21,7 @@ onMounted(async () => {
 
 <template>
   <main class="flex flex-col h-full">
+    <SystemHealthBanner />
     <div class="flex flex-col flex-1" v-if="state.loaded">
       <BridgePage></BridgePage>
     </div>

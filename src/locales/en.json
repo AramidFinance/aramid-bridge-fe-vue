@@ -244,5 +244,10 @@
     "destinationAddressMissing": "Destination address is not set.",
     "noTransactionsSigned": "No transactions were signed.",
     "destinationTokenMissing": "Destination token is not set."
+  },
+  "systemHealth": {
+    "title": "Service disruption detected",
+    "dismiss": "Dismiss",
+    "label": "Degraded"
   }
 }

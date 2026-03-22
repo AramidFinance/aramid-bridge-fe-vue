@@ -244,5 +244,10 @@
     "destinationAddressMissing": "Die Zieladresse ist nicht festgelegt.",
     "noTransactionsSigned": "Es wurden keine Transaktionen signiert.",
     "destinationTokenMissing": "Destination token is not set."
+  },
+  "systemHealth": {
+    "title": "Servicestörung erkannt",
+    "dismiss": "Schließen",
+    "label": "Beeinträchtigt"
   }
 }

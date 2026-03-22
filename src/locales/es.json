@@ -244,5 +244,10 @@
     "destinationAddressMissing": "La dirección de destino no está configurada.",
     "noTransactionsSigned": "No se firmó ninguna transacción.",
     "destinationTokenMissing": "Destination token is not set."
+  },
+  "systemHealth": {
+    "title": "Interrupción del servicio detectada",
+    "dismiss": "Cerrar",
+    "label": "Degradado"
   }
 }
