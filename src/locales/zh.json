@@ -244,5 +244,10 @@
     "destinationAddressMissing": "尚未设置目标地址。",
     "noTransactionsSigned": "没有任何交易被签名。",
     "destinationTokenMissing": "Destination token is not set."
+  },
+  "systemHealth": {
+    "title": "检测到服务中断",
+    "dismiss": "关闭",
+    "label": "服务降级"
   }
 }

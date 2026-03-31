@@ -244,5 +244,10 @@
     "destinationAddressMissing": "Docelowy adres nie jest ustawiony.",
     "noTransactionsSigned": "Nie podpisano żadnych transakcji.",
     "destinationTokenMissing": "Destination token is not set."
+  },
+  "systemHealth": {
+    "title": "Wykryto zakłócenie usługi",
+    "dismiss": "Zamknij",
+    "label": "Zdegradowany"
   }
 }
