@@ -1,133 +1,123 @@
-# GitHub Actions Setup — Beta CI/CD
+# GitHub Actions Setup
 
-## Overview
-
-Two workflows handle the beta pipeline:
+## Workflows
 
 | Workflow | File | Trigger |
 |----------|------|---------|
-| CI — Build Beta Docker Image | `.github/workflows/ci-beta.yml` | Push to `beta` branch |
-| CD — Deploy Beta to Kubernetes | `.github/workflows/cd-beta.yml` | After CI succeeds |
+| CI/CD — Beta | `.github/workflows/ci-beta.yml` | Push to `main` branch |
+| Release — Promote Beta to Main | `.github/workflows/release-main.yml` | Manual (`workflow_dispatch`) |
+
+### Beta pipeline (`ci-beta.yml`)
+
+Two jobs run sequentially on every push to `main`:
+
+1. **CI — build** — computes version `1.YYYY.MM.DD-beta`, builds the Docker image, pushes to Docker Hub
+2. **CD — deploy** — patches the image tag in `k8s/deployment-beta.yaml`, applies it to Kubernetes, commits the updated manifest
+
+### Release pipeline (`release-main.yml`)
+
+Run manually from **GitHub → Actions → Release - Promote Beta to Main → Run workflow**.
+
+You supply a beta tag (e.g. `1.2026.06.28-beta`). The workflow:
+1. Pulls that image from Docker Hub
+2. Retags it as `1.2026.06.28-main` and pushes it
+3. Patches `k8s/deployment-main.yaml` and deploys to the `aramid-web-main` namespace
+4. Commits the updated manifest back to `main`
 
 ---
 
 ## Required Secrets
 
-Go to **GitHub → Repository → Settings → Secrets and variables → Actions → New repository secret** and add each secret below.
+Go to **GitHub → Repository → Settings → Secrets and variables → Actions → New repository secret**.
 
-### 1. `DOCKERHUB_USERNAME`
+### `DOCKERHUB_USERNAME`
 
-Your Docker Hub username.
+Your Docker Hub username: `scholtz2`
 
-```
-scholtz2
-```
+### `DOCKERHUB_TOKEN`
 
-### 2. `DOCKERHUB_TOKEN`
+A Docker Hub **access token** (not your account password).
 
-A Docker Hub **access token** (not your password).
-
-Steps to create one:
 1. Log in to [hub.docker.com](https://hub.docker.com)
-2. Go to **Account Settings → Personal access tokens → Generate new token**
-3. Name it `aramid-bridge-ci`, set **Access permissions** to `Read & Write`
-4. Copy the token and save it as this secret
+2. **Account Settings → Personal access tokens → Generate new token**
+3. Name: `aramid-bridge-ci` · Permissions: **Read & Write**
+4. Copy the token value and save it as this secret
 
-### 3. `KUBECONFIG`
+### `KUBECONFIG`
 
-A base64-encoded kubeconfig file that grants access to your cluster.
+A base64-encoded kubeconfig with access to both namespaces (`zb-web-beta` and `aramid-web-main`).
 
-Steps:
+#### Option A — minimal kubeconfig via dedicated service account (recommended)
 
-1. On your Kubernetes server, locate or generate a kubeconfig for the deployment service account:
+Run the following on your cluster:
 
-   ```bash
-   # Option A — copy your existing admin kubeconfig (restrict permissions in production)
-   cat ~/.kube/config | base64 -w 0
+```bash
+# 1. Create the service account in both namespaces
+for NS in zb-web-beta aramid-web-main; do
+  kubectl create serviceaccount github-actions -n $NS
+  kubectl create rolebinding github-actions-deploy \
+    --clusterrole=edit \
+    --serviceaccount=$NS:github-actions \
+    -n $NS
+done
 
-   # Option B — use a dedicated service account (recommended)
-   kubectl -n zb-web-beta get secret <sa-token-secret> -o jsonpath='{.data.token}'
-   ```
+# 2. Create a long-lived token (Kubernetes 1.24+)
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: github-actions-token
+  namespace: zb-web-beta
+  annotations:
+    kubernetes.io/service-account.name: github-actions
+type: kubernetes.io/service-account-token
+EOF
 
-2. The safest approach is a dedicated service account with minimal permissions. Run this on the cluster:
+# 3. Collect cluster info and token
+SERVER=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')
+CA=$(kubectl config view --minify --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}')
+TOKEN=$(kubectl -n zb-web-beta get secret github-actions-token -o jsonpath='{.data.token}' | base64 -d)
 
-   ```bash
-   # Create service account
-   kubectl create serviceaccount github-actions -n zb-web-beta
+# 4. Build a minimal kubeconfig
+cat <<EOF > /tmp/github-actions-kubeconfig.yaml
+apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    certificate-authority-data: $CA
+    server: $SERVER
+  name: k8s-cluster
+contexts:
+- context:
+    cluster: k8s-cluster
+    namespace: zb-web-beta
+    user: github-actions
+  name: github-actions-context
+current-context: github-actions-context
+users:
+- name: github-actions
+  user:
+    token: $TOKEN
+EOF
 
-   # Grant deploy permissions
-   kubectl create rolebinding github-actions-deploy \
-     --clusterrole=edit \
-     --serviceaccount=zb-web-beta:github-actions \
-     -n zb-web-beta
+# 5. Base64-encode it — copy this output into the KUBECONFIG secret
+cat /tmp/github-actions-kubeconfig.yaml | base64 -w 0
+```
 
-   # For Kubernetes 1.24+ create a long-lived token
-   kubectl apply -f - <<EOF
-   apiVersion: v1
-   kind: Secret
-   metadata:
-     name: github-actions-token
-     namespace: zb-web-beta
-     annotations:
-       kubernetes.io/service-account.name: github-actions
-   type: kubernetes.io/service-account-token
-   EOF
+#### Option B — use your existing admin kubeconfig (quick, less secure)
 
-   # Build a minimal kubeconfig
-   SERVER=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')
-   CA=$(kubectl config view --minify --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}')
-   TOKEN=$(kubectl -n zb-web-beta get secret github-actions-token -o jsonpath='{.data.token}' | base64 -d)
-
-   cat <<EOF > /tmp/github-actions-kubeconfig.yaml
-   apiVersion: v1
-   kind: Config
-   clusters:
-   - cluster:
-       certificate-authority-data: $CA
-       server: $SERVER
-     name: k8s-cluster
-   contexts:
-   - context:
-       cluster: k8s-cluster
-       namespace: zb-web-beta
-       user: github-actions
-     name: github-actions-context
-   current-context: github-actions-context
-   users:
-   - name: github-actions
-     user:
-       token: $TOKEN
-   EOF
-
-   # Encode it for the secret
-   cat /tmp/github-actions-kubeconfig.yaml | base64 -w 0
-   ```
-
-3. Copy the base64 output and save it as the `KUBECONFIG` secret.
+```bash
+cat ~/.kube/config | base64 -w 0
+```
 
 ---
 
-## How versioning works
+## Workflow permissions
 
-The version is computed at runtime in both workflows using the same formula:
+The CD and release jobs commit updated manifests back to `main`. Allow that:
 
-```
-1.YYYY.MM.DD-beta
-```
-
-For example, a push on June 28 2026 produces: `1.2026.06.28-beta`
-
-The CD workflow also commits the updated `k8s/deployment-beta.yaml` back to the `beta` branch so the manifest in the repo always reflects what is running in the cluster.
-
----
-
-## Branch permissions
-
-The CD workflow commits back to the `beta` branch using the `GITHUB_TOKEN`. Make sure the workflow has write permission:
-
-1. Go to **Settings → Actions → General → Workflow permissions**
+1. **Settings → Actions → General → Workflow permissions**
 2. Select **Read and write permissions**
-3. Check **Allow GitHub Actions to create and approve pull requests** if needed
 
 ---
 
@@ -135,7 +125,8 @@ The CD workflow commits back to the `beta` branch using the `GITHUB_TOKEN`. Make
 
 | Symptom | Likely cause |
 |---------|--------------|
-| `docker push` fails with 401 | `DOCKERHUB_TOKEN` is wrong or expired — regenerate it |
-| `kubectl` fails with `Unauthorized` | `KUBECONFIG` secret is malformed or token expired |
-| CD workflow never starts | CI workflow name in `cd-beta.yml` must exactly match the `name:` field in `ci-beta.yml` |
-| Rollout times out | Pod crash-loopback — check `kubectl logs -n zb-web-beta -l app=zb-web-beta` |
+| `docker push` fails with 401 | `DOCKERHUB_TOKEN` wrong or expired — regenerate it |
+| `docker pull` fails in release pipeline | The beta tag doesn't exist yet — check the CI run completed successfully |
+| `kubectl` fails with `Unauthorized` | `KUBECONFIG` secret malformed or SA token expired |
+| Rollout times out (beta) | Check `kubectl logs -n zb-web-beta -l app=zb-web-beta` |
+| Rollout times out (main) | Check `kubectl logs -n aramid-web-main -l app=aramid-web-main` |

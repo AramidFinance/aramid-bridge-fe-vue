@@ -1,0 +1,72 @@
+name: Release - Promote Beta to Main
+
+on:
+  workflow_dispatch:
+    inputs:
+      beta_version:
+        description: "Beta image tag to promote (e.g. 1.2026.06.28-beta)"
+        required: true
+        type: string
+
+jobs:
+  promote:
+    name: Retag and deploy to main
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Derive main version tag
+        id: version
+        run: |
+          BETA="${{ inputs.beta_version }}"
+          MAIN="${BETA%-beta}-main"
+          echo "beta=$BETA" >> "$GITHUB_OUTPUT"
+          echo "main=$MAIN" >> "$GITHUB_OUTPUT"
+          echo "Promoting $BETA  →  $MAIN"
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Retag beta image as main
+        run: |
+          docker pull scholtz2/aramid-bridge-web-app:${{ steps.version.outputs.beta }}
+          docker tag  scholtz2/aramid-bridge-web-app:${{ steps.version.outputs.beta }} \
+                      scholtz2/aramid-bridge-web-app:${{ steps.version.outputs.main }}
+          docker push scholtz2/aramid-bridge-web-app:${{ steps.version.outputs.main }}
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Patch image tag in main deployment manifest
+        run: |
+          MAIN="${{ steps.version.outputs.main }}"
+          sed -i "s~scholtz2/aramid-bridge-web-app:.*~scholtz2/aramid-bridge-web-app:$MAIN~g" k8s/deployment-main.yaml
+          echo "Updated manifest:"
+          grep "image:" k8s/deployment-main.yaml
+
+      - name: Apply Kubernetes manifests
+        run: kubectl apply -f k8s/deployment-main.yaml
+
+      - name: Wait for rollout
+        run: kubectl rollout status deployment/aramid-web-main-deployment -n aramid-web-main --timeout=120s
+
+      - name: Commit updated deployment manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add k8s/deployment-main.yaml
+          git diff --staged --quiet || git commit -m "release: promote ${{ steps.version.outputs.beta }} to ${{ steps.version.outputs.main }}"
+          git push
