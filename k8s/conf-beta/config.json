@@ -1,0 +1,14 @@
+{
+  "mainNetwork": 101003,
+  "mainToken": 100,
+  "configurationAddress": "EGRNQAIVBY4O47XJNCLIYZGSHBQIKYC25VWEHBQVFRUACCXBR7TDSKISSA",
+  "useFilesystemPublicConfiguration": true,
+  "environment": "mainnet",
+  "branch": "beta",
+  "underMaintenance": false,
+  "initChainFrom": 8453,
+  "initChainTo": 416101,
+  "initTokenFrom": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+  "initTokenTo": "302190",
+  "wcProjectId": "54958e07dbb79eedf5cd5564bf16d817"
+}

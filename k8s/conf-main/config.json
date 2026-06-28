@@ -1,0 +1,13 @@
+{
+  "mainNetwork": 101003,
+  "mainToken": 100,
+  "configurationAddress": "ARAMICOCHLHSX3G5KCKK23M72ETI537GK5VGLOVHXAGPIELWYJKIMGKK6I",
+  "useFilesystemPublicConfiguration": true,
+  "environment": "mainnet",
+  "underMaintenance": false,
+  "initChainFrom": 8453,
+  "initChainTo": 416101,
+  "initTokenFrom": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+  "initTokenTo": "302190",
+  "wcProjectId": "54958e07dbb79eedf5cd5564bf16d817"
+}

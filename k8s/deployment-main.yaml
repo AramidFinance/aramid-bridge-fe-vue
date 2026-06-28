@@ -1,0 +1,150 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aramid-web-main
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aramid-web-main-deployment
+  namespace: aramid-web-main
+spec:
+  selector:
+    matchLabels:
+      app: aramid-web-main
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: aramid-web-main
+    spec:
+      containers:
+        - name: aramid-web-main
+          image: scholtz2/aramid-bridge-web-app:1.2025.06.22-beta
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 2
+            terminationGracePeriodSeconds: 1
+          volumeMounts:
+            - name: web-main-conf
+              mountPath: /app/config.json
+              subPath: config.json
+          securityContext:
+            runAsUser: 101
+            runAsGroup: 101
+      volumes:
+        - name: web-main-conf
+          configMap:
+            name: web-main-conf
+---
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aramid-web-main-service
+  namespace: aramid-web-main
+spec:
+  type: ClusterIP
+  selector:
+    app: aramid-web-main
+  ports:
+    - name: http
+      protocol: TCP
+      appProtocol: http
+      port: 8080
+      targetPort: 8080
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dashboard-ingress-aramid-main
+  namespace: aramid-web-main
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  tls:
+    - hosts:
+        - main.k8s.aramid.finance
+      secretName: tls-aramid-main1
+  rules:
+    - host: main.k8s.aramid.finance
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: aramid-web-main-service
+                port:
+                  number: 8080
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-aramid-finance-ingress
+  namespace: aramid-web-main
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  tls:
+    - hosts:
+        - app.aramid.finance
+      secretName: tls-app.aramid.finance
+  rules:
+    - host: app.aramid.finance
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: aramid-web-main-service
+                port:
+                  number: 8080
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: www-app-aramid-finance-ingress
+  namespace: aramid-web-main
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  tls:
+    - hosts:
+        - www.app.aramid.finance
+      secretName: tls-www.app.aramid.finance
+  rules:
+    - host: www.app.aramid.finance
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: aramid-web-main-service
+                port:
+                  number: 8080
