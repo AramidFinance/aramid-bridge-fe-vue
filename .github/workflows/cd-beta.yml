@@ -3,11 +3,11 @@ name: CD - Deploy Beta to Kubernetes
 on:
   workflow_run:
     workflows:
-      - "CI - Build Beta Docker Image"
+      - 'CI - Build Beta Docker Image'
     types:
       - completed
     branches:
-      - beta
+      - main
 
 jobs:
   deploy:
