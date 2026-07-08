@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: aramid-web-main
-          image: scholtz2/aramid-bridge-web-app:1.2026.06.28-main
+          image: scholtz2/aramid-bridge-web-app:1.2026.07.01-main
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
