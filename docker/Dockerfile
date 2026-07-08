@@ -1,17 +1,16 @@
-FROM node:22 AS build
+FROM node:24 AS build
 WORKDIR /src
 RUN apt update && apt dist-upgrade -y && apt-get autoremove --yes && rm -rf /var/lib/{apt,dpkg,cache,log}/
-RUN npm install -g npm@latest
+RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
 COPY package.json package.json
-COPY package-lock.json package-lock.json
-RUN npm ci
+COPY pnpm-lock.yaml pnpm-lock.yaml
+RUN pnpm install --frozen-lockfile
 RUN npx browserslist@latest --update-db
 COPY . .
 ENV CI=true
-RUN npm audit fix --force --save &>/dev/null
 RUN echo "Building the project..."
-RUN npm run type-check && echo "type-check completed successfully."
-RUN npm run build-only; echo "Build exit code: $?"; echo "Build completed successfully."
+RUN pnpm run type-check && echo "type-check completed successfully."
+RUN pnpm run build-only; echo "Build exit code: $?"; echo "Build completed successfully."
 RUN cd /src/dist && ls
 
 FROM nginxinc/nginx-unprivileged:latest

@@ -6,9 +6,11 @@ import RoundButton from './RoundButton.vue'
 
 const props = defineProps({ img: String, text: String })
 
+const logoModules = import.meta.glob('../../assets/**/*.{png,svg}', { eager: true, import: 'default' }) as Record<string, string>
+
 const getImageUrl = () => {
-  const ret = new URL(`../../assets/${props.img}`, import.meta.url)
-  return ret.toString()
+  if (!props.img) return ''
+  return logoModules[`../../assets/${props.img}`] ?? ''
 }
 
 // Compute the highlighted text for the token name
