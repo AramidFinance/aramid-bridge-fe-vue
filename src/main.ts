@@ -82,7 +82,7 @@ app.use(WalletManagerPlugin, {
         projectId: '54958e07dbb79eedf5cd5564bf16d817',
         metadata: {
           name: 'Aramid Finance Dapp',
-          description: 'Aramid Finance Bridge between Algorand, Voi, Near, Ethereum, Polygon and Aurora',
+          description: 'Aramid Finance Bridge between Algorand, Voi, Base and Arbitrum',
           url: 'https://' + location.host,
           icons: ['https://' + location.host + '/aramid-logo.svg']
         }
@@ -94,7 +94,7 @@ app.use(WalletManagerPlugin, {
         projectId: '54958e07dbb79eedf5cd5564bf16d817',
         metadata: {
           name: 'Aramid Finance Dapp',
-          description: 'Aramid Finance Bridge between Algorand, Voi, Near, Ethereum, Polygon and Aurora',
+          description: 'Aramid Finance Bridge between Algorand, Voi, Base and Arbitrum',
           url: 'https://' + location.host,
           icons: ['https://' + location.host + '/aramid-logo.svg']
         }
@@ -119,7 +119,7 @@ app.use(AVMWalletManagerPlugin, {
         projectId: '54958e07dbb79eedf5cd5564bf16d817',
         metadata: {
           name: 'Aramid Finance Dapp',
-          description: 'Aramid Finance Bridge between Algorand, Voi, Near, Ethereum, Polygon and Aurora',
+          description: 'Aramid Finance Bridge between Algorand, Voi, Base and Arbitrum',
           url: 'https://' + location.host,
           icons: ['https://' + location.host + '/aramid-logo.svg']
         }
@@ -131,7 +131,7 @@ app.use(AVMWalletManagerPlugin, {
         projectId: '54958e07dbb79eedf5cd5564bf16d817',
         metadata: {
           name: 'Aramid Finance Dapp',
-          description: 'Aramid Finance Bridge between Algorand, Voi, Near, Ethereum, Polygon and Aurora',
+          description: 'Aramid Finance Bridge between Algorand, Voi, Base and Arbitrum',
           url: 'https://' + location.host,
           icons: ['https://' + location.host + '/aramid-logo.svg']
         }
