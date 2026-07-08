@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: zb-web-beta
-          image: scholtz2/aramid-bridge-web-app:1.2026.07.01-beta
+          image: scholtz2/aramid-bridge-web-app:1.2026.07.08-beta
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
