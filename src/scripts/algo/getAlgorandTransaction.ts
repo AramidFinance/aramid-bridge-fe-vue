@@ -6,7 +6,7 @@ import { executeWithIndexerFailover } from './getIndexerClientByChainIdWithFailo
  * @param txId Transaction ID
  * @param chainId Algorand chain
  */
-const getAlgorandTransaction = async (txId: string, chainId: number) => {
+const getAlgorandTransaction = async (txId: string, chainId: number): Promise<any> => {
   try {
     let tries = 5
     while (tries > 0) {

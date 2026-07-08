@@ -3,7 +3,7 @@ import getAppConfiguration from '../common/getAppConfiguration'
 import getPublicConfiguration from '../common/getPublicConfiguration'
 import { executeWithIndexerFailover } from './getIndexerClientByChainIdWithFailover'
 
-export const getBridgeLog = async () => {
+export const getBridgeLog = async (): Promise<any> => {
   const appConfiguration = await getAppConfiguration()
   if (!appConfiguration) {
     console.error('!appConfiguration')
