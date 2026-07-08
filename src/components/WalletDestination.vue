@@ -9,10 +9,10 @@ import asyncdelay from '@/scripts/common/asyncDelay'
 import { formatTooltip } from '@/scripts/common/formatTooltip'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import getEthAccountTokenBalance from '@/scripts/eth/getEthAccountTokenBalance'
-import getWeb3Modal from '@/scripts/eth/getWeb3Modal'
+import getAppKit from '@/scripts/eth/getAppKit'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
-import { useWeb3ModalAccount } from '@web3modal/ethers/vue'
+import { useAppKitAccount } from '@reown/appkit/vue'
 import { useWallet } from 'avm-wallet-vue'
 import BigNumber from 'bignumber.js'
 import { useToast } from 'primevue/usetoast'
@@ -69,39 +69,39 @@ const buttonClick = async () => {
       store.state.dialogSelectDestinationWalletAVMIsOpen = true
     } else if (store.state.destinationChainConfiguration?.type == 'eth') {
       // select address from wc
-      const modal = getWeb3Modal()
-      const { address, isConnected } = useWeb3ModalAccount()
+      const modal = getAppKit()
+      const account = useAppKitAccount()
 
-      if (isConnected.value && address.value) {
+      if (account.value.isConnected && account.value.address) {
         store.state.connectedDestinationChain = store.state.destinationChain
-        store.state.destinationAddress = address.value
+        store.state.destinationAddress = account.value.address
       } else {
         await modal?.open()
-        console.log('0x2 address is ', isConnected.value, address.value, new Date())
-        if (isConnected.value && address.value) {
+        console.log('0x2 address is ', account.value.isConnected, account.value.address, new Date())
+        if (account.value.isConnected && account.value.address) {
           store.state.connectedDestinationChain = store.state.destinationChain
-          store.state.destinationAddress = address.value
+          store.state.destinationAddress = account.value.address
           return
         }
         await asyncdelay(1000)
-        console.log('0x3 address is ', isConnected.value, address.value, new Date())
-        if (isConnected.value && address.value) {
+        console.log('0x3 address is ', account.value.isConnected, account.value.address, new Date())
+        if (account.value.isConnected && account.value.address) {
           store.state.connectedDestinationChain = store.state.destinationChain
-          store.state.destinationAddress = address.value
+          store.state.destinationAddress = account.value.address
           return
         }
         await asyncdelay(5000)
-        console.log('0x4 address is ', isConnected.value, address.value, new Date())
-        if (isConnected.value && address.value) {
+        console.log('0x4 address is ', account.value.isConnected, account.value.address, new Date())
+        if (account.value.isConnected && account.value.address) {
           store.state.connectedDestinationChain = store.state.destinationChain
-          store.state.destinationAddress = address.value
+          store.state.destinationAddress = account.value.address
           return
         }
         await asyncdelay(10000)
-        console.log('0x5 address is ', isConnected.value, address.value, new Date())
-        if (isConnected.value && address.value) {
+        console.log('0x5 address is ', account.value.isConnected, account.value.address, new Date())
+        if (account.value.isConnected && account.value.address) {
           store.state.connectedDestinationChain = store.state.destinationChain
-          store.state.destinationAddress = address.value
+          store.state.destinationAddress = account.value.address
           return
         }
       }

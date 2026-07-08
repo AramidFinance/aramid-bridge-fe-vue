@@ -8,14 +8,14 @@ import asyncdelay from '@/scripts/common/asyncDelay'
 import { formatTooltip } from '@/scripts/common/formatTooltip'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import getEthAccountTokenBalance from '@/scripts/eth/getEthAccountTokenBalance'
-import getWeb3Modal from '@/scripts/eth/getWeb3Modal'
+import getAppKit, { getAppKitNetworkByChainId } from '@/scripts/eth/getAppKit'
 import { fillSourceTokenConfiguration } from '@/scripts/events/fillSourceTokenConfiguration'
 import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
 import { NetworkId, useNetwork, useWallet } from '@txnlab/use-wallet-vue'
-import { useDisconnect, useSwitchNetwork, useWeb3ModalAccount } from '@web3modal/ethers/vue'
+import { useAppKitAccount, useAppKitNetwork, useDisconnect } from '@reown/appkit/vue'
 import { useToast } from 'primevue/usetoast'
 import { onMounted, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -226,45 +226,48 @@ const buttonClick = async () => {
       store.state.connectedSourceChain = undefined
       store.state.sourceAddress = ''
     } else {
-      const modal = getWeb3Modal()
-      const { address, chainId, isConnected } = useWeb3ModalAccount()
-      if (store.state.sourceChain && chainId.value != store.state.sourceChain) {
-        const { switchNetwork } = useSwitchNetwork()
-        switchNetwork(store.state.sourceChain)
-        await asyncdelay(500)
+      const modal = getAppKit()
+      const account = useAppKitAccount()
+      const network = useAppKitNetwork()
+      if (store.state.sourceChain && network.value.chainId != store.state.sourceChain) {
+        const targetNetwork = getAppKitNetworkByChainId(store.state.sourceChain)
+        if (targetNetwork) {
+          await network.value.switchNetwork(targetNetwork)
+          await asyncdelay(500)
+        }
       }
 
-      //console.log('0x1 address is ', isConnected.value, address.value, new Date())
-      if (isConnected.value && address.value) {
+      //console.log('0x1 address is ', account.value.isConnected, account.value.address, new Date())
+      if (account.value.isConnected && account.value.address) {
         store.state.connectedSourceChain = store.state.sourceChain
-        store.state.sourceAddress = address.value
+        store.state.sourceAddress = account.value.address
       } else {
         await modal?.open()
-        //console.log('0x2 address is ', isConnected.value, address.value, new Date())
-        if (isConnected.value && address.value) {
+        //console.log('0x2 address is ', account.value.isConnected, account.value.address, new Date())
+        if (account.value.isConnected && account.value.address) {
           store.state.connectedSourceChain = store.state.sourceChain
-          store.state.sourceAddress = address.value
+          store.state.sourceAddress = account.value.address
           return
         }
         await asyncdelay(1000)
-        //console.log('0x3 address is ', isConnected.value, address.value, new Date())
-        if (isConnected.value && address.value) {
+        //console.log('0x3 address is ', account.value.isConnected, account.value.address, new Date())
+        if (account.value.isConnected && account.value.address) {
           store.state.connectedSourceChain = store.state.sourceChain
-          store.state.sourceAddress = address.value
+          store.state.sourceAddress = account.value.address
           return
         }
         await asyncdelay(5000)
-        //console.log('0x4 address is ', isConnected.value, address.value, new Date())
-        if (isConnected.value && address.value) {
+        //console.log('0x4 address is ', account.value.isConnected, account.value.address, new Date())
+        if (account.value.isConnected && account.value.address) {
           store.state.connectedSourceChain = store.state.sourceChain
-          store.state.sourceAddress = address.value
+          store.state.sourceAddress = account.value.address
           return
         }
         await asyncdelay(10000)
-        //console.log('0x5 address is ', isConnected.value, address.value, new Date())
-        if (isConnected.value && address.value) {
+        //console.log('0x5 address is ', account.value.isConnected, account.value.address, new Date())
+        if (account.value.isConnected && account.value.address) {
           store.state.connectedSourceChain = store.state.sourceChain
-          store.state.sourceAddress = address.value
+          store.state.sourceAddress = account.value.address
           return
         }
       }

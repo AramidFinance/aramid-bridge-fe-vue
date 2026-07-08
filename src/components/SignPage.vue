@@ -199,7 +199,7 @@ const signWithUseWallet = async () => {
       // withdraw asa from the arc200 contract and send it to the bridge address
       // if user is not opted in to the asa, opt in him
 
-      let txToSign: algosdk.Transaction[] = []
+      const txToSign: algosdk.Transaction[] = []
 
       if (!asaOptin) {
         txToSign.push(

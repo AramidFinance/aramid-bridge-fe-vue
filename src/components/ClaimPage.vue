@@ -5,11 +5,12 @@ import { getTxClaimData } from '@/scripts/aramid/getTxClaimData'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import { resetStateSoft } from '@/scripts/common/resetStateSoft'
 import { executeEthRedeemTx } from '@/scripts/eth/executeEthRedeemTx'
-import getWeb3Modal from '@/scripts/eth/getWeb3Modal'
+import getAppKit, { getAppKitNetworkByChainId } from '@/scripts/eth/getAppKit'
 import validEthTxHash from '@/scripts/eth/validEthTxHash'
 import { fillInStateFromClaimData } from '@/scripts/events/fillInStateFromClaimData'
 import { useAppStore } from '@/stores/app'
-import { useSwitchNetwork, useWeb3ModalAccount, useWeb3ModalProvider } from '@web3modal/ethers/vue'
+import { useAppKitNetwork, useAppKitProvider } from '@reown/appkit/vue'
+import type { Eip1193Provider } from 'ethers'
 import { useToast } from 'primevue/usetoast'
 import { onMounted, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -35,9 +36,9 @@ const state = reactive({
   claimErrorMessage: ''
 })
 
-const modal = getWeb3Modal()
-const { chainId } = useWeb3ModalAccount()
-const web3ModalProvider = useWeb3ModalProvider()
+const modal = getAppKit()
+const network = useAppKitNetwork()
+const appKitProvider = useAppKitProvider<Eip1193Provider>('eip155')
 
 const setIsSearching = (val: boolean) => {
   state.isSearching = val
@@ -151,29 +152,31 @@ const claimButtonClick = async () => {
   try {
     state.claiming = true
 
-    const { switchNetwork } = useSwitchNetwork()
-    if (!web3ModalProvider.walletProvider.value) {
+    if (!appKitProvider.walletProvider) {
       //console.log('modal', modal)
       await modal?.open()
     }
-    if (!web3ModalProvider.walletProvider.value) {
+    if (!appKitProvider.walletProvider) {
       throw Error(t('wallet.connectToChain', { chain: store.state.destinationChainConfiguration?.name }))
     }
 
     if (store.state.destinationChain) {
-      console.log('chainId.value ? store.state.destinationChain', chainId.value, store.state.destinationChain)
-      if (chainId.value != store.state.destinationChain) {
-        //provider.open()
-        toast.add({
-          severity: 'warn',
-          detail: t('claim.switchNetworkPrompt', { chain: store.state.destinationChainConfiguration?.name }),
-          life: 10000
-        })
-        console.log('switching network to', store.state.destinationChain)
-        state.claiming = false
-        await switchNetwork(store.state.destinationChain)
-        console.log('after switching network to', store.state.destinationChain)
-        //return
+      console.log('network.value.chainId ? store.state.destinationChain', network.value.chainId, store.state.destinationChain)
+      if (network.value.chainId != store.state.destinationChain) {
+        const targetNetwork = getAppKitNetworkByChainId(store.state.destinationChain)
+        if (targetNetwork) {
+          //provider.open()
+          toast.add({
+            severity: 'warn',
+            detail: t('claim.switchNetworkPrompt', { chain: store.state.destinationChainConfiguration?.name }),
+            life: 10000
+          })
+          console.log('switching network to', store.state.destinationChain)
+          state.claiming = false
+          await network.value.switchNetwork(targetNetwork)
+          console.log('after switching network to', store.state.destinationChain)
+          //return
+        }
       }
     }
     const releaseInfo = await executeEthRedeemTx()
@@ -330,7 +333,7 @@ const resetButtonClick = async () => {
         <MainActionButton @click="state.claiming = false">{{ t('common.cancel') }}</MainActionButton>
       </div>
       <div class="w-full" v-else-if="!state.claimed">
-        <MainActionButton v-if="chainId == store.state.destinationChain" @click="claimButtonClick">{{ t('claim.claim') }}</MainActionButton>
+        <MainActionButton v-if="network.chainId == store.state.destinationChain" @click="claimButtonClick">{{ t('claim.claim') }}</MainActionButton>
         <MainActionButton v-else-if="store.state.claimData" @click="claimButtonClick">{{ t('bridge.switchNetwork', { chain: store.state.destinationChainConfiguration?.name }) }}</MainActionButton>
         <div v-else>
           <p class="text-red-100 text-center">{{ t('claim.notReady') }}</p>

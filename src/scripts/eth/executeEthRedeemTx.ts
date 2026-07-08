@@ -1,6 +1,6 @@
 import { useAppStore } from '@/stores/app'
-import { useWeb3ModalProvider } from '@web3modal/ethers/vue'
-import { BrowserProvider, Contract } from 'ethers'
+import { useAppKitProvider } from '@reown/appkit/vue'
+import { BrowserProvider, Contract, type Eip1193Provider } from 'ethers'
 import getBridgeContractAddressAsync from '../common/getBridgeContractAddressAsync'
 import chainId2Bridge from './chainId2Bridge'
 
@@ -29,9 +29,9 @@ export const executeEthRedeemTx = async () => {
   const bridge = chainId2Bridge(store.state.destinationChain)
   console.log('bridge contract address:', bridgeContractAddress)
   console.log('bridge contract:', bridge)
-  const provider = useWeb3ModalProvider()
-  if (!provider.walletProvider.value) throw Error('provider.walletProvider.value is empty')
-  const walletProvider = new BrowserProvider(provider.walletProvider.value, store.state.destinationChain)
+  const provider = useAppKitProvider<Eip1193Provider>('eip155')
+  if (!provider.walletProvider) throw Error('provider.walletProvider is empty')
+  const walletProvider = new BrowserProvider(provider.walletProvider, store.state.destinationChain)
   const signer = await walletProvider.getSigner()
 
   const bridgeContract = new Contract(bridgeContractAddress, bridge.abi, signer)

@@ -307,7 +307,7 @@ onMounted(async () => {
   state.mounted = true
   fillInRoute()
 
-  //const modal = getWeb3Modal()
+  //const modal = getAppKit()
   //console.log('modal', modal)
 
   if (store.state.memo == 'aramid') store.state.memo = ''

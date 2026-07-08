@@ -1,6 +1,6 @@
 import getBridgeContractAddressAsync from '../common/getBridgeContractAddressAsync'
-import { BrowserProvider, Contract } from 'ethers'
-import { useWeb3ModalProvider } from '@web3modal/ethers/vue'
+import { BrowserProvider, Contract, type Eip1193Provider } from 'ethers'
+import { useAppKitProvider } from '@reown/appkit/vue'
 import { useAppStore } from '@/stores/app'
 import ERC20Abi from '../interface/eth/ERC20Abi'
 
@@ -15,9 +15,9 @@ export const executeEthApproveTx = async () => {
   const bridgeContractAddress = await getBridgeContractAddressAsync(store.state.sourceChain)
   if (!bridgeContractAddress) throw Error('Destination chain escrow address not found')
   console.log('bridge contract address:', bridgeContractAddress)
-  const provider = useWeb3ModalProvider()
-  if (!provider.walletProvider.value) throw Error('provider.walletProvider.value is empty')
-  const walletProvider = new BrowserProvider(provider.walletProvider.value, store.state.sourceChain)
+  const provider = useAppKitProvider<Eip1193Provider>('eip155')
+  if (!provider.walletProvider) throw Error('provider.walletProvider is empty')
+  const walletProvider = new BrowserProvider(provider.walletProvider, store.state.sourceChain)
   const signer = await walletProvider.getSigner()
 
   const contract = new Contract(store.state.sourceToken, ERC20Abi, signer)

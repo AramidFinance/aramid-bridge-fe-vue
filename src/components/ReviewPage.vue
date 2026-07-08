@@ -4,9 +4,10 @@ import loader from '@/assets/images/loading-buffering.gif'
 import { executeEthApproveTx } from '@/scripts/eth/executeEthApproveTx'
 import { executeEthLockNativeTx } from '@/scripts/eth/executeEthLockNativeTx'
 import { executeEthLockTokensTx } from '@/scripts/eth/executeEthLockTokensTx'
-import getWeb3Modal from '@/scripts/eth/getWeb3Modal'
+import getAppKit, { getAppKitNetworkByChainId } from '@/scripts/eth/getAppKit'
 import { useAppStore } from '@/stores/app'
-import { useSwitchNetwork, useWeb3ModalAccount, useWeb3ModalProvider } from '@web3modal/ethers/vue'
+import { useAppKitNetwork, useAppKitProvider } from '@reown/appkit/vue'
+import type { Eip1193Provider } from 'ethers'
 import base64url from 'base64url'
 import { useToast } from 'primevue/usetoast'
 import { onMounted, reactive, watch } from 'vue'
@@ -35,10 +36,9 @@ const state = reactive({
   signHash: ''
 })
 
-const modal = getWeb3Modal()
-const { chainId } = useWeb3ModalAccount()
-const web3ModalProvider = useWeb3ModalProvider()
-const { switchNetwork } = useSwitchNetwork()
+const modal = getAppKit()
+const network = useAppKitNetwork()
+const appKitProvider = useAppKitProvider<Eip1193Provider>('eip155')
 
 const getSourceChainImageUrl = () => {
   const ret = new URL(`../assets/logos/chains/${store.state.sourceChainConfiguration?.logo}.png`, import.meta.url)
@@ -94,27 +94,30 @@ const signButtonClick = async () => {
 }
 const switchNetworkClick = async () => {
   try {
-    if (!web3ModalProvider.walletProvider.value) {
+    if (!appKitProvider.walletProvider) {
       //console.log('modal', modal)
       await modal?.open()
     }
-    if (!web3ModalProvider.walletProvider.value) {
+    if (!appKitProvider.walletProvider) {
       throw Error(`Please connect ${store.state.sourceChainConfiguration?.name} in your wallet`)
     }
 
     if (store.state.sourceChain) {
-      //console.log('chainId.value ? store.state.sourceChain', chainId.value, store.state.sourceChain)
-      if (chainId.value != store.state.sourceChain) {
-        //provider.open()
-        toast.add({
-          severity: 'warn',
-          detail: `Please switch to ${store.state.sourceChainConfiguration?.name} in your wallet`,
-          life: 10000
-        })
-        state.switchingNetwork = true
-        await switchNetwork(store.state.sourceChain)
+      //console.log('network.value.chainId ? store.state.sourceChain', network.value.chainId, store.state.sourceChain)
+      if (network.value.chainId != store.state.sourceChain) {
+        const targetNetwork = getAppKitNetworkByChainId(store.state.sourceChain)
+        if (targetNetwork) {
+          //provider.open()
+          toast.add({
+            severity: 'warn',
+            detail: `Please switch to ${store.state.sourceChainConfiguration?.name} in your wallet`,
+            life: 10000
+          })
+          state.switchingNetwork = true
+          await network.value.switchNetwork(targetNetwork)
 
-        state.switchingNetwork = false
+          state.switchingNetwork = false
+        }
       }
     }
   } catch (e: any) {
@@ -131,11 +134,11 @@ const approveButtonClick = async () => {
   try {
     if (!store.state.sourceChainConfiguration) throw Error('store.state.sourceChainConfiguration is missing')
     state.inApproval = true
-    if (!web3ModalProvider.walletProvider.value) {
+    if (!appKitProvider.walletProvider) {
       //console.log('modal', modal)
       await modal?.open({ view: 'Account' })
     }
-    if (!web3ModalProvider.walletProvider.value) {
+    if (!appKitProvider.walletProvider) {
       throw Error(`Please connect ${store.state.sourceChainConfiguration?.name} in your wallet`)
     }
 
@@ -250,9 +253,9 @@ const payNativeButtonClick = async () => {
   }
 }
 watch(
-  () => chainId,
+  () => network.value.chainId,
   () => {
-    if (chainId.value == store.state.sourceChain) {
+    if (network.value.chainId == store.state.sourceChain) {
       state.switchingNetwork = false
     }
   }
@@ -432,7 +435,7 @@ watch(
     </div>
     <div v-if="state.switchingNetwork"><img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> {{ t('wallet.checkWalletSwitch') }}</div>
     <div v-if="store.state.sourceChainConfiguration?.type == 'eth'" class="w-full">
-      <MainActionButton v-if="chainId != store.state.sourceChain" @click="switchNetworkClick">{{ t('bridge.switchNetwork', { chain: store.state.sourceChainConfiguration?.name }) }}</MainActionButton>
+      <MainActionButton v-if="network.chainId != store.state.sourceChain" @click="switchNetworkClick">{{ t('bridge.switchNetwork', { chain: store.state.sourceChainConfiguration?.name }) }}</MainActionButton>
       <div v-else-if="store.state.sourceToken == '0x0000000000000000000000000000000000000000'">
         <MainActionButton @click="payNativeButtonClick"> {{ t('bridge.bridgeNativeToken') }} </MainActionButton>
       </div>

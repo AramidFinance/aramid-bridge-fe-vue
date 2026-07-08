@@ -215,7 +215,7 @@ const bridgeArc200ToAsa = async () => {
     })
     const sourceAmount = BigInt(store.state.arc200BridgeAmount)
     const contractAddress = algosdk.getApplicationAddress(Number(arc200TokenId)).toString()
-    let txToSign: algosdk.Transaction[] = []
+    const txToSign: algosdk.Transaction[] = []
 
     const asaOptin = await getAlgoAcountTokenOptin(store.state.arc200BridgeChain, store.state.arc200BridgeAddress, Number(tokenIdASA))
 
@@ -358,7 +358,7 @@ const bridgeAsaToArc200 = async () => {
     // get asset balance
     if (!store.state.arc200BridgeAddress) throw Error(t('sign.destinationAddressMissing'))
     const destinationAddress = store.state.arc200BridgeAddress
-    let destinationAmount = BigInt(store.state.arc200BridgeAmount)
+    const destinationAmount = BigInt(store.state.arc200BridgeAmount)
     const exchangeInfo: Arc200ExchangeInfo | undefined = await getExchangeInfo('arc200Bridge')
     // at this point we received ASA on our destination address. now we can swap asa to arc200.
     // when token is excchangeable, we use arc200_exchange arc200_redeem otherwise we use wnnt200 deposit
@@ -380,7 +380,7 @@ const bridgeAsaToArc200 = async () => {
     })
 
     const contractAddress = algosdk.getApplicationAddress(Number(arc200TokenId))
-    let txToSign: algosdk.Transaction[] = []
+    const txToSign: algosdk.Transaction[] = []
 
     if (!exchangeInfo?.sink) {
       // wnnt200 protocol requires to create box first if it does not exists

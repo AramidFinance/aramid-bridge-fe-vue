@@ -1,5 +1,5 @@
 import { useAppStore } from '@/stores/app'
-import getWeb3Modal from './getWeb3Modal'
+import getAppKit from './getAppKit'
 import { executeEthRedeemTx } from './executeEthRedeemTx'
 
 export const redeemEthTokens = async () => {
@@ -11,7 +11,7 @@ export const redeemEthTokens = async () => {
   //     throw Error(`Please Switch the chain to ${store.state.destinationChainConfiguration.name} network in your connected wallet`)
   //   }
 
-  const provider = getWeb3Modal()
+  const provider = getAppKit()
   if (!provider) throw Error('Please connect to your wallet')
 
   if (!store.state.claimData) throw Error('Claim failed to load')
