@@ -14,6 +14,22 @@ import Aura from '@/presets/lara' //import preset
 import ToastService from 'primevue/toastservice'
 import Tooltip from 'primevue/tooltip'
 import './assets/base.css'
+
+// Guards against a corrupted persisted WalletConnect session (leftover from a stale/mismatched
+// domain registration) crashing the whole app during provider init. Reload once to force a
+// clean re-init instead of leaving the page in a broken state.
+window.addEventListener('unhandledrejection', (event) => {
+  const message = event.reason instanceof Error ? event.reason.message : String(event.reason)
+  if (message.includes("Cannot read properties of undefined (reading 'filter')") && !sessionStorage.getItem('wc-session-recovery')) {
+    sessionStorage.setItem('wc-session-recovery', '1')
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith('wc@') || key.toLowerCase().includes('walletconnect'))
+      .forEach((key) => localStorage.removeItem(key))
+    indexedDB.deleteDatabase('WALLET_CONNECT_V2_INDEXED_DB')
+    location.reload()
+  }
+})
+
 const app = createApp(App)
 
 app.use(createPinia())
@@ -67,8 +83,8 @@ app.use(WalletManagerPlugin, {
         metadata: {
           name: 'Aramid Finance Dapp',
           description: 'Aramid Finance Bridge between Algorand, Voi, Near, Ethereum, Polygon and Aurora',
-          url: 'https://aramid.finance',
-          icons: ['https://beta.k8s.aramid.finance/aramid-logo.svg']
+          url: 'https://' + location.host,
+          icons: ['https://' + location.host + '/aramid-logo.svg']
         }
       }
     },
@@ -79,8 +95,8 @@ app.use(WalletManagerPlugin, {
         metadata: {
           name: 'Aramid Finance Dapp',
           description: 'Aramid Finance Bridge between Algorand, Voi, Near, Ethereum, Polygon and Aurora',
-          url: 'https://aramid.finance',
-          icons: ['https://beta.k8s.aramid.finance/aramid-logo.svg']
+          url: 'https://' + location.host,
+          icons: ['https://' + location.host + '/aramid-logo.svg']
         }
       }
     }
@@ -104,8 +120,8 @@ app.use(AVMWalletManagerPlugin, {
         metadata: {
           name: 'Aramid Finance Dapp',
           description: 'Aramid Finance Bridge between Algorand, Voi, Near, Ethereum, Polygon and Aurora',
-          url: 'https://aramid.finance',
-          icons: ['https://beta.k8s.aramid.finance/aramid-logo.svg']
+          url: 'https://' + location.host,
+          icons: ['https://' + location.host + '/aramid-logo.svg']
         }
       }
     },
@@ -116,8 +132,8 @@ app.use(AVMWalletManagerPlugin, {
         metadata: {
           name: 'Aramid Finance Dapp',
           description: 'Aramid Finance Bridge between Algorand, Voi, Near, Ethereum, Polygon and Aurora',
-          url: 'https://aramid.finance',
-          icons: ['https://beta.k8s.aramid.finance/aramid-logo.svg']
+          url: 'https://' + location.host,
+          icons: ['https://' + location.host + '/aramid-logo.svg']
         }
       }
     }
