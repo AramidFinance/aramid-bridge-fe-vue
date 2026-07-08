@@ -78,5 +78,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add k8s/deployment-beta.yaml
-          git diff --staged --quiet || git commit -m "ci: update beta image to ${{ needs.build.outputs.version }}"
-          git push
+          git diff --staged --quiet && exit 0
+          git commit -m "ci: update beta image to ${{ needs.build.outputs.version }}"
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin main && git push && exit 0
+            echo "Push attempt $i failed, retrying..."
+            sleep $((RANDOM % 5 + 1))
+          done
+          exit 1
