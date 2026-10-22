@@ -1,4 +1,4 @@
-FROM node:24 AS build
+FROM node:24.22.1 AS build
 WORKDIR /src
 RUN apt update && apt dist-upgrade -y && apt-get autoremove --yes && rm -rf /var/lib/{apt,dpkg,cache,log}/
 RUN corepack enable && corepack prepare pnpm@10.13.1 --activate
