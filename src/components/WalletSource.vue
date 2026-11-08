@@ -24,12 +24,39 @@ import WalletAddress from './ui/WalletAddress.vue'
 
 const { t } = useI18n()
 const wallet = useWallet()
-const { activeWallet, activeAccount } = wallet
+const { activeWallet, activeAccount, isReady } = wallet
 
 const network = useNetwork()
 
 const toast = useToast()
 const store = useAppStore()
+
+const switchNetwork = (networkId: string) => {
+  network.setActiveNetwork(networkId).catch((e: any) => {
+    console.error(e)
+    toast.add({
+      severity: 'error',
+      detail: e.message ?? e,
+      life: 3000
+    })
+  })
+}
+
+// use-wallet v5 disconnects wallets that do not support the newly active network (e.g. Pera on Voi),
+// so drop the app-level connection whenever the use-wallet session is gone.
+const clearIfUseWalletDisconnected = () => {
+  if (
+    isReady.value &&
+    !activeWallet.value &&
+    store.state.sourceChainConfiguration?.type == 'algo' &&
+    store.state.sourceAlgoConnectorType === AlgoConnectorType.UseWallet &&
+    store.state.sourceAddress
+  ) {
+    store.state.connectedSourceChain = undefined
+    store.state.sourceAddress = ''
+  }
+}
+watch([isReady, activeWallet], clearIfUseWalletDisconnected)
 
 interface IState {
   connected: boolean
@@ -131,6 +158,7 @@ onMounted(async () => {
     store.state.sourceAlgoConnectorType = AlgoConnectorType.UseWallet
     store.state.connectedSourceChain = store.state.sourceChain
   }
+  clearIfUseWalletDisconnected()
   if (store.state.sourceAddress) {
     onSourceAddressChange()
   }
@@ -159,16 +187,16 @@ watch(
       //console.log('setActiveNetwork', store.state.sourceChainConfiguration.name)
       switch (store.state.sourceChainConfiguration.name) {
         case 'Algorand':
-          network.setActiveNetwork(NetworkId.MAINNET)
+          switchNetwork(NetworkId.MAINNET)
           break
         case 'Testnet':
-          network.setActiveNetwork(NetworkId.TESTNET)
+          switchNetwork(NetworkId.TESTNET)
           break
         case 'AramidChain':
-          network.setActiveNetwork('aramidmain')
+          switchNetwork('aramidmain')
           break
         case 'Voi':
-          network.setActiveNetwork('voimain')
+          switchNetwork('voimain')
           break
       }
     }

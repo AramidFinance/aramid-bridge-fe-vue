@@ -37,6 +37,14 @@ window.addEventListener('unhandledrejection', (event) => {
   }
 })
 
+// use-wallet v5 persists under '@txnlab/use-wallet:v5' and does not migrate v4 sessions, so drop the
+// orphaned v4 state (avm-wallet-vue uses its own 'avm-wallet:v4' key and is unaffected).
+try {
+  localStorage.removeItem('@txnlab/use-wallet:v4')
+} catch {
+  // storage unavailable (e.g. blocked site data)
+}
+
 const app = createApp(App)
 
 app.use(createPinia())
@@ -87,7 +95,9 @@ app.use(WalletManagerPlugin, {
     })
   ],
   defaultNetwork: NetworkId.MAINNET,
-  networks
+  networks,
+  // v4 restored the last active network by default; v5 needs this opt-in.
+  options: { persistNetwork: true }
 })
 
 // Destination wallet: avm-wallet-vue (separate manager with its own injection keys).

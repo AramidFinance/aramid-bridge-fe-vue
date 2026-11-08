@@ -145,7 +145,7 @@ const signWithUseWallet = async () => {
     if (!store.state.sourceToken) return
     if (!store.state.sourceAddress) return
     if (!store.state.sourceTxNote) return
-    if (!activeWallet) throw Error(t('sign.useWalletNotInitialized'))
+    if (!activeWallet.value) throw Error(t('sign.useWalletNotInitialized'))
 
     const algodClient = await getAlgodClientByChainId(store.state.sourceChain)
     if (!algodClient) throw Error(t('sign.algodClientNotInitialized'))
