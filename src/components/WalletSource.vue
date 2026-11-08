@@ -28,7 +28,7 @@ const toast = useToast()
 const store = useAppStore()
 
 const slot = sourceWalletSlot(store)
-const { sync, disconnect } = useWalletSync(slot)
+const { disconnect } = useWalletSync(slot)
 
 interface IState {
   connected: boolean
@@ -128,8 +128,6 @@ const onSourceAddressChange = async () => {
 }
 
 onMounted(async () => {
-  // the use-wallet manager is shared with other pages, which may have switched its network
-  await sync()
   state.publicConfiguration = await getPublicConfiguration(false)
   fillInState()
   if (store.state.sourceAddress) {
@@ -137,15 +135,9 @@ onMounted(async () => {
   }
 })
 
+// one watcher, so that changing several of these at once (e.g. a wallet sync) makes one balance request
 watch(
-  () => store.state.sourceChain,
-  async () => {
-    fillInState()
-    await onSourceAddressChange()
-  }
-)
-watch(
-  () => store.state.sourceAddress,
+  () => [store.state.sourceChain, store.state.sourceAddress, store.state.connectedSourceChain],
   async () => {
     fillInState()
     await onSourceAddressChange()
@@ -156,17 +148,9 @@ watch(
   () => store.state.sourceChainConfiguration,
   () => {
     fillInState()
-    sync()
   }
 )
 
-watch(
-  () => store.state.connectedSourceChain,
-  async () => {
-    fillInState()
-    await onSourceAddressChange()
-  }
-)
 watch(
   () => store.state.sourceToken,
   async () => {

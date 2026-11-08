@@ -24,7 +24,7 @@ const toast = useToast()
 const store = useAppStore()
 
 const slot = arc200BridgeWalletSlot(store)
-const { sync, disconnect } = useWalletSync(slot)
+const { disconnect } = useWalletSync(slot)
 
 interface IState {
   connected: boolean
@@ -50,8 +50,6 @@ const fillInState = () => {
 }
 
 onMounted(async () => {
-  // the use-wallet manager is shared with other pages, which may have switched its network
-  await sync()
   state.publicConfiguration = await getPublicConfiguration(false)
   fillInState()
 })
@@ -73,7 +71,6 @@ watch(
   () => store.state.arc200BridgeChainConfiguration,
   () => {
     fillInState()
-    sync()
   }
 )
 

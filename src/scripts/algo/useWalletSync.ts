@@ -112,27 +112,25 @@ export const useWalletSync = (slot: UseWalletSlot) => {
     }
   }
 
-  /**
-   * Aligns the manager's network with the slot's chain, then the slot with the manager. Call on mount
-   * and whenever the slot's chain changes; it also runs once the manager has resumed its sessions.
-   */
+  /** Aligns the manager's network with the slot's chain, then the slot with the manager. */
   const sync = async () => {
     if (await syncNetwork()) syncFromManager()
   }
-  watch(isReady, sync)
+  // the manager is shared with other pages, which may have switched its network: align on setup,
+  // whenever the slot's chain changes and once the manager has resumed its sessions
+  watch([isReady, () => slot.chainConfiguration()], sync, { immediate: true })
 
   /**
-   * Disconnects the slot. A use-wallet slot ends the manager session first and stays bound if that
-   * fails, so a later sync() does not silently re-adopt the still-active session.
+   * Disconnects the slot and, for a use-wallet slot, the manager session. The slot is cleared even if
+   * ending the session fails, so the user is never stuck with it; a session that is in fact still
+   * active is shown again by the next sync().
    */
   const disconnect = async () => {
-    if (slot.connectorType() !== AlgoConnectorType.UseWallet) {
-      slot.disconnect()
-      return
-    }
+    const usesWallet = slot.connectorType() === AlgoConnectorType.UseWallet
+    slot.disconnect()
+    if (!usesWallet) return
     try {
       await activeWallet.value?.disconnect()
-      slot.disconnect()
     } catch (e: any) {
       console.error(e)
       toast.add({

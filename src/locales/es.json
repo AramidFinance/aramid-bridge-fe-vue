@@ -240,6 +240,7 @@
     "pleaseWait": "Espera mientras procesamos tu transacción.",
     "useWalletNotInitialized": "El conector UseWallet no está correctamente inicializado.",
     "useWalletAddressMismatch": "La cuenta activa de la billetera no coincide con la dirección de origen. Vuelva a conectar la billetera de origen.",
+    "useWalletSubmitUncertain": "El envío de la transacción falló, pero es posible que se haya aceptado. Revise el historial de su billetera antes de iniciar una nueva transferencia.",
     "algodClientNotInitialized": "El cliente Algod no está inicializado.",
     "destinationChainMissing": "La blockchain de destino no está configurada.",
     "destinationAddressMissing": "La dirección de destino no está configurada.",

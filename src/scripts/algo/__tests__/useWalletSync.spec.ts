@@ -62,6 +62,8 @@ const setup = (store: ReturnType<typeof makeStore>) => {
   scope = effectScope()
   return scope.run(() => useWalletSync(sourceWalletSlot(store as any)))!
 }
+/** Lets the sync() started on setup (immediate watcher) finish. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
 const useActiveWallet = (wallet: ReturnType<typeof makeWallet> | null, address: string | null, available = true) => {
   manager.activeWallet.value = wallet
   manager.activeAddress.value = address
@@ -131,7 +133,7 @@ describe('useWalletSync.sync', () => {
   it('does not adopt when switching the network fails', async () => {
     const store = makeStore(416101)
     useActiveWallet(makeWallet('biatec'), ADDR_A)
-    manager.setActiveNetwork.mockRejectedValueOnce(new Error('boom'))
+    manager.setActiveNetwork.mockRejectedValue(new Error('boom'))
     await setup(store).sync()
     expect(store.state.sourceAddress).toBe('')
     expect(toast.add).toHaveBeenCalled()
@@ -192,27 +194,45 @@ describe('useWalletSync active address watcher', () => {
   it('ignores changes of a wallet the slot was not taken from', async () => {
     const store = makeStore(416001)
     useActiveWallet(makeWallet('pera'), ADDR_A)
-    bind(store, 'QRADDRESS')
+    bind(store, ADDR_A)
     setup(store)
+    await settle()
+    store.state.sourceAddress = 'OTHER'
     manager.activeAddress.value = ADDR_B
     await nextTick()
-    expect(store.state.sourceAddress).toBe('QRADDRESS')
+    expect(store.state.sourceAddress).toBe('OTHER')
+  })
+
+  it('aligns the network when the slot chain changes', async () => {
+    const store = makeStore(416001)
+    setup(store)
+    await vi.waitFor(() => expect(manager.activeNetwork.value).toBe('mainnet'))
+    store.state.sourceChainConfiguration = chain(101003)
+    await vi.waitFor(() => expect(manager.setActiveNetwork).toHaveBeenLastCalledWith('aramidmain'))
   })
 })
 
 describe('useWalletSync.disconnect', () => {
   it('ends the use-wallet session and clears the slot', async () => {
     const store = makeStore(416001)
-    const wallet = makeWallet('pera')
+    const wallet = makeWallet(
+      'pera',
+      vi.fn(async () => {
+        useActiveWallet(null, null)
+      })
+    )
     useActiveWallet(wallet, ADDR_A)
     store.state.sourceAddress = ADDR_A
     store.state.sourceAlgoConnectorType = AlgoConnectorType.UseWallet
-    await setup(store).disconnect()
+    const { disconnect } = setup(store)
+    await settle()
+    await disconnect()
+    await settle()
     expect(wallet.disconnect).toHaveBeenCalled()
     expect(store.state.sourceAddress).toBe('')
   })
 
-  it('keeps the slot bound when the session cannot be ended', async () => {
+  it('clears the slot even when the session cannot be ended', async () => {
     const store = makeStore(416001)
     const wallet = makeWallet(
       'pera',
@@ -223,8 +243,11 @@ describe('useWalletSync.disconnect', () => {
     useActiveWallet(wallet, ADDR_A)
     store.state.sourceAddress = ADDR_A
     store.state.sourceAlgoConnectorType = AlgoConnectorType.UseWallet
-    await setup(store).disconnect()
-    expect(store.state.sourceAddress).toBe(ADDR_A)
+    const { disconnect } = setup(store)
+    await settle()
+    await disconnect()
+    expect(wallet.disconnect).toHaveBeenCalled()
+    expect(store.state.sourceAddress).toBe('')
     expect(toast.add).toHaveBeenCalled()
   })
 
@@ -234,7 +257,11 @@ describe('useWalletSync.disconnect', () => {
     useActiveWallet(wallet, ADDR_A)
     store.state.sourceAddress = 'QRADDRESS'
     store.state.sourceAlgoConnectorType = AlgoConnectorType.QRCode
-    await setup(store).disconnect()
+    const { disconnect } = setup(store)
+    await settle()
+    store.state.sourceAddress = 'QRADDRESS' // mount adopts the active account (pre-existing behaviour)
+    store.state.sourceAlgoConnectorType = AlgoConnectorType.QRCode
+    await disconnect()
     expect(wallet.disconnect).not.toHaveBeenCalled()
     expect(store.state.sourceAddress).toBe('')
   })

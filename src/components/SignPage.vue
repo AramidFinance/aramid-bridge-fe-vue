@@ -142,10 +142,13 @@ onMounted(async () => {
 const dummyTransactionSigner = async (_txnGroup: algosdk.Transaction[], _indexesToSign: number[]): Promise<Uint8Array[]> => {
   return [] as Uint8Array[]
 }
-// set when the automatic use-wallet signing failed, so the user can retry
+// set when use-wallet signing did not complete before anything was sent, so the user can retry
 const useWalletSignFailed = ref(false)
+// set when sending a signed transaction failed: it may still have been accepted, so never offer a retry
+const useWalletSubmitUncertain = ref(false)
 const signWithUseWallet = async () => {
   useWalletSignFailed.value = false
+  let submitted = false
   try {
     if (!store.state.sourceChain) return
     if (!store.state.sourceToken) return
@@ -322,18 +325,23 @@ const signWithUseWallet = async () => {
       // res.txId is the txId of the first transaction in the signed array
       // algosdk.decodeSignedTransaction(signed.pop()).txn.txID() is the txId of the last transaction in the signed array
       console.log('Signed txns', signed)
+      submitted = true
       await algodClient.sendRawTransaction(signed).do()
       const tx = algosdk.decodeSignedTransaction(signed.pop()).txn.txID()
       store.state.bridgeTx = tx
     }
   } catch (e: any) {
-    useWalletSignFailed.value = true
     console.error(e)
     toast.add({
       severity: 'error',
       detail: e.message ?? e,
       life: 3000
     })
+  } finally {
+    if (!store.state.bridgeTx) {
+      if (submitted) useWalletSubmitUncertain.value = true
+      else useWalletSignFailed.value = true
+    }
   }
 }
 
@@ -428,6 +436,7 @@ const claimButtonClick = async () => {
       </div>
       <div v-if="store.state.sourceAlgoConnectorType == AlgoConnectorType.UseWallet" class="text-center font-bold m-4">
         <MainActionButton v-if="useWalletSignFailed" @click="signWithUseWallet">{{ t('common.tryAgain') }}</MainActionButton>
+        <p v-else-if="useWalletSubmitUncertain">{{ t('sign.useWalletSubmitUncertain') }}</p>
         <p v-else>
           <img :src="loader" alt="Loading" height="18" width="18" class="inline-block" />
           {{ t('sign.signInWallet', { wallet: activeWallet?.metadata?.name || '' }) }}
