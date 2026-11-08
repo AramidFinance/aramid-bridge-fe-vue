@@ -11,7 +11,7 @@ import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
 import { useWalletSync } from '@/scripts/algo/useWalletSync'
-import { useWallet } from '@txnlab/use-wallet-vue'
+import { arc200BridgeWalletSlot } from '@/scripts/algo/walletSlots'
 import { useAppKitAccount, useAppKitNetwork, useDisconnect } from '@reown/appkit/vue'
 import { useToast } from 'primevue/usetoast'
 import { onMounted, reactive, watch } from 'vue'
@@ -20,31 +20,11 @@ import RoundButton from './ui/RoundButton.vue'
 import WalletAddress from './ui/WalletAddress.vue'
 
 const { t } = useI18n()
-const wallet = useWallet()
-const { activeWallet } = wallet
-
 const toast = useToast()
 const store = useAppStore()
 
-const clearSlot = () => {
-  store.state.connectedArc200BridgeChain = undefined
-  store.state.arc200BridgeAddress = ''
-}
-
-const { syncFromManager, syncNetwork } = useWalletSync({
-  chainConfiguration: () => store.state.arc200BridgeChainConfiguration,
-  connectorType: () => store.state.arc200BridgeAlgoConnectorType,
-  address: () => store.state.arc200BridgeAddress,
-  connect: (address) => {
-    store.state.arc200BridgeAddress = address
-    store.state.arc200BridgeAlgoConnectorType = AlgoConnectorType.UseWallet
-    store.state.connectedArc200BridgeChain = store.state.arc200BridgeChain
-  },
-  setAddress: (address) => {
-    store.state.arc200BridgeAddress = address
-  },
-  disconnect: clearSlot
-})
+const slot = arc200BridgeWalletSlot(store)
+const { activeWallet, sync } = useWalletSync(slot)
 
 interface IState {
   connected: boolean
@@ -71,10 +51,9 @@ const fillInState = () => {
 
 onMounted(async () => {
   // the use-wallet manager is shared with other pages, which may have switched its network
-  const networkSynced = await syncNetwork()
+  await sync()
   state.publicConfiguration = await getPublicConfiguration(false)
   fillInState()
-  if (networkSynced) syncFromManager()
 })
 
 watch(
@@ -94,7 +73,7 @@ watch(
   () => store.state.arc200BridgeChainConfiguration,
   () => {
     fillInState()
-    syncNetwork()
+    sync()
   }
 )
 
@@ -110,10 +89,10 @@ const buttonClick = async () => {
       // disconnect
       switch (store.state.arc200BridgeAlgoConnectorType) {
         case AlgoConnectorType.QRCode:
-          clearSlot()
+          slot.disconnect()
           break
         case AlgoConnectorType.UseWallet:
-          clearSlot()
+          slot.disconnect()
           try {
             await activeWallet.value?.disconnect()
           } catch (e: any) {
@@ -137,8 +116,7 @@ const buttonClick = async () => {
       const { disconnect } = useDisconnect()
       disconnect()
 
-      store.state.connectedArc200BridgeChain = undefined
-      store.state.arc200BridgeAddress = ''
+      slot.disconnect()
     } else {
       const modal = getAppKit()
       const account = useAppKitAccount()

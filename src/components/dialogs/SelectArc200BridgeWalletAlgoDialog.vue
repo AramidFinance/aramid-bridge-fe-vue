@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { isWalletForChain } from '@/scripts/algo/isWalletForChain'
+import { arc200BridgeWalletSlot } from '@/scripts/algo/walletSlots'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
-import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
@@ -20,9 +20,7 @@ const walletButtonClick = async (wallet: Wallet) => {
   await wallet.connect()
   console.log('source.wallet2', wallet, activeWallet.value, activeAccount.value)
   if (activeAccount.value?.address) {
-    store.state.arc200BridgeAddress = activeAccount.value?.address
-    store.state.arc200BridgeAlgoConnectorType = AlgoConnectorType.UseWallet
-    store.state.connectedArc200BridgeChain = store.state.arc200BridgeChain
+    arc200BridgeWalletSlot(store).connect(activeAccount.value.address)
   }
   // else {
   //   if (wallet.accounts.length > 0) {

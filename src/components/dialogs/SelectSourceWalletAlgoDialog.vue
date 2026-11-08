@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { isWalletForChain } from '@/scripts/algo/isWalletForChain'
+import { sourceWalletSlot } from '@/scripts/algo/walletSlots'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
@@ -24,9 +25,7 @@ const walletButtonClick = async (wallet: Wallet) => {
   await wallet.connect()
   console.log('source.wallet2', wallet, activeWallet.value, activeAccount.value)
   if (activeAccount.value?.address) {
-    store.state.sourceAddress = activeAccount.value?.address
-    store.state.sourceAlgoConnectorType = AlgoConnectorType.UseWallet
-    store.state.connectedSourceChain = store.state.sourceChain
+    sourceWalletSlot(store).connect(activeAccount.value.address)
   }
   // else {
   //   if (wallet.accounts.length > 0) {

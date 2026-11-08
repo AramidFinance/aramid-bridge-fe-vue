@@ -1,3 +1,4 @@
+import { isWalletForChain } from '@/scripts/algo/isWalletForChain'
 import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import { NetworkId, useNetwork, useWallet } from '@txnlab/use-wallet-vue'
@@ -39,14 +40,18 @@ export const useWalletSync = (slot: UseWalletSlot) => {
 
   /** Once the manager is ready: adopt its active account, or drop the slot if that session is gone. */
   const syncFromManager = () => {
-    if (!isReady.value || slot.chainConfiguration()?.type != 'algo') return
+    const chain = slot.chainConfiguration()
+    if (!isReady.value || chain?.type != 'algo') return
     const wallet = activeWallet.value
-    // a wallet that does not support the active network is being disconnected by use-wallet v5
-    const usable = !!wallet && availableWallets.value.some((w) => w.walletKey === wallet.walletKey)
+    const usable =
+      !!wallet &&
+      // the app's own wallet/chain matrix (what the picker offers for this chain)
+      isWalletForChain(wallet.id, chain.chainId) &&
+      // a wallet that does not support the active network is being disconnected by use-wallet v5
+      availableWallets.value.some((w) => w.walletKey === wallet.walletKey)
     if (usable && activeAddress.value) slot.connect(activeAddress.value)
     else if (isBoundToUseWallet()) slot.disconnect()
   }
-  watch(isReady, syncFromManager)
 
   // Follow the wallet the slot was taken from: disconnected -> clear, account switched -> new address.
   watch(activeAddress, (current, previous) => {
@@ -75,5 +80,14 @@ export const useWalletSync = (slot: UseWalletSlot) => {
     }
   }
 
-  return { syncFromManager, syncNetwork }
+  /**
+   * Aligns the manager's network with the slot's chain, then the slot with the manager. Call on mount
+   * and whenever the slot's chain changes; it also runs once the manager has resumed its sessions.
+   */
+  const sync = async () => {
+    if (await syncNetwork()) syncFromManager()
+  }
+  watch(isReady, sync)
+
+  return { activeWallet, sync }
 }
