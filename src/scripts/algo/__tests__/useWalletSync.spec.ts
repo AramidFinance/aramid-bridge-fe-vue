@@ -1,0 +1,253 @@
+import { getUseWalletNetworkId, useWalletSync } from '@/scripts/algo/useWalletSync'
+import { arc200BridgeWalletSlot, sourceWalletSlot } from '@/scripts/algo/walletSlots'
+import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
+import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
+import * as useWalletVue from '@txnlab/use-wallet-vue'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { effectScope, nextTick, reactive, type EffectScope } from 'vue'
+
+const toast = vi.hoisted(() => ({ add: vi.fn() }))
+vi.mock('primevue/usetoast', () => ({ useToast: () => toast }))
+
+vi.mock('@txnlab/use-wallet-vue', async () => {
+  const { ref } = await import('vue')
+  const mock = {
+    activeAddress: ref<string | null>(null),
+    activeWallet: ref<any>(null),
+    availableWallets: ref<any[]>([]),
+    isReady: ref(true),
+    activeNetwork: ref('mainnet'),
+    setActiveNetwork: vi.fn()
+  }
+  return {
+    NetworkId: { MAINNET: 'mainnet', TESTNET: 'testnet' },
+    useWallet: () => ({ activeAddress: mock.activeAddress, activeWallet: mock.activeWallet, availableWallets: mock.availableWallets, isReady: mock.isReady }),
+    useNetwork: () => ({ activeNetwork: mock.activeNetwork, setActiveNetwork: mock.setActiveNetwork }),
+    __mock: mock
+  }
+})
+const manager = (useWalletVue as any).__mock as {
+  activeAddress: { value: string | null }
+  activeWallet: { value: any }
+  availableWallets: { value: any[] }
+  isReady: { value: boolean }
+  activeNetwork: { value: string }
+  setActiveNetwork: ReturnType<typeof vi.fn>
+}
+
+const chain = (chainId: number, type = 'algo') => ({ chainId, type, name: String(chainId) }) as unknown as ChainItem
+const makeWallet = (id: string, disconnect = vi.fn(async () => undefined)) => ({ id, walletKey: id, disconnect })
+
+const ADDR_A = 'AAAA'
+const ADDR_B = 'BBBB'
+
+const makeStore = (sourceChain: number) =>
+  reactive({
+    state: {
+      sourceChain,
+      sourceChainConfiguration: chain(sourceChain),
+      sourceAlgoConnectorType: undefined as AlgoConnectorType | undefined,
+      sourceAddress: '',
+      connectedSourceChain: undefined as number | undefined,
+      arc200BridgeChain: sourceChain,
+      arc200BridgeChainConfiguration: chain(sourceChain),
+      arc200BridgeAlgoConnectorType: undefined as AlgoConnectorType | undefined,
+      arc200BridgeAddress: '',
+      connectedArc200BridgeChain: undefined as number | undefined
+    }
+  })
+
+let scope: EffectScope
+const setup = (store: ReturnType<typeof makeStore>) => {
+  scope = effectScope()
+  return scope.run(() => useWalletSync(sourceWalletSlot(store as any)))!
+}
+const useActiveWallet = (wallet: ReturnType<typeof makeWallet> | null, address: string | null, available = true) => {
+  manager.activeWallet.value = wallet
+  manager.activeAddress.value = address
+  manager.availableWallets.value = wallet && available ? [wallet] : []
+}
+
+beforeEach(() => {
+  manager.isReady.value = true
+  manager.activeNetwork.value = 'mainnet'
+  manager.setActiveNetwork.mockReset()
+  manager.setActiveNetwork.mockImplementation(async (id: string) => {
+    manager.activeNetwork.value = id
+  })
+  useActiveWallet(null, null)
+  toast.add.mockReset()
+})
+afterEach(() => scope?.stop())
+
+describe('getUseWalletNetworkId', () => {
+  it('maps AVM chain ids to use-wallet networks', () => {
+    expect(getUseWalletNetworkId(416001)).toBe('mainnet')
+    expect(getUseWalletNetworkId(416002)).toBe('testnet')
+    expect(getUseWalletNetworkId(416101)).toBe('voimain')
+    expect(getUseWalletNetworkId(101003)).toBe('aramidmain')
+    expect(getUseWalletNetworkId(416102)).toBeUndefined()
+    expect(getUseWalletNetworkId(undefined)).toBeUndefined()
+  })
+})
+
+describe('useWalletSync.sync', () => {
+  it('switches the network and adopts a usable active account', async () => {
+    const store = makeStore(416101)
+    useActiveWallet(makeWallet('biatec'), ADDR_A)
+    await setup(store).sync()
+    expect(manager.setActiveNetwork).toHaveBeenCalledWith('voimain')
+    expect(store.state.sourceAddress).toBe(ADDR_A)
+    expect(store.state.sourceAlgoConnectorType).toBe(AlgoConnectorType.UseWallet)
+    expect(store.state.connectedSourceChain).toBe(416101)
+  })
+
+  it('does not adopt a wallet the app does not offer for the chain, and drops a slot bound to it', async () => {
+    const store = makeStore(416001)
+    store.state.sourceAddress = ADDR_A
+    store.state.sourceAlgoConnectorType = AlgoConnectorType.UseWallet
+    store.state.connectedSourceChain = 416001
+    useActiveWallet(makeWallet('kibisis'), ADDR_A) // kibisis is not offered on Algorand mainnet
+    await setup(store).sync()
+    expect(store.state.sourceAddress).toBe('')
+    expect(store.state.connectedSourceChain).toBeUndefined()
+  })
+
+  it('does not adopt a wallet that does not support the active network', async () => {
+    const store = makeStore(416101)
+    useActiveWallet(makeWallet('lute'), ADDR_A, false)
+    await setup(store).sync()
+    expect(store.state.sourceAddress).toBe('')
+  })
+
+  it('leaves the slot alone for chains without a use-wallet network', async () => {
+    const store = makeStore(416102)
+    useActiveWallet(makeWallet('biatec'), ADDR_A)
+    await setup(store).sync()
+    expect(manager.setActiveNetwork).not.toHaveBeenCalled()
+    expect(store.state.sourceAddress).toBe('')
+  })
+
+  it('does not adopt when switching the network fails', async () => {
+    const store = makeStore(416101)
+    useActiveWallet(makeWallet('biatec'), ADDR_A)
+    manager.setActiveNetwork.mockRejectedValueOnce(new Error('boom'))
+    await setup(store).sync()
+    expect(store.state.sourceAddress).toBe('')
+    expect(toast.add).toHaveBeenCalled()
+  })
+
+  it('ignores EVM chains', async () => {
+    const store = makeStore(416001)
+    store.state.sourceChainConfiguration = chain(8453, 'eth')
+    store.state.sourceAddress = '0xabc'
+    useActiveWallet(makeWallet('biatec'), ADDR_A)
+    await setup(store).sync()
+    expect(manager.setActiveNetwork).not.toHaveBeenCalled()
+    expect(store.state.sourceAddress).toBe('0xabc')
+  })
+
+  it('waits for the manager to be ready', async () => {
+    const store = makeStore(416001)
+    manager.isReady.value = false
+    useActiveWallet(makeWallet('pera'), ADDR_A)
+    const { sync } = setup(store)
+    await sync()
+    expect(store.state.sourceAddress).toBe('')
+    manager.isReady.value = true
+    await nextTick()
+    await vi.waitFor(() => expect(store.state.sourceAddress).toBe(ADDR_A))
+  })
+})
+
+describe('useWalletSync active address watcher', () => {
+  const bind = (store: ReturnType<typeof makeStore>, address: string) => {
+    store.state.sourceAddress = address
+    store.state.sourceAlgoConnectorType = AlgoConnectorType.UseWallet
+    store.state.connectedSourceChain = 416001
+  }
+
+  it('follows an account switch of the bound wallet', async () => {
+    const store = makeStore(416001)
+    const wallet = makeWallet('pera')
+    useActiveWallet(wallet, ADDR_A)
+    bind(store, ADDR_A)
+    setup(store)
+    manager.activeAddress.value = ADDR_B
+    await nextTick()
+    expect(store.state.sourceAddress).toBe(ADDR_B)
+  })
+
+  it('clears the slot when the bound wallet disconnects', async () => {
+    const store = makeStore(416001)
+    useActiveWallet(makeWallet('pera'), ADDR_A)
+    bind(store, ADDR_A)
+    setup(store)
+    useActiveWallet(null, null)
+    await nextTick()
+    expect(store.state.sourceAddress).toBe('')
+    expect(store.state.connectedSourceChain).toBeUndefined()
+  })
+
+  it('ignores changes of a wallet the slot was not taken from', async () => {
+    const store = makeStore(416001)
+    useActiveWallet(makeWallet('pera'), ADDR_A)
+    bind(store, 'QRADDRESS')
+    setup(store)
+    manager.activeAddress.value = ADDR_B
+    await nextTick()
+    expect(store.state.sourceAddress).toBe('QRADDRESS')
+  })
+})
+
+describe('useWalletSync.disconnect', () => {
+  it('ends the use-wallet session and clears the slot', async () => {
+    const store = makeStore(416001)
+    const wallet = makeWallet('pera')
+    useActiveWallet(wallet, ADDR_A)
+    store.state.sourceAddress = ADDR_A
+    store.state.sourceAlgoConnectorType = AlgoConnectorType.UseWallet
+    await setup(store).disconnect()
+    expect(wallet.disconnect).toHaveBeenCalled()
+    expect(store.state.sourceAddress).toBe('')
+  })
+
+  it('keeps the slot bound when the session cannot be ended', async () => {
+    const store = makeStore(416001)
+    const wallet = makeWallet(
+      'pera',
+      vi.fn(async () => {
+        throw new Error('relay down')
+      })
+    )
+    useActiveWallet(wallet, ADDR_A)
+    store.state.sourceAddress = ADDR_A
+    store.state.sourceAlgoConnectorType = AlgoConnectorType.UseWallet
+    await setup(store).disconnect()
+    expect(store.state.sourceAddress).toBe(ADDR_A)
+    expect(toast.add).toHaveBeenCalled()
+  })
+
+  it('clears a QR-code slot without touching use-wallet', async () => {
+    const store = makeStore(416001)
+    const wallet = makeWallet('pera')
+    useActiveWallet(wallet, ADDR_A)
+    store.state.sourceAddress = 'QRADDRESS'
+    store.state.sourceAlgoConnectorType = AlgoConnectorType.QRCode
+    await setup(store).disconnect()
+    expect(wallet.disconnect).not.toHaveBeenCalled()
+    expect(store.state.sourceAddress).toBe('')
+  })
+})
+
+describe('walletSlots', () => {
+  it('binds the ARC200 slot to its own fields and chain configuration', () => {
+    const store = makeStore(416101)
+    store.state.arc200BridgeChain = 1 // out of sync with the configuration on purpose
+    arc200BridgeWalletSlot(store as any).connect(ADDR_A)
+    expect(store.state.arc200BridgeAddress).toBe(ADDR_A)
+    expect(store.state.arc200BridgeAlgoConnectorType).toBe(AlgoConnectorType.UseWallet)
+    expect(store.state.connectedArc200BridgeChain).toBe(416101)
+    expect(store.state.sourceAddress).toBe('')
+  })
+})

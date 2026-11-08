@@ -121,5 +121,27 @@ export const useWalletSync = (slot: UseWalletSlot) => {
   }
   watch(isReady, sync)
 
-  return { activeWallet, sync }
+  /**
+   * Disconnects the slot. A use-wallet slot ends the manager session first and stays bound if that
+   * fails, so a later sync() does not silently re-adopt the still-active session.
+   */
+  const disconnect = async () => {
+    if (slot.connectorType() !== AlgoConnectorType.UseWallet) {
+      slot.disconnect()
+      return
+    }
+    try {
+      await activeWallet.value?.disconnect()
+      slot.disconnect()
+    } catch (e: any) {
+      console.error(e)
+      toast.add({
+        severity: 'error',
+        detail: e.message ?? e,
+        life: 3000
+      })
+    }
+  }
+
+  return { sync, disconnect }
 }

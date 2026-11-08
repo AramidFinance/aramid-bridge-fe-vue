@@ -40,7 +40,6 @@ window.addEventListener('unhandledrejection', (event) => {
 // use-wallet v5 persists under '@txnlab/use-wallet:v5' and does not migrate v4 sessions, so drop the
 // orphaned v4 state (avm-wallet-vue uses its own 'avm-wallet:v4' key and is unaffected).
 const USE_WALLET_V4_STORAGE_KEY = '@txnlab/use-wallet:v4'
-const USE_WALLET_V5_STORAGE_KEY = '@txnlab/use-wallet:v5'
 try {
   localStorage.removeItem(USE_WALLET_V4_STORAGE_KEY)
 } catch {
@@ -82,18 +81,6 @@ const networks = new NetworkConfigBuilder()
   .addNetwork('aramidmain', { ...BIATEC_EXTRA_NETWORKS.aramidmain, algod: algodAramidmain })
   .build()
 
-// With persistNetwork the WalletManager constructor throws (blank page) if the persisted network is
-// no longer configured, so fall back to the default network in that case.
-try {
-  const persisted = JSON.parse(localStorage.getItem(USE_WALLET_V5_STORAGE_KEY) ?? 'null')
-  if (persisted?.activeNetwork && !networks[persisted.activeNetwork]) {
-    persisted.activeNetwork = defaultNetwork
-    localStorage.setItem(USE_WALLET_V5_STORAGE_KEY, JSON.stringify(persisted))
-  }
-} catch {
-  // unparsable state (use-wallet ignores it) or storage unavailable
-}
-
 app.use(WalletManagerPlugin, {
   wallets: [
     defly(),
@@ -103,7 +90,10 @@ app.use(WalletManagerPlugin, {
     kibisis(),
     biatec({
       projectId: walletConnectProjectId,
-      metadata: dappMetadata
+      metadata: dappMetadata,
+      // Direct opens a popup per signature, which needs a click; this app signs automatically
+      // (SignPage on mount), so offer Liquid Auth and WalletConnect only.
+      direct: false
     }),
     walletConnect({
       projectId: walletConnectProjectId,
@@ -111,9 +101,7 @@ app.use(WalletManagerPlugin, {
     })
   ],
   defaultNetwork,
-  networks,
-  // v4 restored the last active network by default; v5 needs this opt-in.
-  options: { persistNetwork: true }
+  networks
 })
 
 // Destination wallet: avm-wallet-vue (separate manager with its own injection keys).

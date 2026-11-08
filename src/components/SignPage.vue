@@ -142,7 +142,10 @@ onMounted(async () => {
 const dummyTransactionSigner = async (_txnGroup: algosdk.Transaction[], _indexesToSign: number[]): Promise<Uint8Array[]> => {
   return [] as Uint8Array[]
 }
+// set when the automatic use-wallet signing failed, so the user can retry
+const useWalletSignFailed = ref(false)
 const signWithUseWallet = async () => {
+  useWalletSignFailed.value = false
   try {
     if (!store.state.sourceChain) return
     if (!store.state.sourceToken) return
@@ -324,6 +327,7 @@ const signWithUseWallet = async () => {
       store.state.bridgeTx = tx
     }
   } catch (e: any) {
+    useWalletSignFailed.value = true
     console.error(e)
     toast.add({
       severity: 'error',
@@ -423,7 +427,8 @@ const claimButtonClick = async () => {
         </div>
       </div>
       <div v-if="store.state.sourceAlgoConnectorType == AlgoConnectorType.UseWallet" class="text-center font-bold m-4">
-        <p>
+        <MainActionButton v-if="useWalletSignFailed" @click="signWithUseWallet">{{ t('common.tryAgain') }}</MainActionButton>
+        <p v-else>
           <img :src="loader" alt="Loading" height="18" width="18" class="inline-block" />
           {{ t('sign.signInWallet', { wallet: activeWallet?.metadata?.name || '' }) }}
         </p>

@@ -28,7 +28,7 @@ const toast = useToast()
 const store = useAppStore()
 
 const slot = sourceWalletSlot(store)
-const { activeWallet, sync } = useWalletSync(slot)
+const { sync, disconnect } = useWalletSync(slot)
 
 interface IState {
   connected: boolean
@@ -176,21 +176,7 @@ watch(
 const buttonClick = async () => {
   if (store.state.sourceChainConfiguration?.type == 'algo') {
     if (state.connected) {
-      // disconnect
-      const connectorType = store.state.sourceAlgoConnectorType
-      slot.disconnect()
-      if (connectorType === AlgoConnectorType.UseWallet) {
-        try {
-          await activeWallet.value?.disconnect()
-        } catch (e: any) {
-          console.error(e)
-          toast.add({
-            severity: 'error',
-            detail: e.message ?? e,
-            life: 3000
-          })
-        }
-      }
+      await disconnect()
     } else {
       store.state.dialogSelectSourceWalletIsOpen = true
     }

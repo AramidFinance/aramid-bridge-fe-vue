@@ -24,7 +24,7 @@ const toast = useToast()
 const store = useAppStore()
 
 const slot = arc200BridgeWalletSlot(store)
-const { activeWallet, sync } = useWalletSync(slot)
+const { sync, disconnect } = useWalletSync(slot)
 
 interface IState {
   connected: boolean
@@ -86,21 +86,7 @@ watch(
 const buttonClick = async () => {
   if (store.state.arc200BridgeChainConfiguration?.type == 'algo') {
     if (state.connected) {
-      // disconnect
-      const connectorType = store.state.arc200BridgeAlgoConnectorType
-      slot.disconnect()
-      if (connectorType === AlgoConnectorType.UseWallet) {
-        try {
-          await activeWallet.value?.disconnect()
-        } catch (e: any) {
-          console.error(e)
-          toast.add({
-            severity: 'error',
-            detail: e.message ?? e,
-            life: 3000
-          })
-        }
-      }
+      await disconnect()
     } else {
       store.state.dialogSelectArc200BridgeWalletIsOpen = true
     }
