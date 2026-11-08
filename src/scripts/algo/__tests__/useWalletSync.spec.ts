@@ -359,7 +359,7 @@ describe('useWalletNetwork', () => {
     useActiveWallet(makeWallet('biatec'), ADDR_A)
     const { connectAndBind } = run()
     const picked = { connect: vi.fn(async () => undefined) }
-    await connectAndBind(picked, sourceWalletSlot(store as any))
+    await expect(connectAndBind(picked, sourceWalletSlot(store as any))).resolves.toBe(true)
     expect(picked.connect).toHaveBeenCalled()
     expect(manager.setActiveNetwork).toHaveBeenCalledWith('aramidmain')
     expect(store.state.sourceAddress).toBe(ADDR_A)
@@ -370,7 +370,7 @@ describe('useWalletNetwork', () => {
     const store = makeStore(101003)
     useActiveWallet(makeWallet('pera'), ADDR_A)
     const { connectAndBind } = run()
-    await connectAndBind({ connect: async () => undefined }, sourceWalletSlot(store as any))
+    await expect(connectAndBind({ connect: async () => undefined }, sourceWalletSlot(store as any))).resolves.toBe(false)
     expect(store.state.sourceAddress).toBe('')
     expect(toast.add).toHaveBeenCalledWith(expect.objectContaining({ detail: 'sign.useWalletNotInitialized' }))
   })

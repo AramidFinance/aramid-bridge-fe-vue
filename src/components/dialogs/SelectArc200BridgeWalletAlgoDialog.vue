@@ -19,8 +19,8 @@ const { connectAndBind } = useWalletNetwork(useWalletState)
 const store = useAppStore()
 
 const walletButtonClick = async (wallet: Wallet) => {
-  await connectAndBind(wallet, arc200BridgeWalletSlot(store))
-  store.state.dialogSelectArc200BridgeWalletIsOpen = false
+  // keep the picker open when connecting failed, so another wallet can be picked
+  if (await connectAndBind(wallet, arc200BridgeWalletSlot(store))) store.state.dialogSelectArc200BridgeWalletIsOpen = false
 }
 interface IState {
   publicConfiguration: PublicConfigurationRoot | null

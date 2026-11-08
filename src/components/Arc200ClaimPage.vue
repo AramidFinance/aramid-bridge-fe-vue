@@ -42,10 +42,10 @@ const { t } = useI18n()
 const router = useRouter()
 const store = useAppStore()
 // the route decides the ARC200 chain (none: the Voi default); set before child components fill it
-const routeChainId = (() => {
-  const network = useRoute().params['network']
-  return typeof network === 'string' ? getChainIdByUseWalletNetwork(network) : undefined
-})()
+const routeNetwork = useRoute().params['network']
+const routeChainId = typeof routeNetwork === 'string' ? getChainIdByUseWalletNetwork(routeNetwork) : undefined
+// a network in the route that use-wallet does not know: its token params cannot be used
+const routeNetworkUnknown = typeof routeNetwork === 'string' && !routeChainId
 store.state.arc200BridgeChain = routeChainId
 const state = reactive({
   inputTx: '',
@@ -65,7 +65,7 @@ onMounted(async () => {
 
   if (routeChainId) fillArc200BridgeChainConfiguration(routeChainId)
 
-  if (route.params['tokenId'] && route.params['amount'] && route.params['direction']) {
+  if (!routeNetworkUnknown && route.params['tokenId'] && route.params['amount'] && route.params['direction']) {
     store.state.arc200BridgeToken = route.params['tokenId'] as string
     store.state.arc200BridgeAmount = route.params['amount'] as string
     store.state.arc200BridgeDirection = route.params['direction'] as 'ARC200ToASA' | 'ASAToARC200'
@@ -188,7 +188,7 @@ const bridgeArc200ToAsa = async () => {
 
     // first tx is the asset transfer from destination address to arc200 contract
     const params = await algodClient.getTransactionParams().do()
-    const algoClient = await getAlgoClient(store.state.arc200BridgeChain)
+    const algoClient = await getAlgoClient(builtChain)
 
     const clientArc200UserSender = getArc200ASAClient({
       algorand: algoClient,
@@ -203,7 +203,7 @@ const bridgeArc200ToAsa = async () => {
     const contractAddress = algosdk.getApplicationAddress(Number(arc200TokenId)).toString()
     const txToSign: algosdk.Transaction[] = []
 
-    const asaOptin = await getAlgoAcountTokenOptin(store.state.arc200BridgeChain, destinationAddress, Number(tokenIdASA))
+    const asaOptin = await getAlgoAcountTokenOptin(builtChain, destinationAddress, Number(tokenIdASA))
 
     if (!asaOptin) {
       txToSign.push(
@@ -222,7 +222,7 @@ const bridgeArc200ToAsa = async () => {
       // wnnt200 protocol requires to create box first if it does not exists
       let needCreateBox = false
       try {
-        const balance = await getAlgoAccountARC200TokenBalance(store.state.arc200BridgeChain, contractAddress, arc200TokenId)
+        const balance = await getAlgoAccountARC200TokenBalance(builtChain, contractAddress, arc200TokenId)
         console.log('balance of arc200 for address before box creation check', balance)
         if (balance === 0n) {
           needCreateBox = true
@@ -350,7 +350,7 @@ const bridgeAsaToArc200 = async () => {
     // first tx is the asset transfer from destination address to arc200 contract
     const params = await algodClient.getTransactionParams().do()
 
-    const algoClient = await getAlgoClient(store.state.arc200BridgeChain)
+    const algoClient = await getAlgoClient(builtChain)
 
     const clientArc200AsaUserSender = getArc200ASAClient({
       algorand: algoClient,
@@ -369,7 +369,7 @@ const bridgeAsaToArc200 = async () => {
       // wnnt200 protocol requires to create box first if it does not exists
       let needCreateBox = false
       try {
-        const balance = await getAlgoAccountARC200TokenBalance(store.state.arc200BridgeChain, destinationAddress, arc200TokenId)
+        const balance = await getAlgoAccountARC200TokenBalance(builtChain, destinationAddress, arc200TokenId)
         console.log('balance of arc200 for address before box creation check', balance)
         if (balance === 0n) {
           needCreateBox = true
@@ -533,9 +533,9 @@ onMounted(async () => {
   await getPublicConfiguration(false)
   // keep the chain taken from the route (defaults to Voi when none was given)
   fillArc200BridgeChainConfiguration(routeChainId)
-  if (routeChainId && store.state.arc200BridgeChain !== routeChainId) {
-    // the route's chain has no configuration and fell back to the default chain: the route's token and
-    // amount belong to the other chain, so drop them and replace the invalid URL
+  if (routeNetworkUnknown || (routeChainId && store.state.arc200BridgeChain !== routeChainId)) {
+    // the route's network is unknown or has no configuration, so the default chain is used: the route's
+    // token and amount belong to another chain, so drop them and replace the invalid URL
     store.state.arc200BridgeToken = undefined
     store.state.arc200BridgeTokenConfiguration = undefined
     store.state.arc200BridgeAmount = ''

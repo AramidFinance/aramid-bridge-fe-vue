@@ -111,8 +111,11 @@ export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWalle
     slot.connect(activeAddress.value)
   }
 
-  /** Connects the picked wallet and binds the slot to its account; errors are shown as a toast. */
-  const connectAndBind = async (picked: { connect: () => Promise<unknown> }, slot: UseWalletSlot): Promise<void> => {
+  /**
+   * Connects the picked wallet and binds the slot to its account. Returns whether that worked; errors
+   * (including a cancelled connect) are shown as a toast.
+   */
+  const connectAndBind = async (picked: { connect: () => Promise<unknown> }, slot: UseWalletSlot): Promise<boolean> => {
     try {
       // align first so a WalletConnect session is approved for this chain; once the manager is ready
       // this is a short await, which keeps the click's user activation for popup wallets
@@ -120,8 +123,10 @@ export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWalle
       if (chainId && manager.isReady) await switchToChain(chainId)
       await picked.connect()
       await bindActiveAccount(slot)
+      return true
     } catch (e: any) {
       showError(toast, e)
+      return false
     }
   }
 
@@ -161,7 +166,6 @@ export interface UseWalletSlot {
   address: () => string | undefined
   /** Binds the slot to a use-wallet account (address, connector type and connected chain). */
   connect: (address: string) => void
-  setAddress: (address: string) => void
   disconnect: () => void
 }
 
@@ -199,7 +203,7 @@ export const useWalletSync = (slot: UseWalletSlot) => {
   watch(activeAddress, (current, previous) => {
     const chain = algoChain()
     if (!isReady.value || !chain || !isBoundToUseWallet() || !previous || slot.address() !== previous) return
-    if (current && isActiveWalletUsable(chain.chainId)) slot.setAddress(current)
+    if (current && isActiveWalletUsable(chain.chainId)) slot.connect(current)
     else slot.disconnect()
   })
 

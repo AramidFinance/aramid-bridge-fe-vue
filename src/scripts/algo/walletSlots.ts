@@ -21,9 +21,6 @@ const makeWalletSlot = (store: AppStore, fields: SlotFields): UseWalletSlot => (
     store.state[fields.connectorType] = AlgoConnectorType.UseWallet
     store.state[fields.connectedChain] = store.state[fields.chainConfiguration]?.chainId
   },
-  setAddress: (address) => {
-    store.state[fields.address] = address
-  },
   disconnect: () => {
     store.state[fields.connectedChain] = undefined
     store.state[fields.address] = ''

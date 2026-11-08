@@ -24,8 +24,8 @@ const { connectAndBind } = useWalletNetwork(useWalletState)
 const store = useAppStore()
 
 const walletButtonClick = async (wallet: Wallet) => {
-  await connectAndBind(wallet, sourceWalletSlot(store))
-  store.state.dialogSelectSourceWalletIsOpen = false
+  // keep the picker open when connecting failed, so another wallet can be picked
+  if (await connectAndBind(wallet, sourceWalletSlot(store))) store.state.dialogSelectSourceWalletIsOpen = false
 }
 const qrPaymentClick = () => {
   try {

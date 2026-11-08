@@ -182,7 +182,7 @@ const signWithUseWallet = async () => {
     const sender = store.state.sourceAddress
     assertSigner(sourceChain, sender, UseWalletNotReadyError)
 
-    const algodClient = await getAlgodClientByChainId(store.state.sourceChain)
+    const algodClient = await getAlgodClientByChainId(sourceChain)
     if (!algodClient) throw Error(t('sign.algodClientNotInitialized'))
     const params = await algodClient.getTransactionParams().do()
 
@@ -208,7 +208,7 @@ const signWithUseWallet = async () => {
         console.error('Failed to get algod or indexer client for ARC200')
         return new BigNumber('0')
       }
-      const algoClient = await getAlgoClient(store.state.sourceChain)
+      const algoClient = await getAlgoClient(sourceChain)
 
       const clientArc200UserSender = getArc200ASAClient({
         algorand: algoClient,
