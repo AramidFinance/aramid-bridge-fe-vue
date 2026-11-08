@@ -19,11 +19,18 @@ vi.mock('@txnlab/use-wallet-vue', async () => {
     isReady: ref(true),
     activeNetwork: ref('mainnet'),
     setActiveNetwork: vi.fn(),
+    signTransactions: vi.fn(async (txns: unknown[]) => txns.map(() => new Uint8Array([1]))),
     sessions: {} as Record<string, unknown>
   }
   return {
     NetworkId: { MAINNET: 'mainnet', TESTNET: 'testnet' },
-    useWallet: () => ({ activeAddress: mock.activeAddress, activeWallet: mock.activeWallet, availableWallets: mock.availableWallets, isReady: mock.isReady }),
+    useWallet: () => ({
+      activeAddress: mock.activeAddress,
+      activeWallet: mock.activeWallet,
+      availableWallets: mock.availableWallets,
+      isReady: mock.isReady,
+      signTransactions: mock.signTransactions
+    }),
     useNetwork: () => ({ activeNetwork: mock.activeNetwork, setActiveNetwork: mock.setActiveNetwork }),
     useWalletManager: () => ({
       get isReady() {
@@ -45,6 +52,7 @@ const manager = (useWalletVue as any).__mock as {
   isReady: { value: boolean }
   activeNetwork: { value: string }
   setActiveNetwork: ReturnType<typeof vi.fn>
+  signTransactions: ReturnType<typeof vi.fn>
   sessions: Record<string, unknown>
 }
 
@@ -98,6 +106,7 @@ beforeEach(() => {
   })
   useActiveWallet(null, null)
   manager.sessions = {}
+  manager.signTransactions.mockClear()
   toast.add.mockReset()
 })
 afterEach(() => scope?.stop())
@@ -441,5 +450,37 @@ describe('useWalletNetwork.assertSigner', () => {
     expect(() => assertSigner(416001, ADDR_B, Custom)).toThrow(Custom)
     expect(() => assertSigner(416001, ADDR_B)).toThrow('sign.useWalletAddressMismatch')
     expect(() => assertSigner(416101, ADDR_A)).toThrow('sign.useWalletNotInitialized')
+  })
+})
+
+describe('useWalletNetwork.signAs', () => {
+  it('signs only after checking the chain and sender the transactions were built for', async () => {
+    scope = effectScope()
+    const { signAs } = scope.run(() => useWalletNetwork())!
+    useActiveWallet(makeWallet('biatec'), ADDR_A)
+    const txns = [{} as any]
+    await expect(signAs(416001, ADDR_A, txns)).resolves.toHaveLength(1)
+    expect(manager.signTransactions).toHaveBeenCalledTimes(1)
+    await expect(signAs(416001, ADDR_B, txns)).rejects.toThrow('sign.useWalletAddressMismatch')
+    await expect(signAs(416101, ADDR_A, txns)).rejects.toThrow('sign.useWalletNotInitialized')
+    expect(manager.signTransactions).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('useWalletNetwork.connectAndBind ordering', () => {
+  it('aligns the network before connecting, so the session is approved for the chain', async () => {
+    const store = makeStore(416101)
+    scope = effectScope()
+    const { connectAndBind } = scope.run(() => useWalletNetwork())!
+    const networkAtConnect: string[] = []
+    const picked = {
+      connect: vi.fn(async () => {
+        networkAtConnect.push(manager.activeNetwork.value)
+        useActiveWallet(makeWallet('biatec'), ADDR_A)
+      })
+    }
+    await connectAndBind(picked, sourceWalletSlot(store as any))
+    expect(networkAtConnect).toEqual(['voimain'])
+    expect(store.state.sourceAddress).toBe(ADDR_A)
   })
 })

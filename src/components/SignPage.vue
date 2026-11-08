@@ -14,6 +14,7 @@ import { populateAppCallResources } from '@algorandfoundation/algokit-utils'
 import { AlgoAmount } from '@algorandfoundation/algokit-utils/types/amount'
 import { TransactionComposer } from '@algorandfoundation/algokit-utils/types/composer'
 import { getUseWalletNetworkId, useWalletNetwork } from '@/scripts/algo/useWalletSync'
+import { isDefinitelyRejected } from '@/scripts/algo/sendOutcome'
 import { showError } from '@/scripts/common/showError'
 import { useWallet } from '@txnlab/use-wallet-vue'
 import algosdk, { Address } from 'algosdk'
@@ -42,8 +43,8 @@ const router = useRouter()
 const toast = useToast()
 const { t } = useI18n()
 const useWalletState = useWallet()
-const { activeWallet, signTransactions: useWalletSignTransactions } = useWalletState
-const { assertSigner, switchToChain } = useWalletNetwork(useWalletState)
+const { activeWallet } = useWalletState
+const { assertSigner, signAs, switchToChain } = useWalletNetwork(useWalletState)
 useAvmWallet()
 
 const routeToBridgeScreen = () => {
@@ -159,14 +160,6 @@ class UseWalletNotReadyError extends Error {}
 // thrown when the page was left while signing was being prepared: stop without signing or reporting
 class SignAbortedError extends Error {}
 let disposed = false
-// algod answers a rejected transaction with 400; other statuses (e.g. a proxy's 408) may come after
-// the transaction was forwarded, so they are not treated as a definite rejection
-const isDefinitelyRejected = (e: any): boolean => (e?.response?.status ?? e?.status) === 400
-/** The manager is on the source network with the account the transactions are sent from (re-checked right before signing). */
-const assertUseWalletSigner = (chainId: number, sender: string) => {
-  if (disposed) throw new SignAbortedError()
-  assertSigner(chainId, sender, UseWalletNotReadyError)
-}
 const signWithUseWallet = async () => {
   useWalletSignOutcome.value = undefined
   let submittedTxId: string | undefined
@@ -174,18 +167,26 @@ const signWithUseWallet = async () => {
     if (!store.state.sourceChain || !store.state.sourceToken || !store.state.sourceAddress || !store.state.sourceTxNote) {
       throw new UseWalletNotReadyError(t('sign.useWalletNotInitialized'))
     }
-    // the use-wallet manager is shared with other pages, which may have switched its network
-    const onSourceNetwork = await switchToChain(store.state.sourceChain)
+    // the use-wallet manager is shared with other pages, which may have switched its network; skip the
+    // switch when the page was left meanwhile, and treat a failing switch like an unusable wallet
+    let onSourceNetwork: boolean
+    try {
+      onSourceNetwork = await switchToChain(store.state.sourceChain, () => !disposed)
+    } catch (e: any) {
+      throw new UseWalletNotReadyError(e?.message ?? String(e))
+    }
+    if (disposed) throw new SignAbortedError()
     if (!onSourceNetwork) throw new UseWalletNotReadyError(t('sign.useWalletNotInitialized'))
-    // the transactions below are built for this sender
+    // the transactions below are built for this chain and sender
+    const sourceChain = store.state.sourceChain
     const sender = store.state.sourceAddress
-    assertUseWalletSigner(store.state.sourceChain, sender)
+    assertSigner(sourceChain, sender, UseWalletNotReadyError)
 
     const algodClient = await getAlgodClientByChainId(store.state.sourceChain)
     if (!algodClient) throw Error(t('sign.algodClientNotInitialized'))
     const params = await algodClient.getTransactionParams().do()
 
-    let signed: any
+    let toSign: algosdk.Transaction[]
 
     // smart asset (arc200)
     const config = store.state.sourceTokenConfiguration
@@ -316,9 +317,7 @@ const signWithUseWallet = async () => {
       const toSignFinal = group.map((txnWithSigner) => {
         return txnWithSigner.txn
       })
-      console.log('signing txns', toSignFinal)
-      assertUseWalletSigner(store.state.sourceChain, sender)
-      signed = await useWalletSignTransactions(toSignFinal)
+      toSign = toSignFinal
     }
     // algo or asa
     else {
@@ -340,14 +339,16 @@ const signWithUseWallet = async () => {
               note: new Uint8Array(Buffer.from(store.state.sourceTxNote))
             })
 
-      assertUseWalletSigner(store.state.sourceChain, sender)
-      signed = await useWalletSignTransactions([tx])
+      toSign = [tx]
     }
-    if (signed && signed.length > 0) {
+    console.log('signing txns', toSign)
+    if (disposed) throw new SignAbortedError()
+    const signed = await signAs(sourceChain, sender, toSign, UseWalletNotReadyError)
+    if (signed.length > 0) {
       // res.txId is the txId of the first transaction in the signed array
       // algosdk.decodeSignedTransaction(signed.pop()).txn.txID() is the txId of the last transaction in the signed array
       console.log('Signed txns', signed)
-      if (!signed.every((txn: Uint8Array | null) => txn instanceof Uint8Array)) throw Error(t('sign.useWalletNotAllSigned'))
+      if (!signed.every((txn): txn is Uint8Array => txn instanceof Uint8Array)) throw Error(t('sign.useWalletNotAllSigned'))
       // the bridge transaction is the last one of the group
       submittedTxId = algosdk.decodeSignedTransaction(signed[signed.length - 1]).txn.txID()
       await algodClient.sendRawTransaction(signed).do()

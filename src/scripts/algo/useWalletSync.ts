@@ -3,6 +3,7 @@ import { showError } from '@/scripts/common/showError'
 import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import { NetworkId, useNetwork, useWallet, useWalletManager, type WalletManager } from '@txnlab/use-wallet-vue'
+import type algosdk from 'algosdk'
 import { useToast } from 'primevue/usetoast'
 import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -63,7 +64,7 @@ export type SignerProblem = 'notUsable' | 'mismatch' | undefined
  * useWallet() result to avoid a second set of store subscriptions.
  */
 export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWallet()) => {
-  const { activeAddress, activeWallet, availableWallets } = wallet
+  const { activeAddress, activeWallet, availableWallets, signTransactions } = wallet
   const { activeNetwork, setActiveNetwork } = useNetwork()
   const manager = useWalletManager()
   const { t } = useI18n()
@@ -113,6 +114,10 @@ export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWalle
   /** Connects the picked wallet and binds the slot to its account; errors are shown as a toast. */
   const connectAndBind = async (picked: { connect: () => Promise<unknown> }, slot: UseWalletSlot): Promise<void> => {
     try {
+      // align first so a WalletConnect session is approved for this chain; once the manager is ready
+      // this is a short await, which keeps the click's user activation for popup wallets
+      const chainId = slot.chainConfiguration()?.chainId
+      if (chainId && manager.isReady) await switchToChain(chainId)
       await picked.connect()
       await bindActiveAccount(slot)
     } catch (e: any) {
@@ -137,7 +142,16 @@ export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWalle
     if (problem === 'mismatch') throw new ErrorClass(t('sign.useWalletAddressMismatch'))
   }
 
-  return { activeNetwork, isActiveWalletUsable, switchToChain, connectAndBind, assertSigner }
+  /**
+   * The only signing path for bound accounts: checks that the manager is on the chain the transactions
+   * were built for with their sender, then signs them.
+   */
+  const signAs = async (chainId: number, sender: string, txns: algosdk.Transaction[], ErrorClass: new (message: string) => Error = Error): Promise<(Uint8Array | null)[]> => {
+    assertSigner(chainId, sender, ErrorClass)
+    return signTransactions(txns)
+  }
+
+  return { activeNetwork, isActiveWalletUsable, switchToChain, connectAndBind, assertSigner, signAs }
 }
 
 /** An app-level wallet slot (source / ARC200 bridge) in the app store. */

@@ -21,7 +21,7 @@ import getAlgoAccountARC200TokenBalance from '../scripts/algo/getAlgoAccountARC2
 import getAlgoClient from '../scripts/algo/getAlgoClient'
 import getAlgodClientByChainId from '../scripts/algo/getAlgodClientByChainId'
 import getExchangeInfo from '../scripts/algo/getExchangeInfo'
-import { fillArc200BridgeChainConfiguration } from '../scripts/events/fillArc200BridgeChainConfiguration'
+import { DEFAULT_ARC200_CHAIN, fillArc200BridgeChainConfiguration } from '../scripts/events/fillArc200BridgeChainConfiguration'
 import { fillArc200BridgeTokenConfiguration } from '../scripts/events/fillArc200BridgeTokenConfiguration'
 import AmountArc200Bridge from './AmountArc200Bridge.vue'
 import AssetSelectionArc200Bridge from './AssetSelectionArc200Bridge.vue'
@@ -36,8 +36,7 @@ import WalletArc200Bridge from './WalletArc200Bridge.vue'
 Config.configure({ debug: true })
 
 const useWalletState = useWallet()
-const { signTransactions } = useWalletState
-const { activeNetwork, assertSigner, switchToChain } = useWalletNetwork(useWalletState)
+const { activeNetwork, assertSigner, signAs, switchToChain } = useWalletNetwork(useWalletState)
 const toast = useToast()
 const { t } = useI18n()
 const router = useRouter()
@@ -82,7 +81,7 @@ onMounted(async () => {
 const fillInRoute = () => {
   if (!state.mounted) return
   if (!store.state.arc200BridgeToken) return
-  const network = store.state.arc200BridgeChain === undefined ? 'voimain' : getUseWalletNetworkId(store.state.arc200BridgeChain)
+  const network = getUseWalletNetworkId(store.state.arc200BridgeChain ?? DEFAULT_ARC200_CHAIN)
   if (!network) return
 
   router.push({
@@ -117,10 +116,14 @@ watch(
 
 // the use-wallet manager is shared with other pages: sign only with the account this page is bound to,
 // checked before building the transactions and again right before signing them (with their sender)
-const assertBoundSigner = (sender: string | undefined = store.state.arc200BridgeAddress, chain: number | undefined = store.state.arc200BridgeChain) => {
+const boundChain = (chain: number | undefined): number => {
   if (!chain || store.state.arc200BridgeAlgoConnectorType !== AlgoConnectorType.UseWallet) throw Error(t('sign.useWalletNotInitialized'))
-  assertSigner(chain, sender)
+  return chain
 }
+const assertBoundSigner = (sender: string | undefined = store.state.arc200BridgeAddress, chain: number | undefined = store.state.arc200BridgeChain) => {
+  assertSigner(boundChain(chain), sender)
+}
+const signBound = (sender: string, chain: number | undefined, txns: algosdk.Transaction[]) => signAs(boundChain(chain), sender, txns)
 
 const bridginigButtonClick = async () => {
   try {
@@ -295,8 +298,7 @@ const bridgeArc200ToAsa = async () => {
     console.log('signing txns', toSignFinal)
 
     // Sign with destination wallet
-    assertBoundSigner(destinationAddress, builtChain)
-    const signed = await signTransactions(toSignFinal)
+    const signed = await signBound(destinationAddress, builtChain, toSignFinal)
     // Filter out any null values to satisfy the type requirement
     const filteredSigned = signed.filter((s: Uint8Array | null): s is Uint8Array => s !== null)
     if (filteredSigned.length === 0) {
@@ -496,8 +498,7 @@ const bridgeAsaToArc200 = async () => {
     })
     console.log('toSignFinal', toSignFinal)
     // Sign with destination wallet
-    assertBoundSigner(destinationAddress, builtChain)
-    const signed = await signTransactions(toSignFinal)
+    const signed = await signBound(destinationAddress, builtChain, toSignFinal)
     // Filter out any null values to satisfy the type requirement
     const filteredSigned = signed.filter((s: Uint8Array | null): s is Uint8Array => s !== null)
     if (filteredSigned.length === 0) {
@@ -532,8 +533,14 @@ onMounted(async () => {
   await getPublicConfiguration(false)
   // keep the chain taken from the route (defaults to Voi when none was given)
   fillArc200BridgeChainConfiguration(routeChainId)
-  // a route chain without configuration fell back to Voi: make the URL say so
-  if (routeChainId && store.state.arc200BridgeChain !== routeChainId) fillInRoute()
+  if (routeChainId && store.state.arc200BridgeChain !== routeChainId) {
+    // the route's chain has no configuration and fell back to the default chain: the route's token and
+    // amount belong to the other chain, so drop them and replace the invalid URL
+    store.state.arc200BridgeToken = undefined
+    store.state.arc200BridgeTokenConfiguration = undefined
+    store.state.arc200BridgeAmount = ''
+    await router.replace({ name: 'arc200-claim' })
+  }
 })
 </script>
 
