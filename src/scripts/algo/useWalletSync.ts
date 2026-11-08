@@ -64,7 +64,7 @@ export type SignerProblem = 'notUsable' | 'mismatch' | undefined
  * useWallet() result to avoid a second set of store subscriptions.
  */
 export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWallet()) => {
-  const { activeAddress, activeWallet, availableWallets, signTransactions } = wallet
+  const { activeAddress, activeWallet, signTransactions } = wallet
   const { activeNetwork, setActiveNetwork } = useNetwork()
   const manager = useWalletManager()
   const { t } = useI18n()
@@ -80,7 +80,7 @@ export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWalle
       // the app's own wallet/chain matrix (what the picker offers for this chain)
       isWalletForChain(active.id, chainId) &&
       // a wallet that does not support the active network is being disconnected by use-wallet v5
-      availableWallets.value.some((w) => w.walletKey === active.walletKey) &&
+      manager.availableWallets.some((w) => w.walletKey === active.walletKey) &&
       sessionAllowsActiveNetwork(manager, active.walletKey)
     )
   }
@@ -179,7 +179,7 @@ export interface UseWalletSlot {
 export const useWalletSync = (slot: UseWalletSlot) => {
   const wallet = useWallet()
   const { activeAddress, activeWallet, isReady } = wallet
-  const { isActiveWalletUsable, switchToChain } = useWalletNetwork(wallet)
+  const { activeNetwork, isActiveWalletUsable, switchToChain } = useWalletNetwork(wallet)
   const toast = useToast()
 
   const algoChain = () => {
@@ -198,6 +198,14 @@ export const useWalletSync = (slot: UseWalletSlot) => {
     if (activeAddress.value && isActiveWalletUsable(chain.chainId)) slot.connect(activeAddress.value)
     else if (isBoundToUseWallet()) slot.disconnect()
   }
+
+  // A network switch made elsewhere (e.g. before bridging) can make the bound wallet unusable on the
+  // slot's own network without changing its address (a WalletConnect session approved for another chain).
+  watch(activeNetwork, (network) => {
+    const chain = algoChain()
+    if (!isReady.value || !chain || !isBoundToUseWallet() || network !== getUseWalletNetworkId(chain.chainId)) return
+    if (!isActiveWalletUsable(chain.chainId)) slot.disconnect()
+  })
 
   // Follow the wallet the slot was taken from: disconnected -> clear, account switched -> new address.
   watch(activeAddress, (current, previous) => {

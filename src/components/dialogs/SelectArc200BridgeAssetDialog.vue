@@ -81,14 +81,14 @@ const fillInState = () => {
   ) {
     // voi source chain specific override
     if (store.state.arc200BridgeChain === CHAIN_ID_VOI) {
-      state.assets = Object.values(state.publicConfiguration.chains[store.state.arc200BridgeChain.toString()].tokens)
+      state.assets = Object.values(state.publicConfiguration.chains[store.state.arc200BridgeChain.toString()]?.tokens ?? {})
         .filter((asset) => !specialTokens.includes(asset.name))
         .filter((c) => c.arc200TokenId !== undefined || c.optionalArc200TokenId !== undefined)
     }
     // default behavior config driven
     else {
       const allowedRoutes = Object.keys(state.publicConfiguration.chains2tokens[store.state.arc200BridgeChain.toString()][store.state.arc200BridgeChain.toString()])
-      state.assets = Object.values(state.publicConfiguration.chains[store.state.arc200BridgeChain.toString()].tokens)
+      state.assets = Object.values(state.publicConfiguration.chains[store.state.arc200BridgeChain.toString()]?.tokens ?? {})
         .filter((c) => allowedRoutes.includes(c.tokenId))
         .filter((c) => c.arc200TokenId !== undefined || c.optionalArc200TokenId !== undefined)
     }
@@ -97,13 +97,13 @@ const fillInState = () => {
   else {
     // voi source chain specific override
     if (store.state.arc200BridgeChain === CHAIN_ID_VOI) {
-      state.assets = Object.values(state.publicConfiguration.chains[store.state.arc200BridgeChain.toString()].tokens)
+      state.assets = Object.values(state.publicConfiguration.chains[store.state.arc200BridgeChain.toString()]?.tokens ?? {})
         .filter((asset) => !specialTokens.includes(asset.name))
         .filter((c) => c.arc200TokenId !== undefined || c.optionalArc200TokenId !== undefined)
     }
     // default behavior config driven
     else {
-      state.assets = Object.values(state.publicConfiguration.chains[store.state.arc200BridgeChain.toString()].tokens).filter(
+      state.assets = Object.values(state.publicConfiguration.chains[store.state.arc200BridgeChain.toString()]?.tokens ?? {}).filter(
         (c) => c.arc200TokenId !== undefined || c.optionalArc200TokenId !== undefined
       )
     }

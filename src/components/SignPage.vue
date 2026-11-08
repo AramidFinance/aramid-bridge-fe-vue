@@ -395,7 +395,7 @@ const claimButtonClick = async () => {
   console.log('claimButtonClick')
   try {
     const network = getUseWalletNetworkId(store.state.destinationChain)
-    if (!network) throw Error(t('sign.useWalletNotInitialized'))
+    if (!network) throw Error(t('sign.claimNotAvailableOnChain', { chain: store.state.destinationChainConfiguration?.name ?? '' }))
     router.push({
       name: 'arc200-claim-t',
       params: {

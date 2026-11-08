@@ -19,6 +19,13 @@ export const fillArc200BridgeChainConfiguration = (chainId: number | undefined =
     configuration = getChainConfigurationSync(selectedChainId, store.state.publicConfiguration)
   }
   if (configuration) {
+    if (store.state.arc200BridgeChain !== selectedChainId) {
+      // tokens are per chain: drop the selection made for another chain
+      store.state.arc200BridgeToken = undefined
+      store.state.arc200BridgeTokenConfiguration = undefined
+      store.state.arc200BridgeAmount = ''
+      store.state.arc200BridgeAmountFormatted = ''
+    }
     store.state.arc200BridgeChain = selectedChainId
     store.state.arc200BridgeChainConfiguration = configuration
     store.state.arc200BridgeChainGenesis = undefined

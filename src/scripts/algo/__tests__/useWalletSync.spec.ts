@@ -36,6 +36,9 @@ vi.mock('@txnlab/use-wallet-vue', async () => {
       get isReady() {
         return mock.isReady.value
       },
+      get availableWallets() {
+        return mock.availableWallets.value
+      },
       get activeNetworkConfig() {
         return { caipChainId: `caip:${mock.activeNetwork.value}` }
       },
@@ -481,6 +484,36 @@ describe('useWalletNetwork.connectAndBind ordering', () => {
     }
     await connectAndBind(picked, sourceWalletSlot(store as any))
     expect(networkAtConnect).toEqual(['voimain'])
+    expect(store.state.sourceAddress).toBe(ADDR_A)
+  })
+})
+
+describe('useWalletSync network watcher', () => {
+  it('drops a bound slot when a switch to its network makes the wallet unusable', async () => {
+    const store = makeStore(416101)
+    store.state.sourceAddress = ADDR_A
+    store.state.sourceAlgoConnectorType = AlgoConnectorType.UseWallet
+    store.state.connectedSourceChain = 416101
+    manager.activeNetwork.value = 'voimain'
+    useActiveWallet(makeWallet('walletconnect'), ADDR_A)
+    // a session approved for mainnet only
+    manager.sessions.walletconnect = { namespaces: { algorand: { accounts: [`caip:mainnet:${ADDR_A}`] } } }
+    manager.activeNetwork.value = 'mainnet'
+    setup(store)
+    await settle()
+    manager.activeNetwork.value = 'voimain'
+    await nextTick()
+    expect(store.state.sourceAddress).toBe('')
+  })
+
+  it('ignores switches to other networks', async () => {
+    const store = makeStore(416101)
+    useActiveWallet(makeWallet('biatec'), ADDR_A)
+    setup(store)
+    await settle()
+    expect(store.state.sourceAddress).toBe(ADDR_A)
+    manager.activeNetwork.value = 'mainnet'
+    await nextTick()
     expect(store.state.sourceAddress).toBe(ADDR_A)
   })
 })

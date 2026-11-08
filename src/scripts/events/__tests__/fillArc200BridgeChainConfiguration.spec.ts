@@ -7,6 +7,10 @@ const store = vi.hoisted(() => ({
     arc200BridgeChain?: number
     arc200BridgeChainConfiguration?: { chainId: number }
     arc200BridgeChainGenesis?: string
+    arc200BridgeToken?: string
+    arc200BridgeTokenConfiguration?: object
+    arc200BridgeAmount?: string
+    arc200BridgeAmountFormatted?: string
   }
 }))
 vi.mock('@/stores/app', () => ({ useAppStore: () => store }))
@@ -48,5 +52,27 @@ describe('fillArc200BridgeChainConfiguration', () => {
     store.state = { arc200BridgeChain: 416001 }
     fillArc200BridgeChainConfiguration()
     expect(store.state.arc200BridgeChainConfiguration).toBeUndefined()
+  })
+})
+
+describe('fillArc200BridgeChainConfiguration token selection', () => {
+  it('keeps the token selection when the chain stays the same', () => {
+    store.state.arc200BridgeChain = 416001
+    store.state.arc200BridgeToken = '123'
+    store.state.arc200BridgeAmount = '5'
+    fillArc200BridgeChainConfiguration(416001)
+    expect(store.state.arc200BridgeToken).toBe('123')
+    expect(store.state.arc200BridgeAmount).toBe('5')
+  })
+
+  it('drops the token selection made for another chain', () => {
+    store.state.arc200BridgeChain = 416001
+    store.state.arc200BridgeToken = '123'
+    store.state.arc200BridgeTokenConfiguration = { tokenId: '123' }
+    store.state.arc200BridgeAmount = '5'
+    fillArc200BridgeChainConfiguration(416101)
+    expect(store.state.arc200BridgeToken).toBeUndefined()
+    expect(store.state.arc200BridgeTokenConfiguration).toBeUndefined()
+    expect(store.state.arc200BridgeAmount).toBe('')
   })
 })

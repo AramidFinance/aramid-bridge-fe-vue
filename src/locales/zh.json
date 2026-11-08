@@ -240,6 +240,7 @@
     "pleaseWait": "请稍候，我们正在处理您的交易。",
     "useWalletNotInitialized": "UseWallet 连接器未正确初始化。",
     "useWalletAddressMismatch": "当前钱包账户与源地址不匹配。请重新连接源钱包。",
+    "claimNotAvailableOnChain": "{chain} 不支持领取。",
     "useWalletNotAllSigned": "钱包未签署所有交易。",
     "useWalletSubmitUncertain": "交易发送失败，但它可能已被接受。在发起新的转账之前，请检查您的钱包记录。",
     "algodClientNotInitialized": "Algod 客户端尚未初始化。",

@@ -240,6 +240,7 @@
     "pleaseWait": "Please wait while we process your transaction.",
     "useWalletNotInitialized": "UseWallet connector is not initialized properly.",
     "useWalletAddressMismatch": "The active wallet account does not match the origin address. Please reconnect the origin wallet.",
+    "claimNotAvailableOnChain": "Claiming is not available for {chain}.",
     "useWalletNotAllSigned": "The wallet did not sign all transactions.",
     "useWalletSubmitUncertain": "Sending the transaction failed, but it may still have been accepted. Check your wallet history before starting a new transfer.",
     "algodClientNotInitialized": "Algod client is not initialized.",

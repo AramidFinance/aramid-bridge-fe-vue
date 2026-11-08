@@ -41,12 +41,15 @@ const toast = useToast()
 const { t } = useI18n()
 const router = useRouter()
 const store = useAppStore()
-// the route decides the ARC200 chain (none: the Voi default); set before child components fill it
-const routeNetwork = useRoute().params['network']
-const routeChainId = typeof routeNetwork === 'string' ? getChainIdByUseWalletNetwork(routeNetwork) : undefined
-// a network in the route that use-wallet does not know: its token params cannot be used
-const routeNetworkUnknown = typeof routeNetwork === 'string' && !routeChainId
-store.state.arc200BridgeChain = routeChainId
+const route = useRoute()
+/** The ARC200 chain the route asks for (none: the Voi default), and whether its network is unknown. */
+const routeChain = () => {
+  const network = route.params['network']
+  const chainId = typeof network === 'string' ? getChainIdByUseWalletNetwork(network) : undefined
+  return { chainId, unknown: typeof network === 'string' && !chainId }
+}
+// set before child components fill the chain configuration, so they start from the route's chain
+store.state.arc200BridgeChain = routeChain().chainId
 const state = reactive({
   inputTx: '',
   fromRoute: false,
@@ -58,14 +61,22 @@ const state = reactive({
   mounted: false
 })
 
-onMounted(async () => {
-  const route = useRoute()
-  state.inputTx = route.params['sourceTxId'] as string
-  state.fromRoute = !!state.inputTx
-
-  if (routeChainId) fillArc200BridgeChainConfiguration(routeChainId)
-
-  if (!routeNetworkUnknown && route.params['tokenId'] && route.params['amount'] && route.params['direction']) {
+/**
+ * Applies the route: loads the configuration, selects the route's chain (a chain without configuration
+ * falls back to the default one), then applies the route's token params for that chain.
+ */
+const applyRoute = async () => {
+  const { chainId, unknown } = routeChain()
+  store.state.arc200BridgeChain = chainId
+  await getPublicConfiguration(false)
+  fillArc200BridgeChainConfiguration(chainId)
+  if (unknown || (chainId && store.state.arc200BridgeChain !== chainId)) {
+    // the route's network is unknown or has no configuration, so the default chain is used (which
+    // dropped the token selection): the route's token params belong to another chain
+    await router.replace({ name: 'arc200-claim' })
+    return
+  }
+  if (route.params['tokenId'] && route.params['amount'] && route.params['direction']) {
     store.state.arc200BridgeToken = route.params['tokenId'] as string
     store.state.arc200BridgeAmount = route.params['amount'] as string
     store.state.arc200BridgeDirection = route.params['direction'] as 'ARC200ToASA' | 'ASAToARC200'
@@ -74,10 +85,20 @@ onMounted(async () => {
     }
     fillArc200BridgeTokenConfiguration(store.state.arc200BridgeToken)
   }
+}
 
+onMounted(async () => {
+  state.inputTx = route.params['sourceTxId'] as string
+  state.fromRoute = !!state.inputTx
+  await applyRoute()
   await getPublicConfiguration(true)
   state.mounted = true
 })
+// the arc200-claim routes share this component instance, so a new :network does not remount it
+watch(
+  () => route.params['network'],
+  () => applyRoute()
+)
 const fillInRoute = () => {
   if (!state.mounted) return
   if (!store.state.arc200BridgeToken) return
@@ -528,20 +549,6 @@ const resetButtonClick = async () => {
   resetStateSoft()
   await router.push('/')
 }
-
-onMounted(async () => {
-  await getPublicConfiguration(false)
-  // keep the chain taken from the route (defaults to Voi when none was given)
-  fillArc200BridgeChainConfiguration(routeChainId)
-  if (routeNetworkUnknown || (routeChainId && store.state.arc200BridgeChain !== routeChainId)) {
-    // the route's network is unknown or has no configuration, so the default chain is used: the route's
-    // token and amount belong to another chain, so drop them and replace the invalid URL
-    store.state.arc200BridgeToken = undefined
-    store.state.arc200BridgeTokenConfiguration = undefined
-    store.state.arc200BridgeAmount = ''
-    await router.replace({ name: 'arc200-claim' })
-  }
-})
 </script>
 
 <template>
