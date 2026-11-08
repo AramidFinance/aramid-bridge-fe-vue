@@ -144,6 +144,13 @@ watch(
     await onSourceAddressChange()
   }
 )
+// separate: fillInState() would reset the selected source token
+watch(
+  () => store.state.sourceToken,
+  async () => {
+    await onSourceAddressChange()
+  }
+)
 
 watch(
   () => store.state.sourceChainConfiguration,
@@ -152,12 +159,6 @@ watch(
   }
 )
 
-watch(
-  () => store.state.sourceToken,
-  async () => {
-    await onSourceAddressChange()
-  }
-)
 const buttonClick = async () => {
   if (store.state.sourceChainConfiguration?.type == 'algo') {
     if (state.connected) {

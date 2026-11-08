@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { isWalletForChain } from '@/scripts/algo/isWalletForChain'
+import { useWalletNetwork } from '@/scripts/algo/useWalletSync'
 import { sourceWalletSlot } from '@/scripts/algo/walletSlots'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
@@ -16,7 +17,9 @@ import WalletButton from '../ui/WalletButton.vue'
 
 const toast = useToast()
 
-const { wallets, activeWallet, activeAccount } = useWallet()
+const useWalletState = useWallet()
+const { wallets, activeWallet, activeAccount } = useWalletState
+const { isActiveWalletUsable, switchToChain } = useWalletNetwork(useWalletState)
 
 const store = useAppStore()
 
@@ -24,8 +27,22 @@ const walletButtonClick = async (wallet: Wallet) => {
   console.log('source.wallet', wallet, activeWallet, activeAccount)
   await wallet.connect()
   console.log('source.wallet2', wallet, activeWallet.value, activeAccount.value)
-  if (activeAccount.value?.address) {
+  // align the shared manager with the chain (not before connect(): popup wallets need the click),
+  // then bind only a wallet that can sign there
+  const chainId = store.state.sourceChainConfiguration?.chainId
+  try {
+    if (chainId) await switchToChain(chainId)
+  } catch (e: any) {
+    console.error(e)
+  }
+  if (activeAccount.value?.address && chainId && isActiveWalletUsable(chainId)) {
     sourceWalletSlot(store).connect(activeAccount.value.address)
+  } else {
+    toast.add({
+      severity: 'error',
+      detail: t('sign.useWalletNotInitialized'),
+      life: 3000
+    })
   }
   // else {
   //   if (wallet.accounts.length > 0) {

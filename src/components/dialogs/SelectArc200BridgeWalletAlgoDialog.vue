@@ -1,17 +1,22 @@
 <script setup lang="ts">
 import { isWalletForChain } from '@/scripts/algo/isWalletForChain'
+import { useWalletNetwork } from '@/scripts/algo/useWalletSync'
 import { arc200BridgeWalletSlot } from '@/scripts/algo/walletSlots'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
 import { useWallet, type Wallet } from '@txnlab/use-wallet-vue'
+import { useToast } from 'primevue/usetoast'
 import { onMounted, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import DialogTitle from '../ui/DialogTitle.vue'
 import WalletButton from '../ui/WalletButton.vue'
 
-const { wallets, activeWallet, activeAccount } = useWallet()
+const toast = useToast()
+const useWalletState = useWallet()
+const { wallets, activeWallet, activeAccount } = useWalletState
+const { isActiveWalletUsable, switchToChain } = useWalletNetwork(useWalletState)
 
 const store = useAppStore()
 
@@ -19,8 +24,22 @@ const walletButtonClick = async (wallet: Wallet) => {
   console.log('source.wallet', wallet, activeWallet, activeAccount)
   await wallet.connect()
   console.log('source.wallet2', wallet, activeWallet.value, activeAccount.value)
-  if (activeAccount.value?.address) {
+  // align the shared manager with the chain (not before connect(): popup wallets need the click),
+  // then bind only a wallet that can sign there
+  const chainId = store.state.arc200BridgeChainConfiguration?.chainId
+  try {
+    if (chainId) await switchToChain(chainId)
+  } catch (e: any) {
+    console.error(e)
+  }
+  if (activeAccount.value?.address && chainId && isActiveWalletUsable(chainId)) {
     arc200BridgeWalletSlot(store).connect(activeAccount.value.address)
+  } else {
+    toast.add({
+      severity: 'error',
+      detail: t('sign.useWalletNotInitialized'),
+      life: 3000
+    })
   }
   // else {
   //   if (wallet.accounts.length > 0) {

@@ -6,7 +6,8 @@ import { useAppStore } from '@/stores/app'
 import { Config, populateAppCallResources } from '@algorandfoundation/algokit-utils'
 import { AlgoAmount } from '@algorandfoundation/algokit-utils/types/amount'
 import { TransactionComposer } from '@algorandfoundation/algokit-utils/types/composer'
-import { getChainIdByUseWalletNetwork, getUseWalletNetworkId } from '@/scripts/algo/useWalletSync'
+import { getChainIdByUseWalletNetwork, getUseWalletNetworkId, useWalletNetwork } from '@/scripts/algo/useWalletSync'
+import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import { useNetwork, useWallet } from '@txnlab/use-wallet-vue'
 import algosdk, { Address } from 'algosdk'
 import { getArc200ASAClient, type Arc200ExchangeInfo } from 'arc200-client'
@@ -34,7 +35,9 @@ import WalletArc200Bridge from './WalletArc200Bridge.vue'
 Config.configure({ debug: true })
 
 const { setActiveNetwork, activeNetwork } = useNetwork()
-const { signTransactions } = useWallet()
+const useWalletState = useWallet()
+const { activeAddress, signTransactions } = useWalletState
+const { isActiveWalletUsable } = useWalletNetwork(useWalletState)
 const toast = useToast()
 const { t } = useI18n()
 const router = useRouter()
@@ -56,8 +59,8 @@ onMounted(async () => {
   state.fromRoute = !!state.inputTx
 
   if (route.params['network']) {
-    const chainId = convertNetworkCodeToChainId(route.params['network'] as string)
-    if (chainId !== 0) {
+    const chainId = getChainIdByUseWalletNetwork(route.params['network'] as string)
+    if (chainId) {
       store.state.arc200BridgeChain = chainId
       fillArc200BridgeChainConfiguration()
     }
@@ -83,7 +86,7 @@ const fillInRoute = () => {
   router.push({
     name: 'arc200-claim-t',
     params: {
-      network: activeNetwork.value ?? 'voimain',
+      network: getUseWalletNetworkId(store.state.arc200BridgeChain) ?? 'voimain',
       tokenId: store.state.arc200BridgeToken,
       amount: store.state.arc200BridgeAmount ?? '0',
       direction: store.state.arc200BridgeDirection ?? 'ARC200ToASA'
@@ -110,14 +113,13 @@ watch(
   }
 )
 
-const convertToNetworkCode = (chainId: number): string => getUseWalletNetworkId(chainId) ?? ''
-const convertNetworkCodeToChainId = (networkCode: string): number => getChainIdByUseWalletNetwork(networkCode) ?? 0
 const bridginigButtonClick = async () => {
   try {
     state.bridginig = true
     if (!store.state.arc200BridgeChain) throw new Error('No destination chain set')
     const chain = store.state.arc200BridgeChain
-    const code = convertToNetworkCode(chain)
+    const code = getUseWalletNetworkId(chain)
+    if (!code) throw Error(t('sign.useWalletNotInitialized'))
 
     if (store.state.destinationChain) {
       console.log('activeNetwork.value ? store.state.destinationChain', activeNetwork.value, store.state.destinationChain)
@@ -134,6 +136,11 @@ const bridginigButtonClick = async () => {
         console.log('after switching network to', store.state.destinationChain)
         return
       }
+    }
+
+    // the use-wallet manager is shared with other pages: sign only with the account this page is bound to
+    if (store.state.arc200BridgeAlgoConnectorType !== AlgoConnectorType.UseWallet || activeAddress.value !== store.state.arc200BridgeAddress || !isActiveWalletUsable(chain)) {
+      throw Error(t('sign.useWalletAddressMismatch'))
     }
 
     if (store.state.arc200BridgeDirection === 'ARC200ToASA') {
@@ -556,7 +563,7 @@ onMounted(async () => {
           <MainActionButton @click="state.bridginig = false">{{ t('common.cancel') }}</MainActionButton>
         </div>
         <div class="w-full" v-else>
-          <MainActionButton v-if="activeNetwork == convertToNetworkCode(store.state.arc200BridgeChain ?? 0)" @click="bridginigButtonClick">Bridge</MainActionButton>
+          <MainActionButton v-if="activeNetwork == getUseWalletNetworkId(store.state.arc200BridgeChain)" @click="bridginigButtonClick">Bridge</MainActionButton>
           <MainActionButton v-else-if="store.state.claimData" @click="bridginigButtonClick">{{
             t('bridge.switchNetwork', { chain: store.state.destinationChainConfiguration?.name })
           }}</MainActionButton>
