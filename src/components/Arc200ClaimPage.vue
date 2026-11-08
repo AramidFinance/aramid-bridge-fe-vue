@@ -72,9 +72,16 @@ const applyRoute = async () => {
   const run = ++routeRun
   try {
     const { chainId, unknown } = routeChain()
+    const targetChainId = chainId ?? DEFAULT_ARC200_CHAIN
+    const onTargetChain = store.state.arc200BridgeChain === targetChainId && store.state.arc200BridgeChainConfiguration?.chainId === targetChainId
+    const { tokenId, amount, direction } = route.params
+    // nothing to apply when the route already matches the store (e.g. it was just written from the store)
+    if (!unknown && onTargetChain && (!tokenId || (tokenId === store.state.arc200BridgeToken && amount === store.state.arc200BridgeAmount && direction === store.state.arc200BridgeDirection))) {
+      return
+    }
     await getPublicConfiguration(false)
     if (run !== routeRun || !store.state.publicConfiguration) return
-    fillArc200BridgeChainConfiguration(chainId ?? DEFAULT_ARC200_CHAIN)
+    if (!onTargetChain) fillArc200BridgeChainConfiguration(targetChainId)
     if (unknown || (chainId && store.state.arc200BridgeChain !== chainId)) {
       // the route's network is unknown or has no configuration: its token params belong to another chain
       await router.replace({ name: 'arc200-claim' })

@@ -56,9 +56,6 @@ const sessionAllowsActiveNetwork = (manager: WalletManager, walletKey: string): 
   return chains.includes(caipChainId)
 }
 
-/** Why the active use-wallet account cannot sign for an expected address, if it cannot. */
-export type SignerProblem = 'notUsable' | 'mismatch' | undefined
-
 /**
  * Network alignment and wallet usability against the shared use-wallet manager. Pass the caller's
  * useWallet() result to avoid a second set of store subscriptions.
@@ -130,21 +127,13 @@ export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWalle
     }
   }
 
-  /** Checks that the active account can sign transactions sent from expectedAddress on the chain. */
-  const signerProblem = (chainId: number, expectedAddress: string | undefined): SignerProblem => {
-    if (!activeAddress.value || !isActiveWalletUsable(chainId)) return 'notUsable'
-    if (!expectedAddress || activeAddress.value !== expectedAddress) return 'mismatch'
-    return undefined
-  }
-
   /**
    * Throws (as ErrorClass) when the active account cannot sign transactions sent from sender on the
    * chain. Call it before building the transactions and again right before signing them.
    */
   const assertSigner = (chainId: number, sender: string | undefined, ErrorClass: new (message: string) => Error = Error): void => {
-    const problem = signerProblem(chainId, sender)
-    if (problem === 'notUsable') throw new ErrorClass(t('sign.useWalletNotInitialized'))
-    if (problem === 'mismatch') throw new ErrorClass(t('sign.useWalletAddressMismatch'))
+    if (!activeAddress.value || !isActiveWalletUsable(chainId)) throw new ErrorClass(t('sign.useWalletNotInitialized'))
+    if (!sender || activeAddress.value !== sender) throw new ErrorClass(t('sign.useWalletAddressMismatch'))
   }
 
   /**

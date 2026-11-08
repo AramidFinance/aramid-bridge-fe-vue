@@ -83,6 +83,16 @@ watch(
     setAmount()
   }
 )
+// the store amount can also change from outside the input (e.g. back/forward to a URL with another amount)
+watch(
+  () => store.state.arc200BridgeAmount,
+  (amount) => {
+    const config = store.state.arc200BridgeTokenConfiguration
+    if (!config || !amount) return
+    const shown = new BigNumber(state.arc200BridgeAmount).multipliedBy(new BigNumber(10).pow(config.decimals)).toFixed(0, 1)
+    if (shown !== amount) state.arc200BridgeAmount = new BigNumber(amount).toNumber() / 10 ** config.decimals
+  }
+)
 watch(
   () => store.state.arc200BridgeTokenConfiguration,
   async () => {
