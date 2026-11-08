@@ -43,7 +43,7 @@ vi.mock('@txnlab/use-wallet-vue', async () => {
         return { caipChainId: `caip:${mock.activeNetwork.value}` }
       },
       on: (_event: 'ready', handler: () => void) => watch(mock.isReady, (ready) => ready && handler()),
-      getWallet: (walletKey: string) => ({ session: mock.sessions[walletKey] })
+      getWallet: (walletKey: string) => mock.sessions[walletKey] as object | undefined
     }),
     __mock: mock
   }
@@ -411,7 +411,7 @@ describe('useWalletNetwork.assertSigner problems', () => {
     scope = effectScope()
     const { isActiveWalletUsable } = scope.run(() => useWalletNetwork())!
     useActiveWallet(makeWallet('walletconnect'), ADDR_A)
-    manager.sessions.walletconnect = { namespaces: { algorand: { chains: [], accounts: [`caip:mainnet:${ADDR_A}`] } } }
+    manager.sessions.walletconnect = { session: { namespaces: { algorand: { chains: [], accounts: [`caip:mainnet:${ADDR_A}`] } } } }
     expect(isActiveWalletUsable(416001)).toBe(true)
   })
 })
@@ -421,7 +421,7 @@ describe('WalletConnect sessions', () => {
     scope = effectScope()
     const { isActiveWalletUsable } = scope.run(() => useWalletNetwork())!
     useActiveWallet(makeWallet('walletconnect'), ADDR_A)
-    manager.sessions.walletconnect = { namespaces: { algorand: { accounts: [`caip:mainnet:${ADDR_A}`] } } }
+    manager.sessions.walletconnect = { session: { namespaces: { algorand: { accounts: [`caip:mainnet:${ADDR_A}`] } } } }
     manager.activeNetwork.value = 'mainnet'
     expect(isActiveWalletUsable(416001)).toBe(true)
     manager.activeNetwork.value = 'voimain'
@@ -497,7 +497,7 @@ describe('useWalletSync network watcher', () => {
     manager.activeNetwork.value = 'voimain'
     useActiveWallet(makeWallet('walletconnect'), ADDR_A)
     // a session approved for mainnet only
-    manager.sessions.walletconnect = { namespaces: { algorand: { accounts: [`caip:mainnet:${ADDR_A}`] } } }
+    manager.sessions.walletconnect = { session: { namespaces: { algorand: { accounts: [`caip:mainnet:${ADDR_A}`] } } } }
     manager.activeNetwork.value = 'mainnet'
     setup(store)
     await settle()
@@ -515,5 +515,19 @@ describe('useWalletSync network watcher', () => {
     manager.activeNetwork.value = 'mainnet'
     await nextTick()
     expect(store.state.sourceAddress).toBe(ADDR_A)
+  })
+})
+
+describe('Biatec WalletConnect sessions', () => {
+  it('checks the WalletConnect transport session only while it is the active method', () => {
+    scope = effectScope()
+    const { isActiveWalletUsable } = scope.run(() => useWalletNetwork())!
+    useActiveWallet(makeWallet('biatec'), ADDR_A)
+    const wcSession = { namespaces: { algorand: { accounts: [`caip:mainnet:${ADDR_A}`] } } }
+    manager.activeNetwork.value = 'voimain'
+    manager.sessions.biatec = { activeMethod: 'walletconnect', walletConnect: { session: wcSession } }
+    expect(isActiveWalletUsable(416101)).toBe(false)
+    manager.sessions.biatec = { activeMethod: 'liquid', walletConnect: { session: wcSession } }
+    expect(isActiveWalletUsable(416101)).toBe(true)
   })
 })

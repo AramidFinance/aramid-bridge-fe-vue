@@ -187,22 +187,26 @@ const signWithUseWallet = async () => {
     const params = await algodClient.getTransactionParams().do()
 
     let toSign: algosdk.Transaction[]
+    // the transfer to the bridge address that carries the bridge note, from values captured now (the
+    // ARC200 path awaits several lookups before adding it)
     const note = store.state.sourceTxNote
-    // the transfer to the bridge address that carries the bridge note
+    const bridgeAmount = BigInt(store.state.sourceAmount)
+    const bridgeToken = Number(store.state.sourceToken)
+    const bridgeReceiver = store.state.sourceBridgeAddress
     const makeBridgeTx = () =>
-      Number(store.state.sourceToken) > 0
+      bridgeToken > 0
         ? algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-            amount: BigInt(store.state.sourceAmount),
+            amount: bridgeAmount,
             sender,
-            receiver: store.state.sourceBridgeAddress,
+            receiver: bridgeReceiver,
             suggestedParams: params,
             note: new Uint8Array(Buffer.from(note)),
-            assetIndex: Number(store.state.sourceToken)
+            assetIndex: bridgeToken
           })
         : algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-            amount: BigInt(store.state.sourceAmount),
+            amount: bridgeAmount,
             sender,
-            receiver: store.state.sourceBridgeAddress,
+            receiver: bridgeReceiver,
             suggestedParams: params,
             note: new Uint8Array(Buffer.from(note))
           })

@@ -47,7 +47,7 @@ const fillInState = async () => {
     if (route && route.params && route.params['amount']) {
       store.state.arc200BridgeAmount = route.params['amount'] as string
       store.state.arc200BridgeAmountFormatted = formatBaseAmount(store.state.arc200BridgeAmount, store.state.arc200BridgeTokenConfiguration.decimals)
-      state.arc200BridgeAmount = new BigNumber(store.state.arc200BridgeAmount).toNumber() / 10 ** store.state.arc200BridgeTokenConfiguration.decimals
+      state.arc200BridgeAmount = fromBaseUnits(store.state.arc200BridgeAmount, store.state.arc200BridgeTokenConfiguration.decimals)
       //console.log('state.arc200BridgeAmount', new BigNumber(state.arc200BridgeAmount).toNumber(), state.arc200BridgeAmount)
     }
 
@@ -68,24 +68,27 @@ const fillInState = async () => {
   }
 }
 
+/** Displayed (decimal) amount -> base units, truncated. */
+const toBaseUnits = (value: number, decimals: number): string => new BigNumber(value).shiftedBy(decimals).toFixed(0, 1)
+/** Base units -> displayed (decimal) amount. */
+const fromBaseUnits = (amount: string, decimals: number): number => new BigNumber(amount).shiftedBy(-decimals).toNumber()
+
 const setAmount = () => {
   if (!store.state.arc200BridgeTokenConfiguration) return
 
-  const base = new BigNumber(state.arc200BridgeAmount).multipliedBy(new BigNumber(10).pow(store.state.arc200BridgeTokenConfiguration.decimals)).toFixed(0, 1)
+  const base = toBaseUnits(state.arc200BridgeAmount, store.state.arc200BridgeTokenConfiguration.decimals)
   store.state.arc200BridgeAmount = base
   store.state.arc200BridgeAmountFormatted = formatBaseAmount(base, store.state.arc200BridgeTokenConfiguration.decimals)
   //console.log('store.state.arc200BridgeAmount', store.state.arc200BridgeAmount)
 }
 
-// set while the input is updated from the store, so the (float) input value is not written back
-let syncingFromStore = false
 watch(
   () => state.arc200BridgeAmount,
-  () => {
-    if (syncingFromStore) {
-      syncingFromStore = false
-      return
-    }
+  (value) => {
+    const config = store.state.arc200BridgeTokenConfiguration
+    // the input shows the store amount already (e.g. it was just synced from the store): writing the
+    // displayed float back could round an exact base-unit amount
+    if (config && store.state.arc200BridgeAmount && fromBaseUnits(store.state.arc200BridgeAmount, config.decimals) === value) return
     setAmount()
   }
 )
@@ -95,18 +98,17 @@ watch(
   (amount) => {
     const config = store.state.arc200BridgeTokenConfiguration
     if (!config || !amount) return
-    const shown = new BigNumber(state.arc200BridgeAmount).multipliedBy(new BigNumber(10).pow(config.decimals)).toFixed(0, 1)
-    if (shown === amount) return
-    const value = new BigNumber(amount).shiftedBy(-config.decimals).toNumber()
-    if (value === state.arc200BridgeAmount) return
-    syncingFromStore = true
-    state.arc200BridgeAmount = value
+    store.state.arc200BridgeAmountFormatted = formatBaseAmount(amount, config.decimals)
+    const value = fromBaseUnits(amount, config.decimals)
+    if (value !== state.arc200BridgeAmount) state.arc200BridgeAmount = value
   }
 )
 watch(
   () => store.state.arc200BridgeTokenConfiguration,
   async () => {
     await fillInState()
+    // another token can have other decimals: keep the amount the user sees, in the new token's units
+    if (state.arc200BridgeAmount) setAmount()
   }
 )
 watch(
@@ -143,7 +145,7 @@ const setMax = () => {
 
   store.state.arc200BridgeAmountFormatted = formatBaseAmount(store.state.arc200BridgeAmount, store.state.arc200BridgeTokenConfiguration.decimals)
 
-  state.arc200BridgeAmount = new BigNumber(store.state.arc200BridgeAmount).toNumber() / 10 ** store.state.arc200BridgeTokenConfiguration.decimals
+  state.arc200BridgeAmount = fromBaseUnits(store.state.arc200BridgeAmount, store.state.arc200BridgeTokenConfiguration.decimals)
   calculateFeeAndDestinationAmount()
   makeNoteField()
 }

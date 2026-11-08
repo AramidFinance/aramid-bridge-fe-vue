@@ -41,13 +41,24 @@ const whenManagerReady = (manager: WalletManager): Promise<void> => {
   return promise
 }
 
+type WalletConnectSession = { namespaces?: { algorand?: { chains?: string[]; accounts?: string[] } } }
+type AdapterWithSession = {
+  // the generic WalletConnect adapter
+  session?: WalletConnectSession
+  // Biatec Wallet: its WalletConnect transport, when that is the active connection method
+  activeMethod?: string
+  walletConnect?: { session?: WalletConnectSession }
+}
+
 /**
  * WalletConnect sessions are approved for specific chains (the generic WalletConnect adapter only
- * requests the network that was active when connecting). Adapters without such a session are not
- * restricted. The session is read from the adapter instance, as use-wallet does not expose it.
+ * requests the network that was active when connecting; a wallet may approve only the required chain).
+ * Adapters without such a session are not restricted. The session is read from the adapter instance,
+ * as use-wallet does not expose it.
  */
 const sessionAllowsActiveNetwork = (manager: WalletManager, walletKey: string): boolean => {
-  const session = (manager.getWallet(walletKey) as unknown as { session?: { namespaces?: { algorand?: { chains?: string[]; accounts?: string[] } } } } | undefined)?.session
+  const adapter = manager.getWallet(walletKey) as unknown as AdapterWithSession | undefined
+  const session = adapter?.session ?? (adapter?.activeMethod === 'walletconnect' ? adapter.walletConnect?.session : undefined)
   const algorand = session?.namespaces?.algorand
   const caipChainId = manager.activeNetworkConfig?.caipChainId
   if (!algorand || !caipChainId) return true

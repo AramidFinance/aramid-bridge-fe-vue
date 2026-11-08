@@ -13,7 +13,7 @@ import { useWallet } from '@txnlab/use-wallet-vue'
 import algosdk, { Address } from 'algosdk'
 import { getArc200ASAClient, type Arc200ExchangeInfo } from 'arc200-client'
 import { useToast } from 'primevue/usetoast'
-import { onMounted, reactive, watch } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import dummyTransactionSigner from '../scripts/algo/dummyTransactionSigner'
@@ -80,6 +80,10 @@ const navigate = async (to: RouteLocationRaw, replace = false) => {
 }
 
 let routeRun = 0
+let unmounted = false
+onBeforeUnmount(() => {
+  unmounted = true
+})
 const applyRoute = async () => {
   const run = ++routeRun
   try {
@@ -92,7 +96,7 @@ const applyRoute = async () => {
       return
     }
     await getPublicConfiguration(false)
-    if (run !== routeRun || !store.state.publicConfiguration) return
+    if (unmounted || run !== routeRun || !store.state.publicConfiguration) return
     if (!onTargetChain) fillArc200BridgeChainConfiguration(targetChainId)
     if (unknown || (chainId && store.state.arc200BridgeChain !== chainId)) {
       // the route's network is unknown or has no configuration: its token params belong to another chain
