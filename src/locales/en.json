@@ -239,6 +239,7 @@
     "txnIdPrefix": "Transaction ID:",
     "pleaseWait": "Please wait while we process your transaction.",
     "useWalletNotInitialized": "UseWallet connector is not initialized properly.",
+    "useWalletAddressMismatch": "The active wallet account does not match the origin address. Please reconnect the origin wallet.",
     "algodClientNotInitialized": "Algod client is not initialized.",
     "destinationChainMissing": "Destination blockchain is not set.",
     "destinationAddressMissing": "Destination address is not set.",

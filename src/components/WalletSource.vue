@@ -14,7 +14,8 @@ import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
-import { NetworkId, useNetwork, useWallet } from '@txnlab/use-wallet-vue'
+import { useWalletSync } from '@/scripts/algo/useWalletSync'
+import { useWallet } from '@txnlab/use-wallet-vue'
 import { useAppKitAccount, useAppKitNetwork, useDisconnect } from '@reown/appkit/vue'
 import { useToast } from 'primevue/usetoast'
 import { onMounted, reactive, watch } from 'vue'
@@ -24,39 +25,23 @@ import WalletAddress from './ui/WalletAddress.vue'
 
 const { t } = useI18n()
 const wallet = useWallet()
-const { activeWallet, activeAccount, isReady } = wallet
-
-const network = useNetwork()
+const { activeWallet, activeAccount } = wallet
 
 const toast = useToast()
 const store = useAppStore()
 
-const switchNetwork = (networkId: string) => {
-  network.setActiveNetwork(networkId).catch((e: any) => {
-    console.error(e)
-    toast.add({
-      severity: 'error',
-      detail: e.message ?? e,
-      life: 3000
-    })
-  })
-}
-
-// use-wallet v5 disconnects wallets that do not support the newly active network (e.g. Pera on Voi),
-// so drop the app-level connection whenever the use-wallet session is gone.
-const clearIfUseWalletDisconnected = () => {
-  if (
-    isReady.value &&
-    !activeWallet.value &&
-    store.state.sourceChainConfiguration?.type == 'algo' &&
-    store.state.sourceAlgoConnectorType === AlgoConnectorType.UseWallet &&
-    store.state.sourceAddress
-  ) {
+const { clearIfDisconnected, syncNetwork } = useWalletSync({
+  chainConfiguration: () => store.state.sourceChainConfiguration,
+  connectorType: () => store.state.sourceAlgoConnectorType,
+  address: () => store.state.sourceAddress,
+  setAddress: (address) => {
+    store.state.sourceAddress = address
+  },
+  disconnect: () => {
     store.state.connectedSourceChain = undefined
     store.state.sourceAddress = ''
   }
-}
-watch([isReady, activeWallet], clearIfUseWalletDisconnected)
+})
 
 interface IState {
   connected: boolean
@@ -151,6 +136,8 @@ const onSourceAddressChange = async () => {
 onMounted(async () => {
   state.publicConfiguration = await getPublicConfiguration(false)
   fillInState()
+  // the use-wallet manager is shared with other pages, which may have switched its network
+  await syncNetwork()
   //console.log('WalletSource.activeAccount.value', activeWallet.value, activeAccount.value)
 
   if (store.state.sourceChainConfiguration?.type == 'algo' && activeWallet.value && activeAccount.value?.address) {
@@ -158,7 +145,7 @@ onMounted(async () => {
     store.state.sourceAlgoConnectorType = AlgoConnectorType.UseWallet
     store.state.connectedSourceChain = store.state.sourceChain
   }
-  clearIfUseWalletDisconnected()
+  clearIfDisconnected()
   if (store.state.sourceAddress) {
     onSourceAddressChange()
   }
@@ -183,23 +170,7 @@ watch(
   () => store.state.sourceChainConfiguration,
   () => {
     fillInState()
-    if (store.state.sourceChainConfiguration?.type == 'algo') {
-      //console.log('setActiveNetwork', store.state.sourceChainConfiguration.name)
-      switch (store.state.sourceChainConfiguration.name) {
-        case 'Algorand':
-          switchNetwork(NetworkId.MAINNET)
-          break
-        case 'Testnet':
-          switchNetwork(NetworkId.TESTNET)
-          break
-        case 'AramidChain':
-          switchNetwork('aramidmain')
-          break
-        case 'Voi':
-          switchNetwork('voimain')
-          break
-      }
-    }
+    syncNetwork()
   }
 )
 

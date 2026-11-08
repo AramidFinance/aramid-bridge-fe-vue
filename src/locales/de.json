@@ -239,6 +239,7 @@
     "txnIdPrefix": "Transaktions-ID:",
     "pleaseWait": "Bitte warte, während wir deine Transaktion verarbeiten.",
     "useWalletNotInitialized": "Der UseWallet-Connector ist nicht korrekt initialisiert.",
+    "useWalletAddressMismatch": "Das aktive Wallet-Konto stimmt nicht mit der Ursprungsadresse überein. Bitte verbinden Sie die Ursprungs-Wallet erneut.",
     "algodClientNotInitialized": "Der Algod-Client ist nicht initialisiert.",
     "destinationChainMissing": "Die Ziel-blockchain ist nicht festgelegt.",
     "destinationAddressMissing": "Die Zieladresse ist nicht festgelegt.",

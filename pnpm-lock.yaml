@@ -132,9 +132,9 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.3.5
         version: 4.3.5(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
-      '@tsconfig/node20':
-        specifier: ^20.1.10
-        version: 20.1.10
+      '@tsconfig/node22':
+        specifier: ^22.0.6
+        version: 22.0.6
       '@types/crypto-js':
         specifier: ^4.2.2
         version: 4.2.2
@@ -1616,8 +1616,8 @@ packages:
       '@vue/composition-api':
         optional: true
 
-  '@tsconfig/node20@20.1.10':
-    resolution: {integrity: sha512-5OZgdnxbFuvwm05iVwPXMU5/7iPuVDDZzAnxPDLj+kjN7fwQZSSVgHQhKTNkBPOO6Qef2D5MxPAoPLCGqE2VuQ==}
+  '@tsconfig/node22@22.0.6':
+    resolution: {integrity: sha512-/5thavHAnWDZwH2H6eEn/T8pBEBhtuKaWGMslsj82kJfvzQgOgEMK7X4goBbIUjgVtAzPTtM9Ml64LA0uxO6Iw==}
 
   '@txnlab/use-wallet-defly@5.2.0':
     resolution: {integrity: sha512-rIW8N7MJRUmq/I4d6W6yCcSb9mc6u+4BxtYWf1WHs0JmO3tqxd1WruBYUKgIvsvFQpfipRM+cZQ0gKqlW735ng==}
@@ -6508,7 +6508,7 @@ snapshots:
       vue: 3.5.45(typescript@6.0.3)
       vue-demi: 0.14.10(vue@3.5.45(typescript@6.0.3))
 
-  '@tsconfig/node20@20.1.10': {}
+  '@tsconfig/node22@22.0.6': {}
 
   '@txnlab/use-wallet-defly@5.2.0(@txnlab/use-wallet@5.2.0(algosdk@3.9.0))(algosdk@3.9.0)':
     dependencies:

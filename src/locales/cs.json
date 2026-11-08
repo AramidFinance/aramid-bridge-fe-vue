@@ -239,6 +239,7 @@
     "txnIdPrefix": "ID transakce:",
     "pleaseWait": "Prosím vyčkejte, než zpracujeme vaši transakci.",
     "useWalletNotInitialized": "Konektor UseWallet není správně inicializován.",
+    "useWalletAddressMismatch": "Aktivní účet peněženky neodpovídá zdrojové adrese. Znovu připojte zdrojovou peněženku.",
     "algodClientNotInitialized": "Algod klient není inicializován.",
     "destinationChainMissing": "Cílový blockchain není nastaven.",
     "destinationAddressMissing": "Cílová adresa není nastavena.",

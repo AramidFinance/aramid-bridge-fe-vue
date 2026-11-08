@@ -78,6 +78,18 @@ const networks = new NetworkConfigBuilder()
   .addNetwork('aramidmain', { ...BIATEC_EXTRA_NETWORKS.aramidmain, algod: algodAramidmain })
   .build()
 
+// With persistNetwork the WalletManager constructor throws (blank page) if the persisted network is
+// no longer configured, so fall back to the default network in that case.
+try {
+  const persisted = JSON.parse(localStorage.getItem('@txnlab/use-wallet:v5') ?? 'null')
+  if (persisted?.activeNetwork && !networks[persisted.activeNetwork]) {
+    persisted.activeNetwork = NetworkId.MAINNET
+    localStorage.setItem('@txnlab/use-wallet:v5', JSON.stringify(persisted))
+  }
+} catch {
+  // unparsable state (use-wallet ignores it) or storage unavailable
+}
+
 app.use(WalletManagerPlugin, {
   wallets: [
     defly(),
