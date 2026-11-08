@@ -41,8 +41,8 @@ const router = useRouter()
 const toast = useToast()
 const { t } = useI18n()
 const useWalletState = useWallet()
-const { activeWallet, activeAddress, signTransactions: useWalletSignTransactions } = useWalletState
-const { isActiveWalletUsable, switchToChain } = useWalletNetwork(useWalletState)
+const { activeWallet, signTransactions: useWalletSignTransactions } = useWalletState
+const { signerProblem, switchToChain } = useWalletNetwork(useWalletState)
 useAvmWallet()
 
 const routeToBridgeScreen = () => {
@@ -161,11 +161,12 @@ let disposed = false
 // algod answers a rejected transaction with 400; other statuses (e.g. a proxy's 408) may come after
 // the transaction was forwarded, so they are not treated as a definite rejection
 const isDefinitelyRejected = (e: any): boolean => (e?.response?.status ?? e?.status) === 400
-/** The manager is on the source network with the bound, usable account (re-checked right before signing). */
-const assertUseWalletSigner = (chainId: number) => {
+/** The manager is on the source network with the account the transactions are sent from (re-checked right before signing). */
+const assertUseWalletSigner = (chainId: number, sender: string) => {
   if (disposed) throw new SignAbortedError()
-  if (!activeAddress.value || !isActiveWalletUsable(chainId)) throw new UseWalletNotReadyError(t('sign.useWalletNotInitialized'))
-  if (activeAddress.value !== store.state.sourceAddress) throw new UseWalletNotReadyError(t('sign.useWalletAddressMismatch'))
+  const problem = signerProblem(chainId, sender)
+  if (problem === 'notUsable') throw new UseWalletNotReadyError(t('sign.useWalletNotInitialized'))
+  if (problem === 'mismatch') throw new UseWalletNotReadyError(t('sign.useWalletAddressMismatch'))
 }
 const signWithUseWallet = async () => {
   useWalletSignOutcome.value = undefined
@@ -177,7 +178,9 @@ const signWithUseWallet = async () => {
     // the use-wallet manager is shared with other pages, which may have switched its network
     const onSourceNetwork = await switchToChain(store.state.sourceChain)
     if (!onSourceNetwork) throw new UseWalletNotReadyError(t('sign.useWalletNotInitialized'))
-    assertUseWalletSigner(store.state.sourceChain)
+    // the transactions below are built for this sender
+    const sender = store.state.sourceAddress
+    assertUseWalletSigner(store.state.sourceChain, sender)
 
     const algodClient = await getAlgodClientByChainId(store.state.sourceChain)
     if (!algodClient) throw Error(t('sign.algodClientNotInitialized'))
@@ -315,7 +318,7 @@ const signWithUseWallet = async () => {
         return txnWithSigner.txn
       })
       console.log('signing txns', toSignFinal)
-      assertUseWalletSigner(store.state.sourceChain)
+      assertUseWalletSigner(store.state.sourceChain, sender)
       signed = await useWalletSignTransactions(toSignFinal)
     }
     // algo or asa
@@ -338,7 +341,7 @@ const signWithUseWallet = async () => {
               note: new Uint8Array(Buffer.from(store.state.sourceTxNote))
             })
 
-      assertUseWalletSigner(store.state.sourceChain)
+      assertUseWalletSigner(store.state.sourceChain, sender)
       signed = await useWalletSignTransactions([tx])
     }
     if (signed && signed.length > 0) {

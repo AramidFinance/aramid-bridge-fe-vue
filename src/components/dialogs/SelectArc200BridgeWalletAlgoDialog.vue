@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { isWalletForChain } from '@/scripts/algo/isWalletForChain'
 import { useWalletNetwork } from '@/scripts/algo/useWalletSync'
+import { showError } from '@/scripts/common/showError'
 import { arc200BridgeWalletSlot } from '@/scripts/algo/walletSlots'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
@@ -27,12 +28,7 @@ const walletButtonClick = async (wallet: Wallet) => {
   try {
     await bindActiveAccount(arc200BridgeWalletSlot(store), t('sign.useWalletNotInitialized'))
   } catch (e: any) {
-    console.error(e)
-    toast.add({
-      severity: 'error',
-      detail: e.message ?? e,
-      life: 3000
-    })
+    showError(toast, e)
   }
   // else {
   //   if (wallet.accounts.length > 0) {

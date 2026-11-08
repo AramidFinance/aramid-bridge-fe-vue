@@ -35,8 +35,8 @@ import WalletArc200Bridge from './WalletArc200Bridge.vue'
 Config.configure({ debug: true })
 
 const useWalletState = useWallet()
-const { activeAddress, signTransactions } = useWalletState
-const { activeNetwork, isActiveWalletUsable, switchToChain } = useWalletNetwork(useWalletState)
+const { signTransactions } = useWalletState
+const { activeNetwork, signerProblem, switchToChain } = useWalletNetwork(useWalletState)
 const toast = useToast()
 const { t } = useI18n()
 const router = useRouter()
@@ -113,12 +113,13 @@ watch(
 )
 
 // the use-wallet manager is shared with other pages: sign only with the account this page is bound to,
-// checked before building the transactions and again right before signing them
-const assertBoundSigner = () => {
+// checked before building the transactions and again right before signing them (with their sender)
+const assertBoundSigner = (sender: string | undefined = store.state.arc200BridgeAddress) => {
   const chain = store.state.arc200BridgeChain
-  if (!chain || store.state.arc200BridgeAlgoConnectorType !== AlgoConnectorType.UseWallet || activeAddress.value !== store.state.arc200BridgeAddress || !isActiveWalletUsable(chain)) {
-    throw Error(t('sign.useWalletAddressMismatch'))
-  }
+  if (!chain || store.state.arc200BridgeAlgoConnectorType !== AlgoConnectorType.UseWallet) throw Error(t('sign.useWalletNotInitialized'))
+  const problem = signerProblem(chain, sender)
+  if (problem === 'notUsable') throw Error(t('sign.useWalletNotInitialized'))
+  if (problem === 'mismatch') throw Error(t('sign.useWalletAddressMismatch'))
 }
 
 const bridginigButtonClick = async () => {
@@ -202,14 +203,14 @@ const bridgeArc200ToAsa = async () => {
     const contractAddress = algosdk.getApplicationAddress(Number(arc200TokenId)).toString()
     const txToSign: algosdk.Transaction[] = []
 
-    const asaOptin = await getAlgoAcountTokenOptin(store.state.arc200BridgeChain, store.state.arc200BridgeAddress, Number(tokenIdASA))
+    const asaOptin = await getAlgoAcountTokenOptin(store.state.arc200BridgeChain, destinationAddress, Number(tokenIdASA))
 
     if (!asaOptin) {
       txToSign.push(
         algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
           amount: 0n,
-          sender: store.state.arc200BridgeAddress,
-          receiver: store.state.arc200BridgeAddress,
+          sender: destinationAddress,
+          receiver: destinationAddress,
           suggestedParams: params,
           assetIndex: Number(tokenIdASA)
         })
@@ -297,7 +298,7 @@ const bridgeArc200ToAsa = async () => {
     console.log('signing txns', toSignFinal)
 
     // Sign with destination wallet
-    assertBoundSigner()
+    assertBoundSigner(destinationAddress)
     const signed = await signTransactions(toSignFinal)
     // Filter out any null values to satisfy the type requirement
     const filteredSigned = signed.filter((s: Uint8Array | null): s is Uint8Array => s !== null)
@@ -501,7 +502,7 @@ const bridgeAsaToArc200 = async () => {
     })
     console.log('toSignFinal', toSignFinal)
     // Sign with destination wallet
-    assertBoundSigner()
+    assertBoundSigner(destinationAddress)
     const signed = await signTransactions(toSignFinal)
     // Filter out any null values to satisfy the type requirement
     const filteredSigned = signed.filter((s: Uint8Array | null): s is Uint8Array => s !== null)

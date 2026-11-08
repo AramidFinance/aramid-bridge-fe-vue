@@ -1,7 +1,8 @@
 import { isWalletForChain } from '@/scripts/algo/isWalletForChain'
+import { showError } from '@/scripts/common/showError'
 import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
-import { NetworkId, useNetwork, useWallet } from '@txnlab/use-wallet-vue'
+import { NetworkId, useNetwork, useWallet, useWalletManager, type WalletManager } from '@txnlab/use-wallet-vue'
 import { useToast } from 'primevue/usetoast'
 import { watch } from 'vue'
 
@@ -15,19 +16,42 @@ const networkIdByChainId: Record<number, string> = {
 /** The use-wallet network id of an AVM chain, or undefined when use-wallet has no network for it. */
 export const getUseWalletNetworkId = (chainId: number | undefined): string | undefined => (chainId === undefined ? undefined : networkIdByChainId[chainId])
 
+const chainIdByNetworkId: Record<string, number> = Object.fromEntries(Object.entries(networkIdByChainId).map(([chainId, networkId]) => [networkId, Number(chainId)]))
+
 /** The AVM chain id of a use-wallet network id, or undefined for unknown networks. */
-export const getChainIdByUseWalletNetwork = (networkId: string): number | undefined => {
-  const entry = Object.entries(networkIdByChainId).find(([, id]) => id === networkId)
-  return entry ? Number(entry[0]) : undefined
+export const getChainIdByUseWalletNetwork = (networkId: string): number | undefined => chainIdByNetworkId[networkId]
+
+// one pending "ready" promise per manager, independent of any component's lifetime
+const readyPromises = new WeakMap<WalletManager, Promise<void>>()
+/** Resolves once the manager has resumed its sessions. */
+const whenManagerReady = (manager: WalletManager): Promise<void> => {
+  if (manager.isReady) return Promise.resolve()
+  let promise = readyPromises.get(manager)
+  if (!promise) {
+    promise = new Promise<void>((resolve) => {
+      const unsubscribe = manager.subscribe((state) => {
+        if (state.managerStatus !== 'ready') return
+        unsubscribe()
+        readyPromises.delete(manager)
+        resolve()
+      })
+    })
+    readyPromises.set(manager, promise)
+  }
+  return promise
 }
+
+/** Why the active use-wallet account cannot sign for an expected address, if it cannot. */
+export type SignerProblem = 'notUsable' | 'mismatch' | undefined
 
 /**
  * Network alignment and wallet usability against the shared use-wallet manager. Pass the caller's
  * useWallet() result to avoid a second set of store subscriptions.
  */
 export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWallet()) => {
-  const { activeAddress, activeWallet, availableWallets, isReady } = wallet
+  const { activeAddress, activeWallet, availableWallets } = wallet
   const { activeNetwork, setActiveNetwork } = useNetwork()
+  const manager = useWalletManager()
 
   /** Whether the active wallet may sign on the chain right now. */
   const isActiveWalletUsable = (chainId: number): boolean => {
@@ -43,14 +67,6 @@ export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWalle
     )
   }
 
-  /** Resolves once the manager has resumed its sessions. */
-  const whenReady = (): Promise<void> =>
-    isReady.value
-      ? Promise.resolve()
-      : new Promise((resolve) => {
-          watch(isReady, () => resolve(), { once: true })
-        })
-
   /**
    * Switches the manager to the chain's network, after it has resumed its sessions so switching does
    * not race with resuming wallets. Returns false when use-wallet has no network for the chain.
@@ -58,7 +74,7 @@ export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWalle
   const switchToChain = async (chainId: number): Promise<boolean> => {
     const networkId = getUseWalletNetworkId(chainId)
     if (!networkId) return false
-    await whenReady()
+    await whenManagerReady(manager)
     if (activeNetwork.value !== networkId) await setActiveNetwork(networkId)
     return true
   }
@@ -75,7 +91,17 @@ export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWalle
     slot.connect(activeAddress.value)
   }
 
-  return { activeNetwork, isActiveWalletUsable, switchToChain, bindActiveAccount }
+  /**
+   * Checks that the active account can sign transactions sent from expectedAddress on the chain. Call
+   * it again right before signing, with the sender the transactions were built for.
+   */
+  const signerProblem = (chainId: number, expectedAddress: string | undefined): SignerProblem => {
+    if (!activeAddress.value || !isActiveWalletUsable(chainId)) return 'notUsable'
+    if (!expectedAddress || activeAddress.value !== expectedAddress) return 'mismatch'
+    return undefined
+  }
+
+  return { activeNetwork, isActiveWalletUsable, switchToChain, bindActiveAccount, signerProblem }
 }
 
 /** An app-level wallet slot (source / ARC200 bridge) in the app store. */
@@ -134,12 +160,7 @@ export const useWalletSync = (slot: UseWalletSlot) => {
     try {
       return await switchToChain(chain.chainId)
     } catch (e: any) {
-      console.error(e)
-      toast.add({
-        severity: 'error',
-        detail: e.message ?? e,
-        life: 3000
-      })
+      showError(toast, e)
       return false
     }
   }
@@ -151,6 +172,8 @@ export const useWalletSync = (slot: UseWalletSlot) => {
   const sync = async () => {
     if (!isReady.value) return
     if (await syncNetwork()) syncFromManager()
+    // the manager cannot be on this chain's network, so a use-wallet slot cannot sign for it
+    else if (isBoundToUseWallet()) slot.disconnect()
   }
   // the manager is shared with other pages, which may have switched its network: align on setup,
   // whenever the slot's chain changes and once the manager has resumed its sessions
@@ -168,12 +191,7 @@ export const useWalletSync = (slot: UseWalletSlot) => {
     try {
       await activeWallet.value?.disconnect()
     } catch (e: any) {
-      console.error(e)
-      toast.add({
-        severity: 'error',
-        detail: e.message ?? e,
-        life: 3000
-      })
+      showError(toast, e)
     }
   }
 

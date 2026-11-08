@@ -10,7 +10,7 @@ const toast = vi.hoisted(() => ({ add: vi.fn() }))
 vi.mock('primevue/usetoast', () => ({ useToast: () => toast }))
 
 vi.mock('@txnlab/use-wallet-vue', async () => {
-  const { ref } = await import('vue')
+  const { ref, watch } = await import('vue')
   const mock = {
     activeAddress: ref<string | null>(null),
     activeWallet: ref<any>(null),
@@ -23,6 +23,12 @@ vi.mock('@txnlab/use-wallet-vue', async () => {
     NetworkId: { MAINNET: 'mainnet', TESTNET: 'testnet' },
     useWallet: () => ({ activeAddress: mock.activeAddress, activeWallet: mock.activeWallet, availableWallets: mock.availableWallets, isReady: mock.isReady }),
     useNetwork: () => ({ activeNetwork: mock.activeNetwork, setActiveNetwork: mock.setActiveNetwork }),
+    useWalletManager: () => ({
+      get isReady() {
+        return mock.isReady.value
+      },
+      subscribe: (callback: (state: { managerStatus: string }) => void) => watch(mock.isReady, (ready) => callback({ managerStatus: ready ? 'ready' : 'initializing' }))
+    }),
     __mock: mock
   }
 })
@@ -144,6 +150,18 @@ describe('useWalletSync.sync', () => {
     await setup(store).sync()
     expect(store.state.sourceAddress).toBe('')
     expect(toast.add).toHaveBeenCalled()
+  })
+
+  it('drops a bound slot when the network cannot be aligned', async () => {
+    const store = makeStore(416101)
+    store.state.sourceAddress = ADDR_A
+    store.state.sourceAlgoConnectorType = AlgoConnectorType.UseWallet
+    store.state.connectedSourceChain = 416001
+    useActiveWallet(makeWallet('biatec'), ADDR_A)
+    manager.setActiveNetwork.mockRejectedValue(new Error('boom'))
+    await setup(store).sync()
+    expect(store.state.sourceAddress).toBe('')
+    expect(store.state.connectedSourceChain).toBeUndefined()
   })
 
   it('ignores EVM chains', async () => {
@@ -329,5 +347,20 @@ describe('useWalletNetwork', () => {
     const { bindActiveAccount } = run()
     await expect(bindActiveAccount(sourceWalletSlot(store as any), 'not usable')).rejects.toThrow('not usable')
     expect(store.state.sourceAddress).toBe('')
+  })
+})
+
+describe('useWalletNetwork.signerProblem', () => {
+  it('reports unusable wallets and sender mismatches', () => {
+    scope = effectScope()
+    const { signerProblem } = scope.run(() => useWalletNetwork())!
+    useActiveWallet(makeWallet('biatec'), ADDR_A)
+    manager.activeNetwork.value = 'mainnet'
+    expect(signerProblem(416001, ADDR_A)).toBeUndefined()
+    expect(signerProblem(416001, ADDR_B)).toBe('mismatch')
+    expect(signerProblem(416001, undefined)).toBe('mismatch')
+    expect(signerProblem(416101, ADDR_A)).toBe('notUsable') // manager on another network
+    useActiveWallet(null, null)
+    expect(signerProblem(416001, ADDR_A)).toBe('notUsable')
   })
 })
