@@ -15,6 +15,37 @@ const networkIdByChainId: Record<number, string> = {
 /** The use-wallet network id of an AVM chain, or undefined when use-wallet has no network for it. */
 export const getUseWalletNetworkId = (chainId: number | undefined): string | undefined => (chainId === undefined ? undefined : networkIdByChainId[chainId])
 
+/**
+ * Network alignment and wallet usability against the shared use-wallet manager. Pass the caller's
+ * useWallet() result to avoid a second set of store subscriptions.
+ */
+export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWallet()) => {
+  const { activeWallet, availableWallets } = wallet
+  const { activeNetwork, setActiveNetwork } = useNetwork()
+
+  /** Whether the active wallet may sign on the chain: offered by the app for it and supported on the active network. */
+  const isActiveWalletUsable = (chainId: number): boolean => {
+    const active = activeWallet.value
+    return (
+      !!active &&
+      // the app's own wallet/chain matrix (what the picker offers for this chain)
+      isWalletForChain(active.id, chainId) &&
+      // a wallet that does not support the active network is being disconnected by use-wallet v5
+      availableWallets.value.some((w) => w.walletKey === active.walletKey)
+    )
+  }
+
+  /** Switches the manager to the chain's network. Returns false when use-wallet has no network for the chain. */
+  const switchToChain = async (chainId: number): Promise<boolean> => {
+    const networkId = getUseWalletNetworkId(chainId)
+    if (!networkId) return false
+    if (activeNetwork.value !== networkId) await setActiveNetwork(networkId)
+    return true
+  }
+
+  return { isActiveWalletUsable, switchToChain }
+}
+
 /** An app-level wallet slot (source / ARC200 bridge) in the app store. */
 export interface UseWalletSlot {
   chainConfiguration: () => ChainItem | undefined
@@ -34,31 +65,30 @@ export interface UseWalletSlot {
  * the manager would sign with.
  */
 export const useWalletSync = (slot: UseWalletSlot) => {
-  const { activeAddress, activeWallet, availableWallets, isReady } = useWallet()
-  const { setActiveNetwork } = useNetwork()
+  const wallet = useWallet()
+  const { activeAddress, activeWallet, isReady } = wallet
+  const { isActiveWalletUsable, switchToChain } = useWalletNetwork(wallet)
   const toast = useToast()
 
-  const isBoundToUseWallet = () => slot.chainConfiguration()?.type == 'algo' && slot.connectorType() === AlgoConnectorType.UseWallet && !!slot.address()
+  const algoChain = () => {
+    const chain = slot.chainConfiguration()
+    return chain?.type == 'algo' ? chain : undefined
+  }
+  const isBoundToUseWallet = () => !!algoChain() && slot.connectorType() === AlgoConnectorType.UseWallet && !!slot.address()
 
   /** Once the manager is ready: adopt its active account, or drop the slot if that session is gone. */
   const syncFromManager = () => {
-    const chain = slot.chainConfiguration()
-    if (!isReady.value || chain?.type != 'algo') return
-    const wallet = activeWallet.value
-    const usable =
-      !!wallet &&
-      // the app's own wallet/chain matrix (what the picker offers for this chain)
-      isWalletForChain(wallet.id, chain.chainId) &&
-      // a wallet that does not support the active network is being disconnected by use-wallet v5
-      availableWallets.value.some((w) => w.walletKey === wallet.walletKey)
-    if (usable && activeAddress.value) slot.connect(activeAddress.value)
+    const chain = algoChain()
+    if (!isReady.value || !chain) return
+    if (activeAddress.value && isActiveWalletUsable(chain.chainId)) slot.connect(activeAddress.value)
     else if (isBoundToUseWallet()) slot.disconnect()
   }
 
   // Follow the wallet the slot was taken from: disconnected -> clear, account switched -> new address.
   watch(activeAddress, (current, previous) => {
-    if (!isReady.value || !isBoundToUseWallet() || !previous || slot.address() !== previous) return
-    if (current) slot.setAddress(current)
+    const chain = algoChain()
+    if (!isReady.value || !chain || !isBoundToUseWallet() || !previous || slot.address() !== previous) return
+    if (current && isActiveWalletUsable(chain.chainId)) slot.setAddress(current)
     else slot.disconnect()
   })
 
@@ -67,13 +97,10 @@ export const useWalletSync = (slot: UseWalletSlot) => {
    * that chain's network afterwards (unknown chain or failed switch), so the slot must not adopt it.
    */
   const syncNetwork = async (): Promise<boolean> => {
-    const chain = slot.chainConfiguration()
-    if (chain?.type != 'algo') return true
-    const networkId = getUseWalletNetworkId(chain.chainId)
-    if (!networkId) return false
+    const chain = algoChain()
+    if (!chain) return true
     try {
-      await setActiveNetwork(networkId)
-      return true
+      return await switchToChain(chain.chainId)
     } catch (e: any) {
       console.error(e)
       toast.add({

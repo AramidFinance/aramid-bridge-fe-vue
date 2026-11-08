@@ -13,8 +13,8 @@ import { useAppStore } from '@/stores/app'
 import { populateAppCallResources } from '@algorandfoundation/algokit-utils'
 import { AlgoAmount } from '@algorandfoundation/algokit-utils/types/amount'
 import { TransactionComposer } from '@algorandfoundation/algokit-utils/types/composer'
-import { getUseWalletNetworkId } from '@/scripts/algo/useWalletSync'
-import { useNetwork, useWallet } from '@txnlab/use-wallet-vue'
+import { useWalletNetwork } from '@/scripts/algo/useWalletSync'
+import { useWallet } from '@txnlab/use-wallet-vue'
 import algosdk, { Address } from 'algosdk'
 import { type Arc200ExchangeInfo, getArc200ASAClient } from 'arc200-client'
 import { useWallet as useAvmWallet } from 'avm-wallet-vue'
@@ -40,8 +40,9 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const { t } = useI18n()
-const { activeWallet, activeAddress, availableWallets, signTransactions: useWalletSignTransactions } = useWallet()
-const { activeNetwork, setActiveNetwork } = useNetwork()
+const useWalletState = useWallet()
+const { activeWallet, activeAddress, signTransactions: useWalletSignTransactions } = useWalletState
+const { isActiveWalletUsable, switchToChain } = useWalletNetwork(useWalletState)
 useAvmWallet()
 
 const routeToReviewScreen = () => {
@@ -148,11 +149,8 @@ const signWithUseWallet = async () => {
     if (!store.state.sourceAddress) return
     if (!store.state.sourceTxNote) return
     // the use-wallet manager is shared with other pages, which may have switched its network
-    const networkId = getUseWalletNetworkId(store.state.sourceChain)
-    if (networkId && activeNetwork.value !== networkId) await setActiveNetwork(networkId)
-    const wallet = activeWallet.value
-    // a wallet that does not support the active network is being disconnected by use-wallet v5
-    if (!activeAddress.value || !wallet || !availableWallets.value.some((w) => w.walletKey === wallet.walletKey)) {
+    const onSourceNetwork = await switchToChain(store.state.sourceChain)
+    if (!onSourceNetwork || !activeAddress.value || !isActiveWalletUsable(store.state.sourceChain)) {
       throw Error(t('sign.useWalletNotInitialized'))
     }
     if (activeAddress.value !== store.state.sourceAddress) throw Error(t('sign.useWalletAddressMismatch'))

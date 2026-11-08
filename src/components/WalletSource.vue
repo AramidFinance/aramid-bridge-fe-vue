@@ -54,7 +54,13 @@ const fillInState = () => {
   }
 }
 
+// address/chain/token can change while a balance request is in flight (e.g. wallet sync): only the
+// latest request may write the balance, and any newer call clears the loading flag of older ones
+let balanceRequestId = 0
 const onSourceAddressChange = async () => {
+  const requestId = ++balanceRequestId
+  const isCurrent = () => requestId === balanceRequestId
+  store.state.loadingSourceAddressBalance = false
   try {
     // refresh balance of source account
     if (!store.state.sourceChain) return
@@ -64,10 +70,6 @@ const onSourceAddressChange = async () => {
     const sourceChainConfiguration = store.state.sourceChainConfiguration
     const { name: sourceChainName } = sourceChainConfiguration
     const sourceTokenConfig = store.state.sourceTokenConfiguration
-    // the address/chain can change while a balance request is in flight (e.g. wallet sync)
-    const requestedAddress = store.state.sourceAddress
-    const requestedChain = store.state.sourceChain
-    const isCurrent = () => store.state.sourceAddress === requestedAddress && store.state.sourceChain === requestedChain
     const { type: sourceTokenType } = sourceTokenConfig
     console.log('sourceTokenType', sourceTokenType)
     console.log('sourceTokenConfig', sourceTokenConfig)
@@ -113,6 +115,7 @@ const onSourceAddressChange = async () => {
       }
     }
   } catch (e: any) {
+    if (!isCurrent()) return false
     store.state.loadingSourceAddressBalance = false
     console.error(e)
     toast.add({

@@ -68,6 +68,8 @@ const dappMetadata = {
   icons: ['https://' + location.host + '/aramid-logo.svg']
 }
 
+const defaultNetwork = NetworkId.MAINNET
+
 const algodMainnet = { baseServer: 'https://mainnet-api.4160.nodely.dev', port: '443', token: '' }
 const algodVoimain = { baseServer: 'https://mainnet-api.voi.nodely.dev', port: '443', token: '' }
 const algodAramidmain = { baseServer: 'https://aramidmain-algod-public.de.nodes.biatec.io', port: '443', token: '' }
@@ -85,7 +87,7 @@ const networks = new NetworkConfigBuilder()
 try {
   const persisted = JSON.parse(localStorage.getItem(USE_WALLET_V5_STORAGE_KEY) ?? 'null')
   if (persisted?.activeNetwork && !networks[persisted.activeNetwork]) {
-    persisted.activeNetwork = NetworkId.MAINNET
+    persisted.activeNetwork = defaultNetwork
     localStorage.setItem(USE_WALLET_V5_STORAGE_KEY, JSON.stringify(persisted))
   }
 } catch {
@@ -108,7 +110,7 @@ app.use(WalletManagerPlugin, {
       metadata: dappMetadata
     })
   ],
-  defaultNetwork: NetworkId.MAINNET,
+  defaultNetwork,
   networks,
   // v4 restored the last active network by default; v5 needs this opt-in.
   options: { persistNetwork: true }
@@ -139,7 +141,7 @@ app.use(AVMWalletManagerPlugin, {
       }
     }
   ],
-  defaultNetwork: NetworkId.MAINNET,
+  defaultNetwork,
   networks: avmNetworks
 })
 

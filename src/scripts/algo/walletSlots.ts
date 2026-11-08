@@ -12,7 +12,7 @@ export const sourceWalletSlot = (store: AppStore): UseWalletSlot => ({
   connect: (address) => {
     store.state.sourceAddress = address
     store.state.sourceAlgoConnectorType = AlgoConnectorType.UseWallet
-    store.state.connectedSourceChain = store.state.sourceChain
+    store.state.connectedSourceChain = store.state.sourceChainConfiguration?.chainId
   },
   setAddress: (address) => {
     store.state.sourceAddress = address
@@ -31,7 +31,7 @@ export const arc200BridgeWalletSlot = (store: AppStore): UseWalletSlot => ({
   connect: (address) => {
     store.state.arc200BridgeAddress = address
     store.state.arc200BridgeAlgoConnectorType = AlgoConnectorType.UseWallet
-    store.state.connectedArc200BridgeChain = store.state.arc200BridgeChain
+    store.state.connectedArc200BridgeChain = store.state.arc200BridgeChainConfiguration?.chainId
   },
   setAddress: (address) => {
     store.state.arc200BridgeAddress = address
