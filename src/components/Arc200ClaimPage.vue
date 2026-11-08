@@ -70,12 +70,15 @@ const state = reactive({
 // URLs of navigations this page makes from the store, while they are in flight
 const ownNavigations = new Set<string>()
 const navigate = async (to: RouteLocationRaw, replace = false) => {
-  const fullPath = router.resolve(to).fullPath
-  ownNavigations.add(fullPath)
+  let fullPath: string | undefined
   try {
+    fullPath = router.resolve(to).fullPath
+    ownNavigations.add(fullPath)
     await (replace ? router.replace(to) : router.push(to))
+  } catch (e: any) {
+    console.error(e)
   } finally {
-    ownNavigations.delete(fullPath)
+    if (fullPath) ownNavigations.delete(fullPath)
   }
 }
 
@@ -149,7 +152,7 @@ const fillInRoute = () => {
     params: {
       network,
       tokenId: store.state.arc200BridgeToken,
-      amount: store.state.arc200BridgeAmount ?? '0',
+      amount: store.state.arc200BridgeAmount || '0',
       direction: store.state.arc200BridgeDirection ?? 'ARC200ToASA'
     }
   })

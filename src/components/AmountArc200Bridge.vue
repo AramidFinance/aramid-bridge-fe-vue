@@ -8,6 +8,7 @@ import { viewAmount } from '@/scripts/common/viewAmount'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
+import { fromBaseUnits, rescaleBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
 import BigNumber from 'bignumber.js'
 import { useToast } from 'primevue/usetoast'
 import { onMounted, reactive, watch } from 'vue'
@@ -44,11 +45,10 @@ const fillInState = async () => {
     const arc200Token = store.state.arc200BridgeTokenConfiguration.arc200TokenId ?? store.state.arc200BridgeTokenConfiguration.optionalArc200TokenId
     if (!arc200Token) return
 
-    if (route && route.params && route.params['amount']) {
-      store.state.arc200BridgeAmount = route.params['amount'] as string
+    // the input shows the store amount (the page sets it from the route)
+    if (store.state.arc200BridgeAmount) {
       store.state.arc200BridgeAmountFormatted = formatBaseAmount(store.state.arc200BridgeAmount, store.state.arc200BridgeTokenConfiguration.decimals)
       state.arc200BridgeAmount = fromBaseUnits(store.state.arc200BridgeAmount, store.state.arc200BridgeTokenConfiguration.decimals)
-      //console.log('state.arc200BridgeAmount', new BigNumber(state.arc200BridgeAmount).toNumber(), state.arc200BridgeAmount)
     }
 
     if (!store.state.arc200BridgeAddress) return
@@ -67,11 +67,6 @@ const fillInState = async () => {
     })
   }
 }
-
-/** Displayed (decimal) amount -> base units, truncated. */
-const toBaseUnits = (value: number, decimals: number): string => new BigNumber(value).shiftedBy(decimals).toFixed(0, 1)
-/** Base units -> displayed (decimal) amount. */
-const fromBaseUnits = (amount: string, decimals: number): number => new BigNumber(amount).shiftedBy(-decimals).toNumber()
 
 const setAmount = () => {
   if (!store.state.arc200BridgeTokenConfiguration) return
@@ -103,12 +98,20 @@ watch(
     if (value !== state.arc200BridgeAmount) state.arc200BridgeAmount = value
   }
 )
+// decimals of the token the store amount is expressed in (kept while no token is selected)
+let amountDecimals = store.state.arc200BridgeTokenConfiguration?.decimals
 watch(
   () => store.state.arc200BridgeTokenConfiguration,
-  async () => {
+  async (config) => {
+    if (config) {
+      // another token can have other decimals: keep the amount the user sees by rescaling the base
+      // units exactly, before anything reads them
+      if (amountDecimals !== undefined && amountDecimals !== config.decimals && store.state.arc200BridgeAmount) {
+        store.state.arc200BridgeAmount = rescaleBaseUnits(store.state.arc200BridgeAmount, amountDecimals, config.decimals)
+      }
+      amountDecimals = config.decimals
+    }
     await fillInState()
-    // another token can have other decimals: keep the amount the user sees, in the new token's units
-    if (state.arc200BridgeAmount) setAmount()
   }
 )
 watch(

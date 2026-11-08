@@ -8,6 +8,7 @@ import { viewAmount } from '@/scripts/common/viewAmount'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
+import { fromBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
 import BigNumber from 'bignumber.js'
 import { useToast } from 'primevue/usetoast'
 import { onMounted, reactive, watch } from 'vue'
@@ -41,7 +42,7 @@ const fillInState = () => {
     if (route && route.params && route.params['sourceAmount']) {
       store.state.sourceAmount = route.params['sourceAmount'] as string
       store.state.sourceAmountFormatted = formatBaseAmount(store.state.sourceAmount, store.state.sourceTokenConfiguration.decimals)
-      state.sourceAmount = new BigNumber(store.state.sourceAmount).toNumber() / 10 ** store.state.sourceTokenConfiguration.decimals
+      state.sourceAmount = fromBaseUnits(store.state.sourceAmount, store.state.sourceTokenConfiguration.decimals)
       //console.log('state.sourceAmount', new BigNumber(state.sourceAmount).toNumber(), state.sourceAmount)
       calculateFeeAndDestinationAmount()
       makeNoteField()
@@ -59,7 +60,7 @@ const fillInState = () => {
 const setAmount = () => {
   if (!store.state.sourceTokenConfiguration) return
 
-  const base = new BigNumber(state.sourceAmount).multipliedBy(new BigNumber(10).pow(store.state.sourceTokenConfiguration.decimals)).toFixed(0, 1)
+  const base = toBaseUnits(state.sourceAmount, store.state.sourceTokenConfiguration.decimals)
   store.state.sourceAmount = base
   store.state.sourceAmountFormatted = formatBaseAmount(base, store.state.sourceTokenConfiguration.decimals)
   //console.log('store.state.sourceAmount', store.state.sourceAmount)
@@ -108,7 +109,7 @@ const setMax = () => {
   }
   store.state.sourceAmountFormatted = formatBaseAmount(store.state.sourceAmount, store.state.sourceTokenConfiguration.decimals)
 
-  state.sourceAmount = new BigNumber(store.state.sourceAmount).toNumber() / 10 ** store.state.sourceTokenConfiguration.decimals
+  state.sourceAmount = fromBaseUnits(store.state.sourceAmount, store.state.sourceTokenConfiguration.decimals)
   calculateFeeAndDestinationAmount()
   makeNoteField()
 }
