@@ -348,7 +348,8 @@ const signWithUseWallet = async () => {
       // res.txId is the txId of the first transaction in the signed array
       // algosdk.decodeSignedTransaction(signed.pop()).txn.txID() is the txId of the last transaction in the signed array
       console.log('Signed txns', signed)
-      if (!signed.every((txn): txn is Uint8Array => txn instanceof Uint8Array)) throw Error(t('sign.useWalletNotAllSigned'))
+      // one signature per transaction (a wallet may also leave out transactions it did not sign)
+      if (signed.length !== toSign.length || !signed.every((txn): txn is Uint8Array => txn instanceof Uint8Array)) throw Error(t('sign.useWalletNotAllSigned'))
       // the bridge transaction is the last one of the group
       submittedTxId = algosdk.decodeSignedTransaction(signed[signed.length - 1]).txn.txID()
       await algodClient.sendRawTransaction(signed).do()

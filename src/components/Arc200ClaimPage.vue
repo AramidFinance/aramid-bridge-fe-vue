@@ -48,8 +48,9 @@ const routeChain = () => {
   const chainId = typeof network === 'string' ? getChainIdByUseWalletNetwork(network) : undefined
   return { chainId, unknown: typeof network === 'string' && !chainId }
 }
-// set before child components fill the chain configuration, so they start from the route's chain
-store.state.arc200BridgeChain = routeChain().chainId
+// Arc200ClaimView renders this page once the public configuration is loaded: select the route's chain
+// (with its configuration) before child components read it
+fillArc200BridgeChainConfiguration(routeChain().chainId ?? DEFAULT_ARC200_CHAIN)
 const state = reactive({
   inputTx: '',
   fromRoute: false,
@@ -62,43 +63,46 @@ const state = reactive({
 })
 
 /**
- * Applies the route: loads the configuration, selects the route's chain (a chain without configuration
- * falls back to the default one), then applies the route's token params for that chain.
+ * Applies the route: selects the route's chain (a chain without configuration falls back to the default
+ * one, which drops the token selected for another chain), then applies the route's token params. Only
+ * the latest run applies anything when the route changes while one is waiting.
  */
+let routeRun = 0
 const applyRoute = async () => {
-  const { chainId, unknown } = routeChain()
-  store.state.arc200BridgeChain = chainId
-  await getPublicConfiguration(false)
-  fillArc200BridgeChainConfiguration(chainId)
-  if (unknown || (chainId && store.state.arc200BridgeChain !== chainId)) {
-    // the route's network is unknown or has no configuration, so the default chain is used (which
-    // dropped the token selection): the route's token params belong to another chain
-    await router.replace({ name: 'arc200-claim' })
-    return
-  }
-  if (route.params['tokenId'] && route.params['amount'] && route.params['direction']) {
-    store.state.arc200BridgeToken = route.params['tokenId'] as string
-    store.state.arc200BridgeAmount = route.params['amount'] as string
-    store.state.arc200BridgeDirection = route.params['direction'] as 'ARC200ToASA' | 'ASAToARC200'
-    if (store.state.arc200BridgeDirection !== 'ARC200ToASA' && store.state.arc200BridgeDirection !== 'ASAToARC200') {
-      store.state.arc200BridgeDirection = 'ARC200ToASA'
+  const run = ++routeRun
+  try {
+    const { chainId, unknown } = routeChain()
+    await getPublicConfiguration(false)
+    if (run !== routeRun || !store.state.publicConfiguration) return
+    fillArc200BridgeChainConfiguration(chainId ?? DEFAULT_ARC200_CHAIN)
+    if (unknown || (chainId && store.state.arc200BridgeChain !== chainId)) {
+      // the route's network is unknown or has no configuration: its token params belong to another chain
+      await router.replace({ name: 'arc200-claim' })
+      return
     }
-    fillArc200BridgeTokenConfiguration(store.state.arc200BridgeToken)
+    if (route.params['tokenId'] && route.params['amount'] && route.params['direction']) {
+      store.state.arc200BridgeToken = route.params['tokenId'] as string
+      store.state.arc200BridgeAmount = route.params['amount'] as string
+      store.state.arc200BridgeDirection = route.params['direction'] as 'ARC200ToASA' | 'ASAToARC200'
+      if (store.state.arc200BridgeDirection !== 'ARC200ToASA' && store.state.arc200BridgeDirection !== 'ASAToARC200') {
+        store.state.arc200BridgeDirection = 'ARC200ToASA'
+      }
+      fillArc200BridgeTokenConfiguration(store.state.arc200BridgeToken)
+    }
+  } catch (e: any) {
+    showError(toast, e)
   }
 }
 
 onMounted(async () => {
   state.inputTx = route.params['sourceTxId'] as string
   state.fromRoute = !!state.inputTx
+  // Arc200ClaimView has just (re)loaded the public configuration
   await applyRoute()
-  await getPublicConfiguration(true)
   state.mounted = true
 })
-// the arc200-claim routes share this component instance, so a new :network does not remount it
-watch(
-  () => route.params['network'],
-  () => applyRoute()
-)
+// the arc200-claim routes share this component instance, so back/forward between them does not remount it
+watch([() => route.params['network'], () => route.params['tokenId'], () => route.params['amount'], () => route.params['direction']], () => applyRoute())
 const fillInRoute = () => {
   if (!state.mounted) return
   if (!store.state.arc200BridgeToken) return
@@ -141,9 +145,6 @@ const boundChain = (chain: number | undefined): number => {
   if (!chain || store.state.arc200BridgeAlgoConnectorType !== AlgoConnectorType.UseWallet) throw Error(t('sign.useWalletNotInitialized'))
   return chain
 }
-const assertBoundSigner = (sender: string | undefined = store.state.arc200BridgeAddress, chain: number | undefined = store.state.arc200BridgeChain) => {
-  assertSigner(boundChain(chain), sender)
-}
 const signBound = (sender: string, chain: number | undefined, txns: algosdk.Transaction[]) => signAs(boundChain(chain), sender, txns)
 
 const bridginigButtonClick = async () => {
@@ -165,7 +166,7 @@ const bridginigButtonClick = async () => {
       return
     }
 
-    assertBoundSigner()
+    assertSigner(boundChain(store.state.arc200BridgeChain), store.state.arc200BridgeAddress)
 
     if (store.state.arc200BridgeDirection === 'ARC200ToASA') {
       await bridgeArc200ToAsa()

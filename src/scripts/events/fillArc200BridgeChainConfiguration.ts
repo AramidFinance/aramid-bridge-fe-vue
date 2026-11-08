@@ -20,11 +20,9 @@ export const fillArc200BridgeChainConfiguration = (chainId: number | undefined =
   }
   if (configuration) {
     if (store.state.arc200BridgeChain !== selectedChainId) {
-      // tokens are per chain: drop the selection made for another chain
+      // tokens are per chain: drop the token selected for another chain (the amount input keeps its value)
       store.state.arc200BridgeToken = undefined
       store.state.arc200BridgeTokenConfiguration = undefined
-      store.state.arc200BridgeAmount = ''
-      store.state.arc200BridgeAmountFormatted = ''
     }
     store.state.arc200BridgeChain = selectedChainId
     store.state.arc200BridgeChainConfiguration = configuration

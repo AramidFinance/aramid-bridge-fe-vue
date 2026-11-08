@@ -73,6 +73,6 @@ describe('fillArc200BridgeChainConfiguration token selection', () => {
     fillArc200BridgeChainConfiguration(416101)
     expect(store.state.arc200BridgeToken).toBeUndefined()
     expect(store.state.arc200BridgeTokenConfiguration).toBeUndefined()
-    expect(store.state.arc200BridgeAmount).toBe('')
+    expect(store.state.arc200BridgeAmount).toBe('5') // the amount input keeps its value
   })
 })
