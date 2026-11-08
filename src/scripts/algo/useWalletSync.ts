@@ -5,12 +5,15 @@ import { NetworkId, useNetwork, useWallet } from '@txnlab/use-wallet-vue'
 import { useToast } from 'primevue/usetoast'
 import { watch } from 'vue'
 
-const networkIdByChainName: Record<string, string> = {
-  Algorand: NetworkId.MAINNET,
-  Testnet: NetworkId.TESTNET,
-  AramidChain: 'aramidmain',
-  Voi: 'voimain'
+const networkIdByChainId: Record<number, string> = {
+  416001: NetworkId.MAINNET,
+  416002: NetworkId.TESTNET,
+  416101: 'voimain',
+  101003: 'aramidmain'
 }
+
+/** The use-wallet network id of an AVM chain, or undefined when use-wallet has no network for it. */
+export const getUseWalletNetworkId = (chainId: number | undefined): string | undefined => (chainId === undefined ? undefined : networkIdByChainId[chainId])
 
 /** An app-level wallet slot (source / ARC200 bridge) in the app store. */
 export interface UseWalletSlot {
@@ -35,8 +38,7 @@ export const useWalletSync = (slot: UseWalletSlot) => {
   const { setActiveNetwork } = useNetwork()
   const toast = useToast()
 
-  const isBoundToUseWallet = () =>
-    slot.chainConfiguration()?.type == 'algo' && slot.connectorType() === AlgoConnectorType.UseWallet && !!slot.address()
+  const isBoundToUseWallet = () => slot.chainConfiguration()?.type == 'algo' && slot.connectorType() === AlgoConnectorType.UseWallet && !!slot.address()
 
   /** Once the manager is ready: adopt its active account, or drop the slot if that session is gone. */
   const syncFromManager = () => {
@@ -60,12 +62,15 @@ export const useWalletSync = (slot: UseWalletSlot) => {
     else slot.disconnect()
   })
 
-  /** Switches the use-wallet network to match the slot's chain. Returns false if switching failed. */
+  /**
+   * Switches the use-wallet network to match the slot's chain. Returns false when the manager is not on
+   * that chain's network afterwards (unknown chain or failed switch), so the slot must not adopt it.
+   */
   const syncNetwork = async (): Promise<boolean> => {
     const chain = slot.chainConfiguration()
     if (chain?.type != 'algo') return true
-    const networkId = networkIdByChainName[chain.name]
-    if (!networkId) return true
+    const networkId = getUseWalletNetworkId(chain.chainId)
+    if (!networkId) return false
     try {
       await setActiveNetwork(networkId)
       return true

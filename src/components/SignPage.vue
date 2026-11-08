@@ -13,7 +13,8 @@ import { useAppStore } from '@/stores/app'
 import { populateAppCallResources } from '@algorandfoundation/algokit-utils'
 import { AlgoAmount } from '@algorandfoundation/algokit-utils/types/amount'
 import { TransactionComposer } from '@algorandfoundation/algokit-utils/types/composer'
-import { useWallet } from '@txnlab/use-wallet-vue'
+import { getUseWalletNetworkId } from '@/scripts/algo/useWalletSync'
+import { useNetwork, useWallet } from '@txnlab/use-wallet-vue'
 import algosdk, { Address } from 'algosdk'
 import { type Arc200ExchangeInfo, getArc200ASAClient } from 'arc200-client'
 import { useWallet as useAvmWallet } from 'avm-wallet-vue'
@@ -39,7 +40,8 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const { t } = useI18n()
-const { activeWallet, activeAddress, signTransactions: useWalletSignTransactions } = useWallet()
+const { activeWallet, activeAddress, availableWallets, signTransactions: useWalletSignTransactions } = useWallet()
+const { activeNetwork, setActiveNetwork } = useNetwork()
 useAvmWallet()
 
 const routeToReviewScreen = () => {
@@ -145,7 +147,14 @@ const signWithUseWallet = async () => {
     if (!store.state.sourceToken) return
     if (!store.state.sourceAddress) return
     if (!store.state.sourceTxNote) return
-    if (!activeAddress.value) throw Error(t('sign.useWalletNotInitialized'))
+    // the use-wallet manager is shared with other pages, which may have switched its network
+    const networkId = getUseWalletNetworkId(store.state.sourceChain)
+    if (networkId && activeNetwork.value !== networkId) await setActiveNetwork(networkId)
+    const wallet = activeWallet.value
+    // a wallet that does not support the active network is being disconnected by use-wallet v5
+    if (!activeAddress.value || !wallet || !availableWallets.value.some((w) => w.walletKey === wallet.walletKey)) {
+      throw Error(t('sign.useWalletNotInitialized'))
+    }
     if (activeAddress.value !== store.state.sourceAddress) throw Error(t('sign.useWalletAddressMismatch'))
 
     const algodClient = await getAlgodClientByChainId(store.state.sourceChain)

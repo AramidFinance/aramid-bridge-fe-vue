@@ -87,23 +87,19 @@ const buttonClick = async () => {
   if (store.state.arc200BridgeChainConfiguration?.type == 'algo') {
     if (state.connected) {
       // disconnect
-      switch (store.state.arc200BridgeAlgoConnectorType) {
-        case AlgoConnectorType.QRCode:
-          slot.disconnect()
-          break
-        case AlgoConnectorType.UseWallet:
-          slot.disconnect()
-          try {
-            await activeWallet.value?.disconnect()
-          } catch (e: any) {
-            console.error(e)
-            toast.add({
-              severity: 'error',
-              detail: e.message ?? e,
-              life: 3000
-            })
-          }
-          break
+      const connectorType = store.state.arc200BridgeAlgoConnectorType
+      slot.disconnect()
+      if (connectorType === AlgoConnectorType.UseWallet) {
+        try {
+          await activeWallet.value?.disconnect()
+        } catch (e: any) {
+          console.error(e)
+          toast.add({
+            severity: 'error',
+            detail: e.message ?? e,
+            life: 3000
+          })
+        }
       }
     } else {
       store.state.dialogSelectArc200BridgeWalletIsOpen = true

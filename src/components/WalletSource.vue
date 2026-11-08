@@ -64,6 +64,10 @@ const onSourceAddressChange = async () => {
     const sourceChainConfiguration = store.state.sourceChainConfiguration
     const { name: sourceChainName } = sourceChainConfiguration
     const sourceTokenConfig = store.state.sourceTokenConfiguration
+    // the address/chain can change while a balance request is in flight (e.g. wallet sync)
+    const requestedAddress = store.state.sourceAddress
+    const requestedChain = store.state.sourceChain
+    const isCurrent = () => store.state.sourceAddress === requestedAddress && store.state.sourceChain === requestedChain
     const { type: sourceTokenType } = sourceTokenConfig
     console.log('sourceTokenType', sourceTokenType)
     console.log('sourceTokenConfig', sourceTokenConfig)
@@ -72,7 +76,7 @@ const onSourceAddressChange = async () => {
         case 'Voi': {
           if (sourceTokenConfig?.arc200TokenId) {
             const balance = await getAlgoAccountARC200TokenBalance(store.state.sourceChain, store.state.sourceAddress, Number(sourceTokenConfig?.arc200TokenId))
-            if (balance !== null) {
+            if (balance !== null && isCurrent()) {
               store.state.sourceAddressBalance = balance.toString()
               store.state.loadingSourceAddressBalance = false
               //console.log('onSourceAddressChange.balance', store.state.sourceAddressBalance, store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
@@ -80,7 +84,7 @@ const onSourceAddressChange = async () => {
           } else {
             store.state.loadingSourceAddressBalance = true
             const balance = await getAlgoAccountTokenBalance(store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
-            if (balance !== null) {
+            if (balance !== null && isCurrent()) {
               store.state.sourceAddressBalance = balance.toString()
               store.state.loadingSourceAddressBalance = false
               //console.log('onSourceAddressChange.balance', store.state.sourceAddressBalance, store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
@@ -91,7 +95,7 @@ const onSourceAddressChange = async () => {
         default: {
           store.state.loadingSourceAddressBalance = true
           const balance = await getAlgoAccountTokenBalance(store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
-          if (balance !== null) {
+          if (balance !== null && isCurrent()) {
             store.state.sourceAddressBalance = balance.toString()
             store.state.loadingSourceAddressBalance = false
             //console.log('onSourceAddressChange.balance', store.state.sourceAddressBalance, store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
@@ -102,7 +106,7 @@ const onSourceAddressChange = async () => {
     if (store.state.sourceChainConfiguration.type == 'eth' && store.state.sourceToken) {
       store.state.loadingSourceAddressBalance = true
       const balance = await getEthAccountTokenBalance(store.state.sourceChain, store.state.sourceAddress, store.state.sourceToken)
-      if (balance !== null) {
+      if (balance !== null && isCurrent()) {
         store.state.sourceAddressBalance = balance.toString()
         store.state.loadingSourceAddressBalance = false
         //console.log('onSourceAddressChange.balance', store.state.sourceAddressBalance, store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
@@ -170,23 +174,19 @@ const buttonClick = async () => {
   if (store.state.sourceChainConfiguration?.type == 'algo') {
     if (state.connected) {
       // disconnect
-      switch (store.state.sourceAlgoConnectorType) {
-        case AlgoConnectorType.QRCode:
-          slot.disconnect()
-          break
-        case AlgoConnectorType.UseWallet:
-          slot.disconnect()
-          try {
-            await activeWallet.value?.disconnect()
-          } catch (e: any) {
-            console.error(e)
-            toast.add({
-              severity: 'error',
-              detail: e.message ?? e,
-              life: 3000
-            })
-          }
-          break
+      const connectorType = store.state.sourceAlgoConnectorType
+      slot.disconnect()
+      if (connectorType === AlgoConnectorType.UseWallet) {
+        try {
+          await activeWallet.value?.disconnect()
+        } catch (e: any) {
+          console.error(e)
+          toast.add({
+            severity: 'error',
+            detail: e.message ?? e,
+            life: 3000
+          })
+        }
       }
     } else {
       store.state.dialogSelectSourceWalletIsOpen = true
