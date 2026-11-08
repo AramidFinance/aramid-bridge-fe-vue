@@ -240,6 +240,7 @@
     "pleaseWait": "Poczekaj, aż przetworzymy Twoją transakcję.",
     "useWalletNotInitialized": "Konektor UseWallet nie został poprawnie zainicjalizowany.",
     "useWalletAddressMismatch": "Aktywne konto portfela nie odpowiada adresowi źródłowemu. Połącz ponownie portfel źródłowy.",
+    "useWalletNotAllSigned": "Portfel nie podpisał wszystkich transakcji.",
     "useWalletSubmitUncertain": "Wysłanie transakcji nie powiodło się, ale mogła ona zostać przyjęta. Sprawdź historię portfela przed rozpoczęciem nowego przelewu.",
     "algodClientNotInitialized": "Klient Algod nie jest zainicjalizowany.",
     "destinationChainMissing": "Docelowy blockchain nie jest ustawiony.",

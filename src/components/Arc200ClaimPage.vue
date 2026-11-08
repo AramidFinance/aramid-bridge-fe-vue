@@ -6,6 +6,7 @@ import { useAppStore } from '@/stores/app'
 import { Config, populateAppCallResources } from '@algorandfoundation/algokit-utils'
 import { AlgoAmount } from '@algorandfoundation/algokit-utils/types/amount'
 import { TransactionComposer } from '@algorandfoundation/algokit-utils/types/composer'
+import { getChainIdByUseWalletNetwork, getUseWalletNetworkId } from '@/scripts/algo/useWalletSync'
 import { useNetwork, useWallet } from '@txnlab/use-wallet-vue'
 import algosdk, { Address } from 'algosdk'
 import { getArc200ASAClient, type Arc200ExchangeInfo } from 'arc200-client'
@@ -109,30 +110,8 @@ watch(
   }
 )
 
-const convertToNetworkCode = (chainId: number): string => {
-  switch (chainId) {
-    case 416101:
-      return 'voimain' //Voi mainnet
-    case 416001:
-      return 'mainnet' //Algorand Mainnet
-    case 101003:
-      return 'aramidmain' // aramid mainnet
-    default:
-      return ''
-  }
-}
-const convertNetworkCodeToChainId = (networkCode: string): number => {
-  switch (networkCode) {
-    case 'voimain':
-      return 416101 //Voi mainnet
-    case 'mainnet':
-      return 416001 //Algorand Mainnet
-    case 'aramidmain':
-      return 101003 // aramid mainnet
-    default:
-      return 0
-  }
-}
+const convertToNetworkCode = (chainId: number): string => getUseWalletNetworkId(chainId) ?? ''
+const convertNetworkCodeToChainId = (networkCode: string): number => getChainIdByUseWalletNetwork(networkCode) ?? 0
 const bridginigButtonClick = async () => {
   try {
     state.bridginig = true

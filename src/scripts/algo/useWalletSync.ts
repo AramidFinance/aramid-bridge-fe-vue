@@ -15,6 +15,12 @@ const networkIdByChainId: Record<number, string> = {
 /** The use-wallet network id of an AVM chain, or undefined when use-wallet has no network for it. */
 export const getUseWalletNetworkId = (chainId: number | undefined): string | undefined => (chainId === undefined ? undefined : networkIdByChainId[chainId])
 
+/** The AVM chain id of a use-wallet network id, or undefined for unknown networks. */
+export const getChainIdByUseWalletNetwork = (networkId: string): number | undefined => {
+  const entry = Object.entries(networkIdByChainId).find(([, id]) => id === networkId)
+  return entry ? Number(entry[0]) : undefined
+}
+
 /**
  * Network alignment and wallet usability against the shared use-wallet manager. Pass the caller's
  * useWallet() result to avoid a second set of store subscriptions.
@@ -112,8 +118,12 @@ export const useWalletSync = (slot: UseWalletSlot) => {
     }
   }
 
-  /** Aligns the manager's network with the slot's chain, then the slot with the manager. */
+  /**
+   * Aligns the manager's network with the slot's chain, then the slot with the manager. Waits until the
+   * manager has resumed its sessions, so switching networks does not race with resuming wallets.
+   */
   const sync = async () => {
+    if (!isReady.value) return
     if (await syncNetwork()) syncFromManager()
   }
   // the manager is shared with other pages, which may have switched its network: align on setup,

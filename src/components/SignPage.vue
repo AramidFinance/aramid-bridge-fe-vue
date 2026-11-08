@@ -142,24 +142,32 @@ onMounted(async () => {
 const dummyTransactionSigner = async (_txnGroup: algosdk.Transaction[], _indexesToSign: number[]): Promise<Uint8Array[]> => {
   return [] as Uint8Array[]
 }
-// set when use-wallet signing did not complete before anything was sent, so the user can retry
-const useWalletSignFailed = ref(false)
-// set when sending a signed transaction failed: it may still have been accepted, so never offer a retry
-const useWalletSubmitUncertain = ref(false)
+/**
+ * Outcome of the automatic use-wallet signing when it did not produce a bridge transaction:
+ * - retry: failed before anything was sent, signing again here can help
+ * - reconnect: the origin wallet/data is not usable here, the user has to go back and reconnect
+ * - uncertain: sending failed in a way that may still have been accepted, never sign again here
+ */
+const useWalletSignOutcome = ref<'retry' | 'reconnect' | 'uncertain' | undefined>()
+class UseWalletNotReadyError extends Error {}
+// algod answers a definitely rejected transaction with a 4xx status
+const isDefinitelyRejected = (e: any): boolean => {
+  const status = e?.response?.status ?? e?.status
+  return typeof status === 'number' && status >= 400 && status < 500
+}
 const signWithUseWallet = async () => {
-  useWalletSignFailed.value = false
+  useWalletSignOutcome.value = undefined
   let submitted = false
   try {
-    if (!store.state.sourceChain) return
-    if (!store.state.sourceToken) return
-    if (!store.state.sourceAddress) return
-    if (!store.state.sourceTxNote) return
+    if (!store.state.sourceChain || !store.state.sourceToken || !store.state.sourceAddress || !store.state.sourceTxNote) {
+      throw new UseWalletNotReadyError(t('sign.useWalletNotInitialized'))
+    }
     // the use-wallet manager is shared with other pages, which may have switched its network
     const onSourceNetwork = await switchToChain(store.state.sourceChain)
     if (!onSourceNetwork || !activeAddress.value || !isActiveWalletUsable(store.state.sourceChain)) {
-      throw Error(t('sign.useWalletNotInitialized'))
+      throw new UseWalletNotReadyError(t('sign.useWalletNotInitialized'))
     }
-    if (activeAddress.value !== store.state.sourceAddress) throw Error(t('sign.useWalletAddressMismatch'))
+    if (activeAddress.value !== store.state.sourceAddress) throw new UseWalletNotReadyError(t('sign.useWalletAddressMismatch'))
 
     const algodClient = await getAlgodClientByChainId(store.state.sourceChain)
     if (!algodClient) throw Error(t('sign.algodClientNotInitialized'))
@@ -325,12 +333,15 @@ const signWithUseWallet = async () => {
       // res.txId is the txId of the first transaction in the signed array
       // algosdk.decodeSignedTransaction(signed.pop()).txn.txID() is the txId of the last transaction in the signed array
       console.log('Signed txns', signed)
+      if (!signed.every((txn: Uint8Array | null) => txn instanceof Uint8Array)) throw Error(t('sign.useWalletNotAllSigned'))
       submitted = true
       await algodClient.sendRawTransaction(signed).do()
       const tx = algosdk.decodeSignedTransaction(signed.pop()).txn.txID()
       store.state.bridgeTx = tx
     }
   } catch (e: any) {
+    if (submitted && isDefinitelyRejected(e)) submitted = false
+    if (e instanceof UseWalletNotReadyError) useWalletSignOutcome.value = 'reconnect'
     console.error(e)
     toast.add({
       severity: 'error',
@@ -338,10 +349,7 @@ const signWithUseWallet = async () => {
       life: 3000
     })
   } finally {
-    if (!store.state.bridgeTx) {
-      if (submitted) useWalletSubmitUncertain.value = true
-      else useWalletSignFailed.value = true
-    }
+    if (!store.state.bridgeTx && !useWalletSignOutcome.value) useWalletSignOutcome.value = submitted ? 'uncertain' : 'retry'
   }
 }
 
@@ -435,8 +443,9 @@ const claimButtonClick = async () => {
         </div>
       </div>
       <div v-if="store.state.sourceAlgoConnectorType == AlgoConnectorType.UseWallet" class="text-center font-bold m-4">
-        <MainActionButton v-if="useWalletSignFailed" @click="signWithUseWallet">{{ t('common.tryAgain') }}</MainActionButton>
-        <p v-else-if="useWalletSubmitUncertain">{{ t('sign.useWalletSubmitUncertain') }}</p>
+        <MainActionButton v-if="useWalletSignOutcome === 'retry'" @click="signWithUseWallet">{{ t('common.tryAgain') }}</MainActionButton>
+        <MainActionButton v-else-if="useWalletSignOutcome === 'reconnect'" @click="routeToReviewScreen">{{ t('common.back') }}</MainActionButton>
+        <p v-else-if="useWalletSignOutcome === 'uncertain'">{{ t('sign.useWalletSubmitUncertain') }}</p>
         <p v-else>
           <img :src="loader" alt="Loading" height="18" width="18" class="inline-block" />
           {{ t('sign.signInWallet', { wallet: activeWallet?.metadata?.name || '' }) }}

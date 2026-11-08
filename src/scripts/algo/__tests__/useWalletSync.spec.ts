@@ -1,4 +1,4 @@
-import { getUseWalletNetworkId, useWalletSync } from '@/scripts/algo/useWalletSync'
+import { getChainIdByUseWalletNetwork, getUseWalletNetworkId, useWalletSync } from '@/scripts/algo/useWalletSync'
 import { arc200BridgeWalletSlot, sourceWalletSlot } from '@/scripts/algo/walletSlots'
 import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
@@ -91,6 +91,13 @@ describe('getUseWalletNetworkId', () => {
     expect(getUseWalletNetworkId(416102)).toBeUndefined()
     expect(getUseWalletNetworkId(undefined)).toBeUndefined()
   })
+
+  it('maps use-wallet networks back to chain ids', () => {
+    expect(getChainIdByUseWalletNetwork('voimain')).toBe(416101)
+    expect(getChainIdByUseWalletNetwork('aramidmain')).toBe(101003)
+    expect(getChainIdByUseWalletNetwork('mainnet')).toBe(416001)
+    expect(getChainIdByUseWalletNetwork('nope')).toBeUndefined()
+  })
 })
 
 describe('useWalletSync.sync', () => {
@@ -150,11 +157,12 @@ describe('useWalletSync.sync', () => {
   })
 
   it('waits for the manager to be ready', async () => {
-    const store = makeStore(416001)
+    const store = makeStore(416101)
     manager.isReady.value = false
-    useActiveWallet(makeWallet('pera'), ADDR_A)
+    useActiveWallet(makeWallet('biatec'), ADDR_A)
     const { sync } = setup(store)
     await sync()
+    expect(manager.setActiveNetwork).not.toHaveBeenCalled() // no switching while sessions resume
     expect(store.state.sourceAddress).toBe('')
     manager.isReady.value = true
     await nextTick()
