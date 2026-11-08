@@ -8,7 +8,7 @@ import { AlgoAmount } from '@algorandfoundation/algokit-utils/types/amount'
 import { TransactionComposer } from '@algorandfoundation/algokit-utils/types/composer'
 import { getChainIdByUseWalletNetwork, getUseWalletNetworkId, useWalletNetwork } from '@/scripts/algo/useWalletSync'
 import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
-import { useNetwork, useWallet } from '@txnlab/use-wallet-vue'
+import { useWallet } from '@txnlab/use-wallet-vue'
 import algosdk, { Address } from 'algosdk'
 import { getArc200ASAClient, type Arc200ExchangeInfo } from 'arc200-client'
 import { useToast } from 'primevue/usetoast'
@@ -34,10 +34,9 @@ import WalletArc200Bridge from './WalletArc200Bridge.vue'
 
 Config.configure({ debug: true })
 
-const { setActiveNetwork, activeNetwork } = useNetwork()
 const useWalletState = useWallet()
 const { activeAddress, signTransactions } = useWalletState
-const { isActiveWalletUsable } = useWalletNetwork(useWalletState)
+const { activeNetwork, isActiveWalletUsable, switchToChain } = useWalletNetwork(useWalletState)
 const toast = useToast()
 const { t } = useI18n()
 const router = useRouter()
@@ -121,21 +120,15 @@ const bridginigButtonClick = async () => {
     const code = getUseWalletNetworkId(chain)
     if (!code) throw Error(t('sign.useWalletNotInitialized'))
 
-    if (store.state.destinationChain) {
-      console.log('activeNetwork.value ? store.state.destinationChain', activeNetwork.value, store.state.destinationChain)
-      if (activeNetwork.value != code) {
-        //provider.open()
-        toast.add({
-          severity: 'warn',
-          detail: t('claim.switchNetworkPrompt', { chain: store.state.destinationChainConfiguration?.name }),
-          life: 10000
-        })
-        console.log('switching network to', store.state.destinationChain)
-        state.bridginig = false
-        await setActiveNetwork(code)
-        console.log('after switching network to', store.state.destinationChain)
-        return
-      }
+    if (activeNetwork.value != code) {
+      toast.add({
+        severity: 'warn',
+        detail: t('claim.switchNetworkPrompt', { chain: store.state.arc200BridgeChainConfiguration?.name }),
+        life: 10000
+      })
+      state.bridginig = false
+      await switchToChain(chain)
+      return
     }
 
     // the use-wallet manager is shared with other pages: sign only with the account this page is bound to

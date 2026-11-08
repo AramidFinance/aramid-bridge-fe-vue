@@ -1,4 +1,4 @@
-import { getChainIdByUseWalletNetwork, getUseWalletNetworkId, useWalletSync } from '@/scripts/algo/useWalletSync'
+import { getChainIdByUseWalletNetwork, getUseWalletNetworkId, useWalletNetwork, useWalletSync } from '@/scripts/algo/useWalletSync'
 import { arc200BridgeWalletSlot, sourceWalletSlot } from '@/scripts/algo/walletSlots'
 import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
@@ -283,6 +283,51 @@ describe('walletSlots', () => {
     expect(store.state.arc200BridgeAddress).toBe(ADDR_A)
     expect(store.state.arc200BridgeAlgoConnectorType).toBe(AlgoConnectorType.UseWallet)
     expect(store.state.connectedArc200BridgeChain).toBe(416101)
+    expect(store.state.sourceAddress).toBe('')
+  })
+})
+
+describe('useWalletNetwork', () => {
+  const run = () => {
+    scope = effectScope()
+    return scope.run(() => useWalletNetwork())!
+  }
+
+  it('treats a wallet as unusable while the manager is on another network', () => {
+    useActiveWallet(makeWallet('lute'), ADDR_A)
+    manager.activeNetwork.value = 'mainnet'
+    const { isActiveWalletUsable } = run()
+    expect(isActiveWalletUsable(416101)).toBe(false)
+    manager.activeNetwork.value = 'voimain'
+    expect(isActiveWalletUsable(416101)).toBe(true)
+  })
+
+  it('switches networks only once the manager is ready', async () => {
+    manager.isReady.value = false
+    const { switchToChain } = run()
+    const switching = switchToChain(416101)
+    await settle()
+    expect(manager.setActiveNetwork).not.toHaveBeenCalled()
+    manager.isReady.value = true
+    await expect(switching).resolves.toBe(true)
+    expect(manager.setActiveNetwork).toHaveBeenCalledWith('voimain')
+  })
+
+  it('binds a connected, usable account after aligning the network', async () => {
+    const store = makeStore(101003)
+    useActiveWallet(makeWallet('biatec'), ADDR_A)
+    const { bindActiveAccount } = run()
+    await bindActiveAccount(sourceWalletSlot(store as any), 'not usable')
+    expect(manager.setActiveNetwork).toHaveBeenCalledWith('aramidmain')
+    expect(store.state.sourceAddress).toBe(ADDR_A)
+    expect(store.state.connectedSourceChain).toBe(101003)
+  })
+
+  it('refuses to bind a wallet the app does not offer for the chain', async () => {
+    const store = makeStore(101003)
+    useActiveWallet(makeWallet('pera'), ADDR_A)
+    const { bindActiveAccount } = run()
+    await expect(bindActiveAccount(sourceWalletSlot(store as any), 'not usable')).rejects.toThrow('not usable')
     expect(store.state.sourceAddress).toBe('')
   })
 })

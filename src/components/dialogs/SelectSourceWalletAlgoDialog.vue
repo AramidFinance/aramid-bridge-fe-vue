@@ -19,7 +19,7 @@ const toast = useToast()
 
 const useWalletState = useWallet()
 const { wallets, activeWallet, activeAccount } = useWalletState
-const { isActiveWalletUsable, switchToChain } = useWalletNetwork(useWalletState)
+const { bindActiveAccount } = useWalletNetwork(useWalletState)
 
 const store = useAppStore()
 
@@ -27,20 +27,13 @@ const walletButtonClick = async (wallet: Wallet) => {
   console.log('source.wallet', wallet, activeWallet, activeAccount)
   await wallet.connect()
   console.log('source.wallet2', wallet, activeWallet.value, activeAccount.value)
-  // align the shared manager with the chain (not before connect(): popup wallets need the click),
-  // then bind only a wallet that can sign there
-  const chainId = store.state.sourceChainConfiguration?.chainId
   try {
-    if (chainId) await switchToChain(chainId)
+    await bindActiveAccount(sourceWalletSlot(store), t('sign.useWalletNotInitialized'))
   } catch (e: any) {
     console.error(e)
-  }
-  if (activeAccount.value?.address && chainId && isActiveWalletUsable(chainId)) {
-    sourceWalletSlot(store).connect(activeAccount.value.address)
-  } else {
     toast.add({
       severity: 'error',
-      detail: t('sign.useWalletNotInitialized'),
+      detail: e.message ?? e,
       life: 3000
     })
   }

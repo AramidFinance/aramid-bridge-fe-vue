@@ -26,14 +26,16 @@ export const getChainIdByUseWalletNetwork = (networkId: string): number | undefi
  * useWallet() result to avoid a second set of store subscriptions.
  */
 export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWallet()) => {
-  const { activeWallet, availableWallets } = wallet
+  const { activeAddress, activeWallet, availableWallets, isReady } = wallet
   const { activeNetwork, setActiveNetwork } = useNetwork()
 
-  /** Whether the active wallet may sign on the chain: offered by the app for it and supported on the active network. */
+  /** Whether the active wallet may sign on the chain right now. */
   const isActiveWalletUsable = (chainId: number): boolean => {
     const active = activeWallet.value
     return (
       !!active &&
+      // the manager (and its algod client) is on the chain's network
+      activeNetwork.value === getUseWalletNetworkId(chainId) &&
       // the app's own wallet/chain matrix (what the picker offers for this chain)
       isWalletForChain(active.id, chainId) &&
       // a wallet that does not support the active network is being disconnected by use-wallet v5
@@ -41,15 +43,39 @@ export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWalle
     )
   }
 
-  /** Switches the manager to the chain's network. Returns false when use-wallet has no network for the chain. */
+  /** Resolves once the manager has resumed its sessions. */
+  const whenReady = (): Promise<void> =>
+    isReady.value
+      ? Promise.resolve()
+      : new Promise((resolve) => {
+          watch(isReady, () => resolve(), { once: true })
+        })
+
+  /**
+   * Switches the manager to the chain's network, after it has resumed its sessions so switching does
+   * not race with resuming wallets. Returns false when use-wallet has no network for the chain.
+   */
   const switchToChain = async (chainId: number): Promise<boolean> => {
     const networkId = getUseWalletNetworkId(chainId)
     if (!networkId) return false
+    await whenReady()
     if (activeNetwork.value !== networkId) await setActiveNetwork(networkId)
     return true
   }
 
-  return { isActiveWalletUsable, switchToChain }
+  /**
+   * Binds the slot to the manager's active account after a wallet was connected: aligns the network
+   * first (not before connect(), popup wallets need the click). Throws when the account cannot be used.
+   */
+  const bindActiveAccount = async (slot: UseWalletSlot, notUsableMessage: string): Promise<void> => {
+    const chainId = slot.chainConfiguration()?.chainId
+    if (!chainId || !(await switchToChain(chainId)) || !activeAddress.value || !isActiveWalletUsable(chainId)) {
+      throw new Error(notUsableMessage)
+    }
+    slot.connect(activeAddress.value)
+  }
+
+  return { activeNetwork, isActiveWalletUsable, switchToChain, bindActiveAccount }
 }
 
 /** An app-level wallet slot (source / ARC200 bridge) in the app store. */

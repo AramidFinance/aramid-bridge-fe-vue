@@ -130,8 +130,7 @@ const onSourceAddressChange = async () => {
 onMounted(async () => {
   state.publicConfiguration = await getPublicConfiguration(false)
   fillInState()
-  // unless a wallet sync already triggered one through the watcher
-  if (store.state.sourceAddress && balanceRequestId === 0) {
+  if (store.state.sourceAddress) {
     onSourceAddressChange()
   }
 })

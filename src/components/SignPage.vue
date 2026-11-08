@@ -114,9 +114,11 @@ onMounted(async () => {
   if (!store.state.publicConfiguration || !store.state.sourceAmount) {
     // route back to bridge screen
     routeToReviewScreen()
+    return
   }
   if (store.state.sourceChainConfiguration?.type == 'algo' && !store.state.sourceTxNote) {
     routeToReviewScreen()
+    return
   }
 
   // // Add check for destination wallet connection when bridging to Voi with unitAppId
