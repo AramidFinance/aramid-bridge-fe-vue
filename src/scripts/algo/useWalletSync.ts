@@ -5,21 +5,21 @@ import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import { NetworkId, useNetwork, useWallet, useWalletManager, type WalletManager } from '@txnlab/use-wallet-vue'
 import { useToast } from 'primevue/usetoast'
 import { watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
-const networkIdByChainId: Record<number, string> = {
-  416001: NetworkId.MAINNET,
-  416002: NetworkId.TESTNET,
-  416101: 'voimain',
-  101003: 'aramidmain'
-}
+const networkIdByChainId = new Map<number, string>([
+  [416001, NetworkId.MAINNET],
+  [416002, NetworkId.TESTNET],
+  [416101, 'voimain'],
+  [101003, 'aramidmain']
+])
+const chainIdByNetworkId = new Map<string, number>([...networkIdByChainId].map(([chainId, networkId]) => [networkId, chainId]))
 
 /** The use-wallet network id of an AVM chain, or undefined when use-wallet has no network for it. */
-export const getUseWalletNetworkId = (chainId: number | undefined): string | undefined => (chainId === undefined ? undefined : networkIdByChainId[chainId])
-
-const chainIdByNetworkId: Record<string, number> = Object.fromEntries(Object.entries(networkIdByChainId).map(([chainId, networkId]) => [networkId, Number(chainId)]))
+export const getUseWalletNetworkId = (chainId: number | undefined): string | undefined => (chainId === undefined ? undefined : networkIdByChainId.get(chainId))
 
 /** The AVM chain id of a use-wallet network id, or undefined for unknown networks. */
-export const getChainIdByUseWalletNetwork = (networkId: string): number | undefined => chainIdByNetworkId[networkId]
+export const getChainIdByUseWalletNetwork = (networkId: string): number | undefined => chainIdByNetworkId.get(networkId)
 
 // one pending "ready" promise per manager, independent of any component's lifetime
 const readyPromises = new WeakMap<WalletManager, Promise<void>>()
@@ -29,9 +29,8 @@ const whenManagerReady = (manager: WalletManager): Promise<void> => {
   let promise = readyPromises.get(manager)
   if (!promise) {
     promise = new Promise<void>((resolve) => {
-      const unsubscribe = manager.subscribe((state) => {
-        if (state.managerStatus !== 'ready') return
-        unsubscribe()
+      const off = manager.on('ready', () => {
+        off()
         readyPromises.delete(manager)
         resolve()
       })
@@ -39,6 +38,21 @@ const whenManagerReady = (manager: WalletManager): Promise<void> => {
     readyPromises.set(manager, promise)
   }
   return promise
+}
+
+/**
+ * WalletConnect sessions are approved for specific chains (the generic WalletConnect adapter only
+ * requests the network that was active when connecting). Adapters without such a session are not
+ * restricted. The session is read from the adapter instance, as use-wallet does not expose it.
+ */
+const sessionAllowsActiveNetwork = (manager: WalletManager, walletKey: string): boolean => {
+  const session = (manager.getWallet(walletKey) as unknown as { session?: { namespaces?: { algorand?: { chains?: string[]; accounts?: string[] } } } } | undefined)?.session
+  const algorand = session?.namespaces?.algorand
+  const caipChainId = manager.activeNetworkConfig?.caipChainId
+  if (!algorand || !caipChainId) return true
+  // accounts are "algorand:<chain reference>:<address>"
+  const chains = algorand.chains ?? (algorand.accounts ?? []).map((account) => account.split(':').slice(0, 2).join(':'))
+  return chains.includes(caipChainId)
 }
 
 /** Why the active use-wallet account cannot sign for an expected address, if it cannot. */
@@ -52,6 +66,7 @@ export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWalle
   const { activeAddress, activeWallet, availableWallets } = wallet
   const { activeNetwork, setActiveNetwork } = useNetwork()
   const manager = useWalletManager()
+  const { t } = useI18n()
 
   /** Whether the active wallet may sign on the chain right now. */
   const isActiveWalletUsable = (chainId: number): boolean => {
@@ -63,18 +78,21 @@ export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWalle
       // the app's own wallet/chain matrix (what the picker offers for this chain)
       isWalletForChain(active.id, chainId) &&
       // a wallet that does not support the active network is being disconnected by use-wallet v5
-      availableWallets.value.some((w) => w.walletKey === active.walletKey)
+      availableWallets.value.some((w) => w.walletKey === active.walletKey) &&
+      sessionAllowsActiveNetwork(manager, active.walletKey)
     )
   }
 
   /**
    * Switches the manager to the chain's network, after it has resumed its sessions so switching does
-   * not race with resuming wallets. Returns false when use-wallet has no network for the chain.
+   * not race with resuming wallets. Returns false when use-wallet has no network for the chain, or when
+   * isStillWanted() says the chain changed while waiting (a newer request handles it then).
    */
-  const switchToChain = async (chainId: number): Promise<boolean> => {
+  const switchToChain = async (chainId: number, isStillWanted: () => boolean = () => true): Promise<boolean> => {
     const networkId = getUseWalletNetworkId(chainId)
     if (!networkId) return false
     await whenManagerReady(manager)
+    if (!isStillWanted()) return false
     if (activeNetwork.value !== networkId) await setActiveNetwork(networkId)
     return true
   }
@@ -83,25 +101,32 @@ export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWalle
    * Binds the slot to the manager's active account after a wallet was connected: aligns the network
    * first (not before connect(), popup wallets need the click). Throws when the account cannot be used.
    */
-  const bindActiveAccount = async (slot: UseWalletSlot, notUsableMessage: string): Promise<void> => {
+  const bindActiveAccount = async (slot: UseWalletSlot): Promise<void> => {
     const chainId = slot.chainConfiguration()?.chainId
     if (!chainId || !(await switchToChain(chainId)) || !activeAddress.value || !isActiveWalletUsable(chainId)) {
-      throw new Error(notUsableMessage)
+      throw new Error(t('sign.useWalletNotInitialized'))
     }
     slot.connect(activeAddress.value)
   }
 
-  /**
-   * Checks that the active account can sign transactions sent from expectedAddress on the chain. Call
-   * it again right before signing, with the sender the transactions were built for.
-   */
+  /** Checks that the active account can sign transactions sent from expectedAddress on the chain. */
   const signerProblem = (chainId: number, expectedAddress: string | undefined): SignerProblem => {
     if (!activeAddress.value || !isActiveWalletUsable(chainId)) return 'notUsable'
     if (!expectedAddress || activeAddress.value !== expectedAddress) return 'mismatch'
     return undefined
   }
 
-  return { activeNetwork, isActiveWalletUsable, switchToChain, bindActiveAccount, signerProblem }
+  /**
+   * Throws (as ErrorClass) when the active account cannot sign transactions sent from sender on the
+   * chain. Call it before building the transactions and again right before signing them.
+   */
+  const assertSigner = (chainId: number, sender: string | undefined, ErrorClass: new (message: string) => Error = Error): void => {
+    const problem = signerProblem(chainId, sender)
+    if (problem === 'notUsable') throw new ErrorClass(t('sign.useWalletNotInitialized'))
+    if (problem === 'mismatch') throw new ErrorClass(t('sign.useWalletAddressMismatch'))
+  }
+
+  return { activeNetwork, isActiveWalletUsable, switchToChain, bindActiveAccount, signerProblem, assertSigner }
 }
 
 /** An app-level wallet slot (source / ARC200 bridge) in the app store. */
@@ -151,17 +176,19 @@ export const useWalletSync = (slot: UseWalletSlot) => {
   })
 
   /**
-   * Switches the use-wallet network to match the slot's chain. Returns false when the manager is not on
-   * that chain's network afterwards (unknown chain or failed switch), so the slot must not adopt it.
+   * Switches the use-wallet network to match the slot's chain: 'aligned' when the manager is on it,
+   * 'failed' when it cannot be (unknown chain or failed switch), 'stale' when the chain changed meanwhile.
    */
-  const syncNetwork = async (): Promise<boolean> => {
+  const syncNetwork = async (): Promise<'aligned' | 'failed' | 'stale'> => {
     const chain = algoChain()
-    if (!chain) return true
+    if (!chain) return 'aligned'
+    const isStillWanted = () => algoChain()?.chainId === chain.chainId
     try {
-      return await switchToChain(chain.chainId)
+      if (await switchToChain(chain.chainId, isStillWanted)) return 'aligned'
+      return isStillWanted() ? 'failed' : 'stale'
     } catch (e: any) {
       showError(toast, e)
-      return false
+      return 'failed'
     }
   }
 
@@ -171,13 +198,14 @@ export const useWalletSync = (slot: UseWalletSlot) => {
    */
   const sync = async () => {
     if (!isReady.value) return
-    if (await syncNetwork()) syncFromManager()
+    const network = await syncNetwork()
+    if (network === 'aligned') syncFromManager()
     // the manager cannot be on this chain's network, so a use-wallet slot cannot sign for it
-    else if (isBoundToUseWallet()) slot.disconnect()
+    else if (network === 'failed' && isBoundToUseWallet()) slot.disconnect()
   }
   // the manager is shared with other pages, which may have switched its network: align on setup,
   // whenever the slot's chain changes and once the manager has resumed its sessions
-  watch([isReady, () => slot.chainConfiguration()], sync, { immediate: true })
+  watch([isReady, () => slot.chainConfiguration()?.chainId], sync, { immediate: true })
 
   /**
    * Disconnects the slot and, for a use-wallet slot, the manager session. The slot is cleared even if

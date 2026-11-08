@@ -8,6 +8,7 @@ import { effectScope, nextTick, reactive, type EffectScope } from 'vue'
 
 const toast = vi.hoisted(() => ({ add: vi.fn() }))
 vi.mock('primevue/usetoast', () => ({ useToast: () => toast }))
+vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 
 vi.mock('@txnlab/use-wallet-vue', async () => {
   const { ref, watch } = await import('vue')
@@ -17,7 +18,8 @@ vi.mock('@txnlab/use-wallet-vue', async () => {
     availableWallets: ref<any[]>([]),
     isReady: ref(true),
     activeNetwork: ref('mainnet'),
-    setActiveNetwork: vi.fn()
+    setActiveNetwork: vi.fn(),
+    sessions: {} as Record<string, unknown>
   }
   return {
     NetworkId: { MAINNET: 'mainnet', TESTNET: 'testnet' },
@@ -27,7 +29,11 @@ vi.mock('@txnlab/use-wallet-vue', async () => {
       get isReady() {
         return mock.isReady.value
       },
-      subscribe: (callback: (state: { managerStatus: string }) => void) => watch(mock.isReady, (ready) => callback({ managerStatus: ready ? 'ready' : 'initializing' }))
+      get activeNetworkConfig() {
+        return { caipChainId: `caip:${mock.activeNetwork.value}` }
+      },
+      on: (_event: 'ready', handler: () => void) => watch(mock.isReady, (ready) => ready && handler()),
+      getWallet: (walletKey: string) => ({ session: mock.sessions[walletKey] })
     }),
     __mock: mock
   }
@@ -39,6 +45,7 @@ const manager = (useWalletVue as any).__mock as {
   isReady: { value: boolean }
   activeNetwork: { value: string }
   setActiveNetwork: ReturnType<typeof vi.fn>
+  sessions: Record<string, unknown>
 }
 
 const chain = (chainId: number, type = 'algo') => ({ chainId, type, name: String(chainId) }) as unknown as ChainItem
@@ -84,6 +91,7 @@ beforeEach(() => {
     manager.activeNetwork.value = id
   })
   useActiveWallet(null, null)
+  manager.sessions = {}
   toast.add.mockReset()
 })
 afterEach(() => scope?.stop())
@@ -103,6 +111,7 @@ describe('getUseWalletNetworkId', () => {
     expect(getChainIdByUseWalletNetwork('aramidmain')).toBe(101003)
     expect(getChainIdByUseWalletNetwork('mainnet')).toBe(416001)
     expect(getChainIdByUseWalletNetwork('nope')).toBeUndefined()
+    expect(getChainIdByUseWalletNetwork('constructor')).toBeUndefined()
   })
 })
 
@@ -335,7 +344,7 @@ describe('useWalletNetwork', () => {
     const store = makeStore(101003)
     useActiveWallet(makeWallet('biatec'), ADDR_A)
     const { bindActiveAccount } = run()
-    await bindActiveAccount(sourceWalletSlot(store as any), 'not usable')
+    await bindActiveAccount(sourceWalletSlot(store as any))
     expect(manager.setActiveNetwork).toHaveBeenCalledWith('aramidmain')
     expect(store.state.sourceAddress).toBe(ADDR_A)
     expect(store.state.connectedSourceChain).toBe(101003)
@@ -345,7 +354,7 @@ describe('useWalletNetwork', () => {
     const store = makeStore(101003)
     useActiveWallet(makeWallet('pera'), ADDR_A)
     const { bindActiveAccount } = run()
-    await expect(bindActiveAccount(sourceWalletSlot(store as any), 'not usable')).rejects.toThrow('not usable')
+    await expect(bindActiveAccount(sourceWalletSlot(store as any))).rejects.toThrow('sign.useWalletNotInitialized')
     expect(store.state.sourceAddress).toBe('')
   })
 })
@@ -362,5 +371,45 @@ describe('useWalletNetwork.signerProblem', () => {
     expect(signerProblem(416101, ADDR_A)).toBe('notUsable') // manager on another network
     useActiveWallet(null, null)
     expect(signerProblem(416001, ADDR_A)).toBe('notUsable')
+  })
+})
+
+describe('WalletConnect sessions', () => {
+  it('treats a session as usable only on the chains it was approved for', () => {
+    scope = effectScope()
+    const { isActiveWalletUsable } = scope.run(() => useWalletNetwork())!
+    useActiveWallet(makeWallet('walletconnect'), ADDR_A)
+    manager.sessions.walletconnect = { namespaces: { algorand: { accounts: [`caip:mainnet:${ADDR_A}`] } } }
+    manager.activeNetwork.value = 'mainnet'
+    expect(isActiveWalletUsable(416001)).toBe(true)
+    manager.activeNetwork.value = 'voimain'
+    expect(isActiveWalletUsable(416101)).toBe(false)
+  })
+})
+
+describe('useWalletSync with a chain that changes while waiting', () => {
+  it('does not switch to the network of a chain that is no longer selected', async () => {
+    const store = makeStore(416101)
+    manager.isReady.value = false
+    setup(store)
+    manager.isReady.value = true
+    store.state.sourceChainConfiguration = chain(416001)
+    await settle()
+    await settle()
+    expect(manager.setActiveNetwork).not.toHaveBeenCalledWith('voimain')
+    expect(manager.activeNetwork.value).toBe('mainnet')
+  })
+})
+
+describe('useWalletNetwork.assertSigner', () => {
+  it('throws the given error class with the matching message', () => {
+    class Custom extends Error {}
+    scope = effectScope()
+    const { assertSigner } = scope.run(() => useWalletNetwork())!
+    useActiveWallet(makeWallet('biatec'), ADDR_A)
+    expect(() => assertSigner(416001, ADDR_A, Custom)).not.toThrow()
+    expect(() => assertSigner(416001, ADDR_B, Custom)).toThrow(Custom)
+    expect(() => assertSigner(416001, ADDR_B)).toThrow('sign.useWalletAddressMismatch')
+    expect(() => assertSigner(416101, ADDR_A)).toThrow('sign.useWalletNotInitialized')
   })
 })

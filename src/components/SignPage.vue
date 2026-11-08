@@ -14,6 +14,7 @@ import { populateAppCallResources } from '@algorandfoundation/algokit-utils'
 import { AlgoAmount } from '@algorandfoundation/algokit-utils/types/amount'
 import { TransactionComposer } from '@algorandfoundation/algokit-utils/types/composer'
 import { getUseWalletNetworkId, useWalletNetwork } from '@/scripts/algo/useWalletSync'
+import { showError } from '@/scripts/common/showError'
 import { useWallet } from '@txnlab/use-wallet-vue'
 import algosdk, { Address } from 'algosdk'
 import { type Arc200ExchangeInfo, getArc200ASAClient } from 'arc200-client'
@@ -42,7 +43,7 @@ const toast = useToast()
 const { t } = useI18n()
 const useWalletState = useWallet()
 const { activeWallet, signTransactions: useWalletSignTransactions } = useWalletState
-const { signerProblem, switchToChain } = useWalletNetwork(useWalletState)
+const { assertSigner, switchToChain } = useWalletNetwork(useWalletState)
 useAvmWallet()
 
 const routeToBridgeScreen = () => {
@@ -164,9 +165,7 @@ const isDefinitelyRejected = (e: any): boolean => (e?.response?.status ?? e?.sta
 /** The manager is on the source network with the account the transactions are sent from (re-checked right before signing). */
 const assertUseWalletSigner = (chainId: number, sender: string) => {
   if (disposed) throw new SignAbortedError()
-  const problem = signerProblem(chainId, sender)
-  if (problem === 'notUsable') throw new UseWalletNotReadyError(t('sign.useWalletNotInitialized'))
-  if (problem === 'mismatch') throw new UseWalletNotReadyError(t('sign.useWalletAddressMismatch'))
+  assertSigner(chainId, sender, UseWalletNotReadyError)
 }
 const signWithUseWallet = async () => {
   useWalletSignOutcome.value = undefined
@@ -356,8 +355,8 @@ const signWithUseWallet = async () => {
     }
   } catch (e: any) {
     if (e instanceof SignAbortedError) return
-    console.error(e)
     if (submittedTxId && !isDefinitelyRejected(e)) {
+      console.error(e)
       // the transaction may still have been accepted: track it like a sent one instead of offering a
       // retry that could send the funds twice; the page keeps checking for its processing
       store.state.bridgeTx = submittedTxId
@@ -369,11 +368,7 @@ const signWithUseWallet = async () => {
       return
     }
     if (e instanceof UseWalletNotReadyError) useWalletSignOutcome.value = 'reconnect'
-    toast.add({
-      severity: 'error',
-      detail: e.message ?? e,
-      life: 3000
-    })
+    showError(toast, e)
   } finally {
     if (!disposed && !store.state.bridgeTx && !useWalletSignOutcome.value) useWalletSignOutcome.value = 'retry'
   }

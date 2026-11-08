@@ -7,6 +7,7 @@ import { Config, populateAppCallResources } from '@algorandfoundation/algokit-ut
 import { AlgoAmount } from '@algorandfoundation/algokit-utils/types/amount'
 import { TransactionComposer } from '@algorandfoundation/algokit-utils/types/composer'
 import { getChainIdByUseWalletNetwork, getUseWalletNetworkId, useWalletNetwork } from '@/scripts/algo/useWalletSync'
+import { showError } from '@/scripts/common/showError'
 import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import { useWallet } from '@txnlab/use-wallet-vue'
 import algosdk, { Address } from 'algosdk'
@@ -36,7 +37,7 @@ Config.configure({ debug: true })
 
 const useWalletState = useWallet()
 const { signTransactions } = useWalletState
-const { activeNetwork, signerProblem, switchToChain } = useWalletNetwork(useWalletState)
+const { activeNetwork, assertSigner, switchToChain } = useWalletNetwork(useWalletState)
 const toast = useToast()
 const { t } = useI18n()
 const router = useRouter()
@@ -117,9 +118,7 @@ watch(
 const assertBoundSigner = (sender: string | undefined = store.state.arc200BridgeAddress) => {
   const chain = store.state.arc200BridgeChain
   if (!chain || store.state.arc200BridgeAlgoConnectorType !== AlgoConnectorType.UseWallet) throw Error(t('sign.useWalletNotInitialized'))
-  const problem = signerProblem(chain, sender)
-  if (problem === 'notUsable') throw Error(t('sign.useWalletNotInitialized'))
-  if (problem === 'mismatch') throw Error(t('sign.useWalletAddressMismatch'))
+  assertSigner(chain, sender)
 }
 
 const bridginigButtonClick = async () => {
@@ -154,12 +153,7 @@ const bridginigButtonClick = async () => {
     state.bridginig = false
   } catch (e: any) {
     state.bridginig = false
-    console.error(e)
-    toast.add({
-      severity: 'error',
-      detail: e.message ?? e,
-      life: 10000
-    })
+    showError(toast, e, 10000)
   }
 }
 

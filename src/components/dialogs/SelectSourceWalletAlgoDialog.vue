@@ -29,7 +29,7 @@ const walletButtonClick = async (wallet: Wallet) => {
   await wallet.connect()
   console.log('source.wallet2', wallet, activeWallet.value, activeAccount.value)
   try {
-    await bindActiveAccount(sourceWalletSlot(store), t('sign.useWalletNotInitialized'))
+    await bindActiveAccount(sourceWalletSlot(store))
   } catch (e: any) {
     showError(toast, e)
   }

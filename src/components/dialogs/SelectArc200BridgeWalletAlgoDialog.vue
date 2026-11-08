@@ -26,7 +26,7 @@ const walletButtonClick = async (wallet: Wallet) => {
   await wallet.connect()
   console.log('source.wallet2', wallet, activeWallet.value, activeAccount.value)
   try {
-    await bindActiveAccount(arc200BridgeWalletSlot(store), t('sign.useWalletNotInitialized'))
+    await bindActiveAccount(arc200BridgeWalletSlot(store))
   } catch (e: any) {
     showError(toast, e)
   }
