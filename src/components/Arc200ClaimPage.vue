@@ -42,6 +42,12 @@ const toast = useToast()
 const { t } = useI18n()
 const router = useRouter()
 const store = useAppStore()
+// the route decides the ARC200 chain (none: the Voi default); set before child components fill it
+const routeChainId = (() => {
+  const network = useRoute().params['network']
+  return typeof network === 'string' ? getChainIdByUseWalletNetwork(network) : undefined
+})()
+store.state.arc200BridgeChain = routeChainId
 const state = reactive({
   inputTx: '',
   fromRoute: false,
@@ -58,13 +64,7 @@ onMounted(async () => {
   state.inputTx = route.params['sourceTxId'] as string
   state.fromRoute = !!state.inputTx
 
-  if (route.params['network']) {
-    const chainId = getChainIdByUseWalletNetwork(route.params['network'] as string)
-    if (chainId) {
-      store.state.arc200BridgeChain = chainId
-      fillArc200BridgeChainConfiguration(chainId)
-    }
-  }
+  if (routeChainId) fillArc200BridgeChainConfiguration(routeChainId)
 
   if (route.params['tokenId'] && route.params['amount'] && route.params['direction']) {
     store.state.arc200BridgeToken = route.params['tokenId'] as string
@@ -117,8 +117,7 @@ watch(
 
 // the use-wallet manager is shared with other pages: sign only with the account this page is bound to,
 // checked before building the transactions and again right before signing them (with their sender)
-const assertBoundSigner = (sender: string | undefined = store.state.arc200BridgeAddress) => {
-  const chain = store.state.arc200BridgeChain
+const assertBoundSigner = (sender: string | undefined = store.state.arc200BridgeAddress, chain: number | undefined = store.state.arc200BridgeChain) => {
   if (!chain || store.state.arc200BridgeAlgoConnectorType !== AlgoConnectorType.UseWallet) throw Error(t('sign.useWalletNotInitialized'))
   assertSigner(chain, sender)
 }
@@ -170,7 +169,9 @@ const bridgeArc200ToAsa = async () => {
     if (!store.state.arc200BridgeChain) throw Error('Chain is not selected')
     if (!store.state.arc200BridgeAddress) throw Error('Source address is not set')
     console.log('store.state.arc200BridgeChain', store.state.arc200BridgeChain)
-    const algodClient = await getAlgodClientByChainId(store.state.arc200BridgeChain)
+    // the transactions below are built for this chain
+    const builtChain = store.state.arc200BridgeChain
+    const algodClient = await getAlgodClientByChainId(builtChain)
     if (!algodClient) throw Error(t('sign.algodClientNotInitialized'))
     // get asset balance
     if (!store.state.arc200BridgeAddress) throw Error(t('sign.destinationAddressMissing'))
@@ -294,7 +295,7 @@ const bridgeArc200ToAsa = async () => {
     console.log('signing txns', toSignFinal)
 
     // Sign with destination wallet
-    assertBoundSigner(destinationAddress)
+    assertBoundSigner(destinationAddress, builtChain)
     const signed = await signTransactions(toSignFinal)
     // Filter out any null values to satisfy the type requirement
     const filteredSigned = signed.filter((s: Uint8Array | null): s is Uint8Array => s !== null)
@@ -331,7 +332,9 @@ const bridgeAsaToArc200 = async () => {
     state.bridginig = true
     if (!store.state.arc200BridgeChain) throw Error(t('sign.destinationChainMissing'))
     console.log('store.state.destinationChain', store.state.arc200BridgeChain)
-    const algodClient = await getAlgodClientByChainId(store.state.arc200BridgeChain)
+    // the transactions below are built for this chain
+    const builtChain = store.state.arc200BridgeChain
+    const algodClient = await getAlgodClientByChainId(builtChain)
     if (!algodClient) throw Error(t('sign.algodClientNotInitialized'))
     // get asset balance
     if (!store.state.arc200BridgeAddress) throw Error(t('sign.destinationAddressMissing'))
@@ -493,7 +496,7 @@ const bridgeAsaToArc200 = async () => {
     })
     console.log('toSignFinal', toSignFinal)
     // Sign with destination wallet
-    assertBoundSigner(destinationAddress)
+    assertBoundSigner(destinationAddress, builtChain)
     const signed = await signTransactions(toSignFinal)
     // Filter out any null values to satisfy the type requirement
     const filteredSigned = signed.filter((s: Uint8Array | null): s is Uint8Array => s !== null)
@@ -528,7 +531,9 @@ const resetButtonClick = async () => {
 onMounted(async () => {
   await getPublicConfiguration(false)
   // keep the chain taken from the route (defaults to Voi when none was given)
-  fillArc200BridgeChainConfiguration(store.state.arc200BridgeChain)
+  fillArc200BridgeChainConfiguration(routeChainId)
+  // a route chain without configuration fell back to Voi: make the URL say so
+  if (routeChainId && store.state.arc200BridgeChain !== routeChainId) fillInRoute()
 })
 </script>
 

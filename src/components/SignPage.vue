@@ -193,7 +193,7 @@ const signWithUseWallet = async () => {
       const arc200TokenId = config.arc200TokenId
       const chainId = config.chainId
 
-      const sourceAddress = store.state?.sourceAddress || ''
+      const sourceAddress = sender
       const tokenId = store.state.sourceToken
       const sourceAmount = BigInt(store.state.sourceAmount)
       const asaOptin = await getAlgoAcountTokenOptin(chainId, sourceAddress, Number(tokenId))
@@ -286,7 +286,7 @@ const signWithUseWallet = async () => {
         Number(store.state.sourceToken) > 0
           ? algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
               amount: BigInt(store.state.sourceAmount),
-              sender: store.state.sourceAddress,
+              sender,
               receiver: store.state.sourceBridgeAddress,
               suggestedParams: params,
               note: new Uint8Array(Buffer.from(store.state.sourceTxNote)),
@@ -294,7 +294,7 @@ const signWithUseWallet = async () => {
             })
           : algosdk.makePaymentTxnWithSuggestedParamsFromObject({
               amount: BigInt(store.state.sourceAmount),
-              sender: store.state.sourceAddress,
+              sender,
               receiver: store.state.sourceBridgeAddress,
               suggestedParams: params,
               note: new Uint8Array(Buffer.from(store.state.sourceTxNote))
@@ -326,7 +326,7 @@ const signWithUseWallet = async () => {
         Number(store.state.sourceToken) > 0
           ? algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
               amount: BigInt(store.state.sourceAmount),
-              sender: store.state.sourceAddress,
+              sender,
               receiver: store.state.sourceBridgeAddress,
               suggestedParams: params,
               note: new Uint8Array(Buffer.from(store.state.sourceTxNote)),
@@ -334,7 +334,7 @@ const signWithUseWallet = async () => {
             })
           : algosdk.makePaymentTxnWithSuggestedParamsFromObject({
               amount: BigInt(store.state.sourceAmount),
-              sender: store.state.sourceAddress,
+              sender,
               receiver: store.state.sourceBridgeAddress,
               suggestedParams: params,
               note: new Uint8Array(Buffer.from(store.state.sourceTxNote))
