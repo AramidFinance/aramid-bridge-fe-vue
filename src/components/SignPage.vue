@@ -13,7 +13,7 @@ import { useAppStore } from '@/stores/app'
 import { populateAppCallResources } from '@algorandfoundation/algokit-utils'
 import { AlgoAmount } from '@algorandfoundation/algokit-utils/types/amount'
 import { TransactionComposer } from '@algorandfoundation/algokit-utils/types/composer'
-import { useWalletNetwork } from '@/scripts/algo/useWalletSync'
+import { getUseWalletNetworkId, useWalletNetwork } from '@/scripts/algo/useWalletSync'
 import { useWallet } from '@txnlab/use-wallet-vue'
 import algosdk, { Address } from 'algosdk'
 import { type Arc200ExchangeInfo, getArc200ASAClient } from 'arc200-client'
@@ -155,10 +155,17 @@ const dummyTransactionSigner = async (_txnGroup: algosdk.Transaction[], _indexes
  */
 const useWalletSignOutcome = ref<'retry' | 'reconnect' | undefined>()
 class UseWalletNotReadyError extends Error {}
-// algod answers a definitely rejected transaction with a 4xx status
-const isDefinitelyRejected = (e: any): boolean => {
-  const status = e?.response?.status ?? e?.status
-  return typeof status === 'number' && status >= 400 && status < 500
+// thrown when the page was left while signing was being prepared: stop without signing or reporting
+class SignAbortedError extends Error {}
+let disposed = false
+// algod answers a rejected transaction with 400; other statuses (e.g. a proxy's 408) may come after
+// the transaction was forwarded, so they are not treated as a definite rejection
+const isDefinitelyRejected = (e: any): boolean => (e?.response?.status ?? e?.status) === 400
+/** The manager is on the source network with the bound, usable account (re-checked right before signing). */
+const assertUseWalletSigner = (chainId: number) => {
+  if (disposed) throw new SignAbortedError()
+  if (!activeAddress.value || !isActiveWalletUsable(chainId)) throw new UseWalletNotReadyError(t('sign.useWalletNotInitialized'))
+  if (activeAddress.value !== store.state.sourceAddress) throw new UseWalletNotReadyError(t('sign.useWalletAddressMismatch'))
 }
 const signWithUseWallet = async () => {
   useWalletSignOutcome.value = undefined
@@ -169,10 +176,8 @@ const signWithUseWallet = async () => {
     }
     // the use-wallet manager is shared with other pages, which may have switched its network
     const onSourceNetwork = await switchToChain(store.state.sourceChain)
-    if (!onSourceNetwork || !activeAddress.value || !isActiveWalletUsable(store.state.sourceChain)) {
-      throw new UseWalletNotReadyError(t('sign.useWalletNotInitialized'))
-    }
-    if (activeAddress.value !== store.state.sourceAddress) throw new UseWalletNotReadyError(t('sign.useWalletAddressMismatch'))
+    if (!onSourceNetwork) throw new UseWalletNotReadyError(t('sign.useWalletNotInitialized'))
+    assertUseWalletSigner(store.state.sourceChain)
 
     const algodClient = await getAlgodClientByChainId(store.state.sourceChain)
     if (!algodClient) throw Error(t('sign.algodClientNotInitialized'))
@@ -310,6 +315,7 @@ const signWithUseWallet = async () => {
         return txnWithSigner.txn
       })
       console.log('signing txns', toSignFinal)
+      assertUseWalletSigner(store.state.sourceChain)
       signed = await useWalletSignTransactions(toSignFinal)
     }
     // algo or asa
@@ -332,6 +338,7 @@ const signWithUseWallet = async () => {
               note: new Uint8Array(Buffer.from(store.state.sourceTxNote))
             })
 
+      assertUseWalletSigner(store.state.sourceChain)
       signed = await useWalletSignTransactions([tx])
     }
     if (signed && signed.length > 0) {
@@ -345,6 +352,7 @@ const signWithUseWallet = async () => {
       store.state.bridgeTx = submittedTxId
     }
   } catch (e: any) {
+    if (e instanceof SignAbortedError) return
     console.error(e)
     if (submittedTxId && !isDefinitelyRejected(e)) {
       // the transaction may still have been accepted: track it like a sent one instead of offering a
@@ -364,11 +372,12 @@ const signWithUseWallet = async () => {
       life: 3000
     })
   } finally {
-    if (!store.state.bridgeTx && !useWalletSignOutcome.value) useWalletSignOutcome.value = 'retry'
+    if (!disposed && !store.state.bridgeTx && !useWalletSignOutcome.value) useWalletSignOutcome.value = 'retry'
   }
 }
 
 onBeforeUnmount(() => {
+  disposed = true
   if (timerInterval.value) {
     clearInterval(timerInterval.value)
   }
@@ -389,7 +398,7 @@ const claimButtonClick = async () => {
     router.push({
       name: 'arc200-claim-t',
       params: {
-        network: 'voimain',
+        network: getUseWalletNetworkId(store.state.destinationChain) ?? 'voimain',
         tokenId: store.state.destinationToken,
         amount: store.state.destinationAmount,
         direction: 'ASAToARC200'

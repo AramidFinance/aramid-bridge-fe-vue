@@ -61,7 +61,7 @@ onMounted(async () => {
     const chainId = getChainIdByUseWalletNetwork(route.params['network'] as string)
     if (chainId) {
       store.state.arc200BridgeChain = chainId
-      fillArc200BridgeChainConfiguration()
+      fillArc200BridgeChainConfiguration(chainId)
     }
   }
 
@@ -112,6 +112,15 @@ watch(
   }
 )
 
+// the use-wallet manager is shared with other pages: sign only with the account this page is bound to,
+// checked before building the transactions and again right before signing them
+const assertBoundSigner = () => {
+  const chain = store.state.arc200BridgeChain
+  if (!chain || store.state.arc200BridgeAlgoConnectorType !== AlgoConnectorType.UseWallet || activeAddress.value !== store.state.arc200BridgeAddress || !isActiveWalletUsable(chain)) {
+    throw Error(t('sign.useWalletAddressMismatch'))
+  }
+}
+
 const bridginigButtonClick = async () => {
   try {
     state.bridginig = true
@@ -131,10 +140,7 @@ const bridginigButtonClick = async () => {
       return
     }
 
-    // the use-wallet manager is shared with other pages: sign only with the account this page is bound to
-    if (store.state.arc200BridgeAlgoConnectorType !== AlgoConnectorType.UseWallet || activeAddress.value !== store.state.arc200BridgeAddress || !isActiveWalletUsable(chain)) {
-      throw Error(t('sign.useWalletAddressMismatch'))
-    }
+    assertBoundSigner()
 
     if (store.state.arc200BridgeDirection === 'ARC200ToASA') {
       await bridgeArc200ToAsa()
@@ -291,6 +297,7 @@ const bridgeArc200ToAsa = async () => {
     console.log('signing txns', toSignFinal)
 
     // Sign with destination wallet
+    assertBoundSigner()
     const signed = await signTransactions(toSignFinal)
     // Filter out any null values to satisfy the type requirement
     const filteredSigned = signed.filter((s: Uint8Array | null): s is Uint8Array => s !== null)
@@ -494,6 +501,7 @@ const bridgeAsaToArc200 = async () => {
     })
     console.log('toSignFinal', toSignFinal)
     // Sign with destination wallet
+    assertBoundSigner()
     const signed = await signTransactions(toSignFinal)
     // Filter out any null values to satisfy the type requirement
     const filteredSigned = signed.filter((s: Uint8Array | null): s is Uint8Array => s !== null)
@@ -532,7 +540,8 @@ const resetButtonClick = async () => {
 
 onMounted(async () => {
   await getPublicConfiguration(false)
-  fillArc200BridgeChainConfiguration()
+  // keep the chain taken from the route (defaults to Voi when none was given)
+  fillArc200BridgeChainConfiguration(store.state.arc200BridgeChain)
 })
 </script>
 
@@ -558,7 +567,7 @@ onMounted(async () => {
         <div class="w-full" v-else>
           <MainActionButton v-if="activeNetwork == getUseWalletNetworkId(store.state.arc200BridgeChain)" @click="bridginigButtonClick">Bridge</MainActionButton>
           <MainActionButton v-else-if="store.state.claimData" @click="bridginigButtonClick">{{
-            t('bridge.switchNetwork', { chain: store.state.destinationChainConfiguration?.name })
+            t('bridge.switchNetwork', { chain: store.state.arc200BridgeChainConfiguration?.name })
           }}</MainActionButton>
           <div v-else>
             <p class="text-red-100 text-center">{{ t('claim.notReady') }} {{ store.state.arc200BridgeChain }}</p>
