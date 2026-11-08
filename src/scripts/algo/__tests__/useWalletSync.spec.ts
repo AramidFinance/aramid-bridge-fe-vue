@@ -77,6 +77,12 @@ const setup = (store: ReturnType<typeof makeStore>) => {
 }
 /** Lets the sync() started on setup (immediate watcher) finish. */
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
+/** Sets up the sync for the store and waits for its initial sync. */
+const setupSynced = async (store: ReturnType<typeof makeStore>) => {
+  const api = setup(store)
+  await settle()
+  return api
+}
 const useActiveWallet = (wallet: ReturnType<typeof makeWallet> | null, address: string | null, available = true) => {
   manager.activeWallet.value = wallet
   manager.activeAddress.value = address
@@ -119,7 +125,7 @@ describe('useWalletSync.sync', () => {
   it('switches the network and adopts a usable active account', async () => {
     const store = makeStore(416101)
     useActiveWallet(makeWallet('biatec'), ADDR_A)
-    await setup(store).sync()
+    await setupSynced(store)
     expect(manager.setActiveNetwork).toHaveBeenCalledWith('voimain')
     expect(store.state.sourceAddress).toBe(ADDR_A)
     expect(store.state.sourceAlgoConnectorType).toBe(AlgoConnectorType.UseWallet)
@@ -132,7 +138,7 @@ describe('useWalletSync.sync', () => {
     store.state.sourceAlgoConnectorType = AlgoConnectorType.UseWallet
     store.state.connectedSourceChain = 416001
     useActiveWallet(makeWallet('kibisis'), ADDR_A) // kibisis is not offered on Algorand mainnet
-    await setup(store).sync()
+    await setupSynced(store)
     expect(store.state.sourceAddress).toBe('')
     expect(store.state.connectedSourceChain).toBeUndefined()
   })
@@ -140,14 +146,14 @@ describe('useWalletSync.sync', () => {
   it('does not adopt a wallet that does not support the active network', async () => {
     const store = makeStore(416101)
     useActiveWallet(makeWallet('lute'), ADDR_A, false)
-    await setup(store).sync()
+    await setupSynced(store)
     expect(store.state.sourceAddress).toBe('')
   })
 
   it('leaves the slot alone for chains without a use-wallet network', async () => {
     const store = makeStore(416102)
     useActiveWallet(makeWallet('biatec'), ADDR_A)
-    await setup(store).sync()
+    await setupSynced(store)
     expect(manager.setActiveNetwork).not.toHaveBeenCalled()
     expect(store.state.sourceAddress).toBe('')
   })
@@ -156,7 +162,7 @@ describe('useWalletSync.sync', () => {
     const store = makeStore(416101)
     useActiveWallet(makeWallet('biatec'), ADDR_A)
     manager.setActiveNetwork.mockRejectedValue(new Error('boom'))
-    await setup(store).sync()
+    await setupSynced(store)
     expect(store.state.sourceAddress).toBe('')
     expect(toast.add).toHaveBeenCalled()
   })
@@ -168,7 +174,7 @@ describe('useWalletSync.sync', () => {
     store.state.connectedSourceChain = 416001
     useActiveWallet(makeWallet('biatec'), ADDR_A)
     manager.setActiveNetwork.mockRejectedValue(new Error('boom'))
-    await setup(store).sync()
+    await setupSynced(store)
     expect(store.state.sourceAddress).toBe('')
     expect(store.state.connectedSourceChain).toBeUndefined()
   })
@@ -178,7 +184,7 @@ describe('useWalletSync.sync', () => {
     store.state.sourceChainConfiguration = chain(8453, 'eth')
     store.state.sourceAddress = '0xabc'
     useActiveWallet(makeWallet('biatec'), ADDR_A)
-    await setup(store).sync()
+    await setupSynced(store)
     expect(manager.setActiveNetwork).not.toHaveBeenCalled()
     expect(store.state.sourceAddress).toBe('0xabc')
   })
@@ -187,8 +193,7 @@ describe('useWalletSync.sync', () => {
     const store = makeStore(416101)
     manager.isReady.value = false
     useActiveWallet(makeWallet('biatec'), ADDR_A)
-    const { sync } = setup(store)
-    await sync()
+    await setupSynced(store)
     expect(manager.setActiveNetwork).not.toHaveBeenCalled() // no switching while sessions resume
     expect(store.state.sourceAddress).toBe('')
     manager.isReady.value = true
@@ -343,8 +348,10 @@ describe('useWalletNetwork', () => {
   it('binds a connected, usable account after aligning the network', async () => {
     const store = makeStore(101003)
     useActiveWallet(makeWallet('biatec'), ADDR_A)
-    const { bindActiveAccount } = run()
-    await bindActiveAccount(sourceWalletSlot(store as any))
+    const { connectAndBind } = run()
+    const picked = { connect: vi.fn(async () => undefined) }
+    await connectAndBind(picked, sourceWalletSlot(store as any))
+    expect(picked.connect).toHaveBeenCalled()
     expect(manager.setActiveNetwork).toHaveBeenCalledWith('aramidmain')
     expect(store.state.sourceAddress).toBe(ADDR_A)
     expect(store.state.connectedSourceChain).toBe(101003)
@@ -353,24 +360,47 @@ describe('useWalletNetwork', () => {
   it('refuses to bind a wallet the app does not offer for the chain', async () => {
     const store = makeStore(101003)
     useActiveWallet(makeWallet('pera'), ADDR_A)
-    const { bindActiveAccount } = run()
-    await expect(bindActiveAccount(sourceWalletSlot(store as any))).rejects.toThrow('sign.useWalletNotInitialized')
+    const { connectAndBind } = run()
+    await connectAndBind({ connect: async () => undefined }, sourceWalletSlot(store as any))
     expect(store.state.sourceAddress).toBe('')
+    expect(toast.add).toHaveBeenCalledWith(expect.objectContaining({ detail: 'sign.useWalletNotInitialized' }))
+  })
+
+  it('shows a failed or cancelled connect instead of throwing', async () => {
+    const store = makeStore(101003)
+    const { connectAndBind } = run()
+    await connectAndBind(
+      {
+        connect: async () => {
+          throw new Error('cancelled')
+        }
+      },
+      sourceWalletSlot(store as any)
+    )
+    expect(store.state.sourceAddress).toBe('')
+    expect(toast.add).toHaveBeenCalledWith(expect.objectContaining({ detail: 'cancelled' }))
   })
 })
 
-describe('useWalletNetwork.signerProblem', () => {
+describe('useWalletNetwork.assertSigner problems', () => {
   it('reports unusable wallets and sender mismatches', () => {
     scope = effectScope()
-    const { signerProblem } = scope.run(() => useWalletNetwork())!
+    const { assertSigner } = scope.run(() => useWalletNetwork())!
     useActiveWallet(makeWallet('biatec'), ADDR_A)
     manager.activeNetwork.value = 'mainnet'
-    expect(signerProblem(416001, ADDR_A)).toBeUndefined()
-    expect(signerProblem(416001, ADDR_B)).toBe('mismatch')
-    expect(signerProblem(416001, undefined)).toBe('mismatch')
-    expect(signerProblem(416101, ADDR_A)).toBe('notUsable') // manager on another network
+    expect(() => assertSigner(416001, ADDR_A)).not.toThrow()
+    expect(() => assertSigner(416001, undefined)).toThrow('sign.useWalletAddressMismatch')
+    expect(() => assertSigner(416101, ADDR_A)).toThrow('sign.useWalletNotInitialized') // manager on another network
     useActiveWallet(null, null)
-    expect(signerProblem(416001, ADDR_A)).toBe('notUsable')
+    expect(() => assertSigner(416001, ADDR_A)).toThrow('sign.useWalletNotInitialized')
+  })
+
+  it('accepts a WalletConnect session that lists no chains but has accounts on the chain', () => {
+    scope = effectScope()
+    const { isActiveWalletUsable } = scope.run(() => useWalletNetwork())!
+    useActiveWallet(makeWallet('walletconnect'), ADDR_A)
+    manager.sessions.walletconnect = { namespaces: { algorand: { chains: [], accounts: [`caip:mainnet:${ADDR_A}`] } } }
+    expect(isActiveWalletUsable(416001)).toBe(true)
   })
 })
 

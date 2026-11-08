@@ -51,7 +51,7 @@ const sessionAllowsActiveNetwork = (manager: WalletManager, walletKey: string): 
   const caipChainId = manager.activeNetworkConfig?.caipChainId
   if (!algorand || !caipChainId) return true
   // accounts are "algorand:<chain reference>:<address>"
-  const chains = algorand.chains ?? (algorand.accounts ?? []).map((account) => account.split(':').slice(0, 2).join(':'))
+  const chains = algorand.chains?.length ? algorand.chains : (algorand.accounts ?? []).map((account) => account.split(':').slice(0, 2).join(':'))
   return chains.includes(caipChainId)
 }
 
@@ -67,6 +67,7 @@ export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWalle
   const { activeNetwork, setActiveNetwork } = useNetwork()
   const manager = useWalletManager()
   const { t } = useI18n()
+  const toast = useToast()
 
   /** Whether the active wallet may sign on the chain right now. */
   const isActiveWalletUsable = (chainId: number): boolean => {
@@ -109,6 +110,16 @@ export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWalle
     slot.connect(activeAddress.value)
   }
 
+  /** Connects the picked wallet and binds the slot to its account; errors are shown as a toast. */
+  const connectAndBind = async (picked: { connect: () => Promise<unknown> }, slot: UseWalletSlot): Promise<void> => {
+    try {
+      await picked.connect()
+      await bindActiveAccount(slot)
+    } catch (e: any) {
+      showError(toast, e)
+    }
+  }
+
   /** Checks that the active account can sign transactions sent from expectedAddress on the chain. */
   const signerProblem = (chainId: number, expectedAddress: string | undefined): SignerProblem => {
     if (!activeAddress.value || !isActiveWalletUsable(chainId)) return 'notUsable'
@@ -126,7 +137,7 @@ export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWalle
     if (problem === 'mismatch') throw new ErrorClass(t('sign.useWalletAddressMismatch'))
   }
 
-  return { activeNetwork, isActiveWalletUsable, switchToChain, bindActiveAccount, signerProblem, assertSigner }
+  return { activeNetwork, isActiveWalletUsable, switchToChain, connectAndBind, assertSigner }
 }
 
 /** An app-level wallet slot (source / ARC200 bridge) in the app store. */
@@ -159,10 +170,13 @@ export const useWalletSync = (slot: UseWalletSlot) => {
   }
   const isBoundToUseWallet = () => !!algoChain() && slot.connectorType() === AlgoConnectorType.UseWallet && !!slot.address()
 
-  /** Once the manager is ready: adopt its active account, or drop the slot if that session is gone. */
-  const syncFromManager = () => {
+  /**
+   * Once the manager is on the network of alignedChainId: adopt its active account, or drop the slot if
+   * that session is gone. Skipped when the slot's chain changed meanwhile (a newer sync handles it).
+   */
+  const syncFromManager = (alignedChainId: number) => {
     const chain = algoChain()
-    if (!isReady.value || !chain) return
+    if (!isReady.value || !chain || chain.chainId !== alignedChainId) return
     if (activeAddress.value && isActiveWalletUsable(chain.chainId)) slot.connect(activeAddress.value)
     else if (isBoundToUseWallet()) slot.disconnect()
   }
@@ -179,12 +193,10 @@ export const useWalletSync = (slot: UseWalletSlot) => {
    * Switches the use-wallet network to match the slot's chain: 'aligned' when the manager is on it,
    * 'failed' when it cannot be (unknown chain or failed switch), 'stale' when the chain changed meanwhile.
    */
-  const syncNetwork = async (): Promise<'aligned' | 'failed' | 'stale'> => {
-    const chain = algoChain()
-    if (!chain) return 'aligned'
-    const isStillWanted = () => algoChain()?.chainId === chain.chainId
+  const syncNetwork = async (chainId: number): Promise<'aligned' | 'failed' | 'stale'> => {
+    const isStillWanted = () => algoChain()?.chainId === chainId
     try {
-      if (await switchToChain(chain.chainId, isStillWanted)) return 'aligned'
+      if (await switchToChain(chainId, isStillWanted)) return 'aligned'
       return isStillWanted() ? 'failed' : 'stale'
     } catch (e: any) {
       showError(toast, e)
@@ -197,9 +209,10 @@ export const useWalletSync = (slot: UseWalletSlot) => {
    * manager has resumed its sessions, so switching networks does not race with resuming wallets.
    */
   const sync = async () => {
-    if (!isReady.value) return
-    const network = await syncNetwork()
-    if (network === 'aligned') syncFromManager()
+    const chain = algoChain()
+    if (!isReady.value || !chain) return
+    const network = await syncNetwork(chain.chainId)
+    if (network === 'aligned') syncFromManager(chain.chainId)
     // the manager cannot be on this chain's network, so a use-wallet slot cannot sign for it
     else if (network === 'failed' && isBoundToUseWallet()) slot.disconnect()
   }
@@ -223,5 +236,5 @@ export const useWalletSync = (slot: UseWalletSlot) => {
     }
   }
 
-  return { sync, disconnect }
+  return { disconnect }
 }

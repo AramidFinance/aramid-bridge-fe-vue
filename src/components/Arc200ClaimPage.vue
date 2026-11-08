@@ -82,11 +82,13 @@ onMounted(async () => {
 const fillInRoute = () => {
   if (!state.mounted) return
   if (!store.state.arc200BridgeToken) return
+  const network = store.state.arc200BridgeChain === undefined ? 'voimain' : getUseWalletNetworkId(store.state.arc200BridgeChain)
+  if (!network) return
 
   router.push({
     name: 'arc200-claim-t',
     params: {
-      network: getUseWalletNetworkId(store.state.arc200BridgeChain) ?? 'voimain',
+      network,
       tokenId: store.state.arc200BridgeToken,
       amount: store.state.arc200BridgeAmount ?? '0',
       direction: store.state.arc200BridgeDirection ?? 'ARC200ToASA'
@@ -313,12 +315,7 @@ const bridgeArc200ToAsa = async () => {
     // Reset state and redirect
     //await resetButtonClick()
   } catch (e: any) {
-    console.error(e)
-    toast.add({
-      severity: 'error',
-      detail: e.message ?? e,
-      life: 3000
-    })
+    showError(toast, e)
   } finally {
     state.bridginig = false
   }
@@ -517,12 +514,7 @@ const bridgeAsaToArc200 = async () => {
     // Reset state and redirect
     //await resetButtonClick()
   } catch (e: any) {
-    console.error(e)
-    toast.add({
-      severity: 'error',
-      detail: e.message ?? e,
-      life: 3000
-    })
+    showError(toast, e)
   } finally {
     state.bridginig = false
   }

@@ -393,10 +393,12 @@ const claimTxPending = ref(false)
 const claimButtonClick = async () => {
   console.log('claimButtonClick')
   try {
+    const network = getUseWalletNetworkId(store.state.destinationChain)
+    if (!network) throw Error(t('sign.useWalletNotInitialized'))
     router.push({
       name: 'arc200-claim-t',
       params: {
-        network: getUseWalletNetworkId(store.state.destinationChain) ?? 'voimain',
+        network,
         tokenId: store.state.destinationToken,
         amount: store.state.destinationAmount,
         direction: 'ASAToARC200'
@@ -406,12 +408,7 @@ const claimButtonClick = async () => {
     // Reset state and redirect
     //await resetButtonClick()
   } catch (e: any) {
-    console.error(e)
-    toast.add({
-      severity: 'error',
-      detail: e.message ?? e,
-      life: 3000
-    })
+    showError(toast, e)
   } finally {
     claimTxPending.value = false
   }

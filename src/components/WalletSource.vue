@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { showError } from '@/scripts/common/showError'
 import SelectSourceWalletAlgoDialog from './dialogs/SelectSourceWalletAlgoDialog.vue'
 import SimpleLabel from './ui/SimpleLabel.vue'
 
@@ -45,12 +46,7 @@ const fillInState = () => {
     fillSourceTokenConfiguration()
     state.connected = !!store.state.connectedSourceChain && !!store.state.sourceAddress
   } catch (e: any) {
-    console.error(e)
-    toast.add({
-      severity: 'error',
-      detail: e.message ?? e,
-      life: 3000
-    })
+    showError(toast, e)
   }
 }
 
@@ -117,12 +113,7 @@ const onSourceAddressChange = async () => {
   } catch (e: any) {
     if (!isCurrent()) return false
     store.state.loadingSourceAddressBalance = false
-    console.error(e)
-    toast.add({
-      severity: 'error',
-      detail: e.message,
-      life: 3000
-    })
+    showError(toast, e)
     return false
   }
 }

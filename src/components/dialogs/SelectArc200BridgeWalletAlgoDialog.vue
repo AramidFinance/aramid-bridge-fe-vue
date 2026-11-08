@@ -1,46 +1,25 @@
 <script setup lang="ts">
 import { isWalletForChain } from '@/scripts/algo/isWalletForChain'
 import { useWalletNetwork } from '@/scripts/algo/useWalletSync'
-import { showError } from '@/scripts/common/showError'
 import { arc200BridgeWalletSlot } from '@/scripts/algo/walletSlots'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
 import { useWallet, type Wallet } from '@txnlab/use-wallet-vue'
-import { useToast } from 'primevue/usetoast'
 import { onMounted, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import DialogTitle from '../ui/DialogTitle.vue'
 import WalletButton from '../ui/WalletButton.vue'
 
-const toast = useToast()
 const useWalletState = useWallet()
-const { wallets, activeWallet, activeAccount } = useWalletState
-const { bindActiveAccount } = useWalletNetwork(useWalletState)
+const { wallets } = useWalletState
+const { connectAndBind } = useWalletNetwork(useWalletState)
 
 const store = useAppStore()
 
 const walletButtonClick = async (wallet: Wallet) => {
-  console.log('source.wallet', wallet, activeWallet, activeAccount)
-  await wallet.connect()
-  console.log('source.wallet2', wallet, activeWallet.value, activeAccount.value)
-  try {
-    await bindActiveAccount(arc200BridgeWalletSlot(store))
-  } catch (e: any) {
-    showError(toast, e)
-  }
-  // else {
-  //   if (wallet.accounts.length > 0) {
-  //     console.log('setting active account to first account', wallet.accounts[0].address)
-  //     await wallet.setActive()
-  //     await wallet.setActiveAccount(wallet.accounts[0].address)
-
-  //     store.state.arc200BridgeAddress = wallet.accounts[0].address
-  //     store.state.arc200BridgeAlgoConnectorType = AlgoConnectorType.UseWallet
-  //     store.state.connectedArc200BridgeChain = store.state.arc200BridgeChain
-  //   }
-  // }
+  await connectAndBind(wallet, arc200BridgeWalletSlot(store))
   store.state.dialogSelectArc200BridgeWalletIsOpen = false
 }
 interface IState {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { showError } from '@/scripts/common/showError'
 import SelectArc200BridgeWalletAlgoDialog from './dialogs/SelectArc200BridgeWalletAlgoDialog.vue'
 import SimpleLabel from './ui/SimpleLabel.vue'
 
@@ -40,12 +41,7 @@ const fillInState = () => {
   try {
     state.connected = !!store.state.connectedArc200BridgeChain && !!store.state.arc200BridgeAddress
   } catch (e: any) {
-    console.error(e)
-    toast.add({
-      severity: 'error',
-      detail: e.message ?? e,
-      life: 3000
-    })
+    showError(toast, e)
   }
 }
 

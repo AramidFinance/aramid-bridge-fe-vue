@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { isWalletForChain } from '@/scripts/algo/isWalletForChain'
 import { useWalletNetwork } from '@/scripts/algo/useWalletSync'
-import { showError } from '@/scripts/common/showError'
 import { sourceWalletSlot } from '@/scripts/algo/walletSlots'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
@@ -19,31 +18,13 @@ import WalletButton from '../ui/WalletButton.vue'
 const toast = useToast()
 
 const useWalletState = useWallet()
-const { wallets, activeWallet, activeAccount } = useWalletState
-const { bindActiveAccount } = useWalletNetwork(useWalletState)
+const { wallets } = useWalletState
+const { connectAndBind } = useWalletNetwork(useWalletState)
 
 const store = useAppStore()
 
 const walletButtonClick = async (wallet: Wallet) => {
-  console.log('source.wallet', wallet, activeWallet, activeAccount)
-  await wallet.connect()
-  console.log('source.wallet2', wallet, activeWallet.value, activeAccount.value)
-  try {
-    await bindActiveAccount(sourceWalletSlot(store))
-  } catch (e: any) {
-    showError(toast, e)
-  }
-  // else {
-  //   if (wallet.accounts.length > 0) {
-  //     console.log('setting active account to first account', wallet.accounts[0].address)
-  //     await wallet.setActive()
-  //     await wallet.setActiveAccount(wallet.accounts[0].address)
-
-  //     store.state.sourceAddress = wallet.accounts[0].address
-  //     store.state.sourceAlgoConnectorType = AlgoConnectorType.UseWallet
-  //     store.state.connectedSourceChain = store.state.sourceChain
-  //   }
-  // }
+  await connectAndBind(wallet, sourceWalletSlot(store))
   store.state.dialogSelectSourceWalletIsOpen = false
 }
 const qrPaymentClick = () => {
