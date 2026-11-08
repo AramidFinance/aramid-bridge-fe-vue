@@ -69,46 +69,23 @@ const onSourceAddressChange = async () => {
     const { type: sourceTokenType } = sourceTokenConfig
     console.log('sourceTokenType', sourceTokenType)
     console.log('sourceTokenConfig', sourceTokenConfig)
+    let balance: { toString: () => string } | null = null
     if (sourceTokenType == 'algo') {
-      switch (sourceChainName) {
-        case 'Voi': {
-          if (sourceTokenConfig?.arc200TokenId) {
-            const balance = await getAlgoAccountARC200TokenBalance(store.state.sourceChain, store.state.sourceAddress, Number(sourceTokenConfig?.arc200TokenId))
-            if (balance !== null && isCurrent()) {
-              store.state.sourceAddressBalance = balance.toString()
-              store.state.loadingSourceAddressBalance = false
-              //console.log('onSourceAddressChange.balance', store.state.sourceAddressBalance, store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
-            }
-          } else {
-            store.state.loadingSourceAddressBalance = true
-            const balance = await getAlgoAccountTokenBalance(store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
-            if (balance !== null && isCurrent()) {
-              store.state.sourceAddressBalance = balance.toString()
-              store.state.loadingSourceAddressBalance = false
-              //console.log('onSourceAddressChange.balance', store.state.sourceAddressBalance, store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
-            }
-          }
-          break
-        }
-        default: {
-          store.state.loadingSourceAddressBalance = true
-          const balance = await getAlgoAccountTokenBalance(store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
-          if (balance !== null && isCurrent()) {
-            store.state.sourceAddressBalance = balance.toString()
-            store.state.loadingSourceAddressBalance = false
-            //console.log('onSourceAddressChange.balance', store.state.sourceAddressBalance, store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
-          }
-        }
+      if (sourceChainName == 'Voi' && sourceTokenConfig?.arc200TokenId) {
+        balance = await getAlgoAccountARC200TokenBalance(store.state.sourceChain, store.state.sourceAddress, Number(sourceTokenConfig.arc200TokenId))
+      } else {
+        store.state.loadingSourceAddressBalance = true
+        balance = await getAlgoAccountTokenBalance(store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
       }
     }
     if (store.state.sourceChainConfiguration.type == 'eth' && store.state.sourceToken) {
       store.state.loadingSourceAddressBalance = true
-      const balance = await getEthAccountTokenBalance(store.state.sourceChain, store.state.sourceAddress, store.state.sourceToken)
-      if (balance !== null && isCurrent()) {
-        store.state.sourceAddressBalance = balance.toString()
-        store.state.loadingSourceAddressBalance = false
-        //console.log('onSourceAddressChange.balance', store.state.sourceAddressBalance, store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
-      }
+      balance = await getEthAccountTokenBalance(store.state.sourceChain, store.state.sourceAddress, store.state.sourceToken)
+    }
+    // only the latest request may write the balance
+    if (balance !== null && isCurrent()) {
+      store.state.sourceAddressBalance = balance.toString()
+      store.state.loadingSourceAddressBalance = false
     }
   } catch (e: any) {
     if (!isCurrent()) return false

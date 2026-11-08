@@ -77,9 +77,15 @@ const setAmount = () => {
   //console.log('store.state.arc200BridgeAmount', store.state.arc200BridgeAmount)
 }
 
+// set while the input is updated from the store, so the (float) input value is not written back
+let syncingFromStore = false
 watch(
   () => state.arc200BridgeAmount,
   () => {
+    if (syncingFromStore) {
+      syncingFromStore = false
+      return
+    }
     setAmount()
   }
 )
@@ -90,7 +96,11 @@ watch(
     const config = store.state.arc200BridgeTokenConfiguration
     if (!config || !amount) return
     const shown = new BigNumber(state.arc200BridgeAmount).multipliedBy(new BigNumber(10).pow(config.decimals)).toFixed(0, 1)
-    if (shown !== amount) state.arc200BridgeAmount = new BigNumber(amount).toNumber() / 10 ** config.decimals
+    if (shown === amount) return
+    const value = new BigNumber(amount).shiftedBy(-config.decimals).toNumber()
+    if (value === state.arc200BridgeAmount) return
+    syncingFromStore = true
+    state.arc200BridgeAmount = value
   }
 )
 watch(

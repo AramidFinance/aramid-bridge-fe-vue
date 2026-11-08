@@ -75,31 +75,33 @@ const fillInState = () => {
   if (!store.state.arc200BridgeChain) return
 
   // if there is a route between source and destination chain, filter the assets to only include the allowed routes
-  // tokens of the selected chain (none for a chain without configuration)
-  const chainTokens = Object.values(state.publicConfiguration.chains[store.state.arc200BridgeChain.toString()]?.tokens ?? {})
+  // arc200-capable tokens of the selected chain (none for a chain without configuration)
+  const chainTokens = Object.values(state.publicConfiguration.chains[store.state.arc200BridgeChain.toString()]?.tokens ?? {}).filter(
+    (c) => c.arc200TokenId !== undefined || c.optionalArc200TokenId !== undefined
+  )
   if (
     state.publicConfiguration.chains2tokens[store.state.arc200BridgeChain.toString()] &&
     state.publicConfiguration.chains2tokens[store.state.arc200BridgeChain.toString()][store.state.arc200BridgeChain.toString()]
   ) {
     // voi source chain specific override
     if (store.state.arc200BridgeChain === CHAIN_ID_VOI) {
-      state.assets = chainTokens.filter((asset) => !specialTokens.includes(asset.name)).filter((c) => c.arc200TokenId !== undefined || c.optionalArc200TokenId !== undefined)
+      state.assets = chainTokens.filter((asset) => !specialTokens.includes(asset.name))
     }
     // default behavior config driven
     else {
       const allowedRoutes = Object.keys(state.publicConfiguration.chains2tokens[store.state.arc200BridgeChain.toString()][store.state.arc200BridgeChain.toString()])
-      state.assets = chainTokens.filter((c) => allowedRoutes.includes(c.tokenId)).filter((c) => c.arc200TokenId !== undefined || c.optionalArc200TokenId !== undefined)
+      state.assets = chainTokens.filter((c) => allowedRoutes.includes(c.tokenId))
     }
   }
   // if there is no route between source and destination chain, show all assets
   else {
     // voi source chain specific override
     if (store.state.arc200BridgeChain === CHAIN_ID_VOI) {
-      state.assets = chainTokens.filter((asset) => !specialTokens.includes(asset.name)).filter((c) => c.arc200TokenId !== undefined || c.optionalArc200TokenId !== undefined)
+      state.assets = chainTokens.filter((asset) => !specialTokens.includes(asset.name))
     }
     // default behavior config driven
     else {
-      state.assets = chainTokens.filter((c) => c.arc200TokenId !== undefined || c.optionalArc200TokenId !== undefined)
+      state.assets = chainTokens
     }
   }
   console.log('sourceChain', store.state.arc200BridgeChain)

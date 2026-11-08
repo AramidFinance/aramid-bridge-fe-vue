@@ -187,6 +187,25 @@ const signWithUseWallet = async () => {
     const params = await algodClient.getTransactionParams().do()
 
     let toSign: algosdk.Transaction[]
+    const note = store.state.sourceTxNote
+    // the transfer to the bridge address that carries the bridge note
+    const makeBridgeTx = () =>
+      Number(store.state.sourceToken) > 0
+        ? algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+            amount: BigInt(store.state.sourceAmount),
+            sender,
+            receiver: store.state.sourceBridgeAddress,
+            suggestedParams: params,
+            note: new Uint8Array(Buffer.from(note)),
+            assetIndex: Number(store.state.sourceToken)
+          })
+        : algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+            amount: BigInt(store.state.sourceAmount),
+            sender,
+            receiver: store.state.sourceBridgeAddress,
+            suggestedParams: params,
+            note: new Uint8Array(Buffer.from(note))
+          })
 
     // smart asset (arc200)
     const config = store.state.sourceTokenConfiguration
@@ -283,23 +302,7 @@ const signWithUseWallet = async () => {
 
       // finally send to bridge address
 
-      const tx =
-        Number(store.state.sourceToken) > 0
-          ? algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-              amount: BigInt(store.state.sourceAmount),
-              sender,
-              receiver: store.state.sourceBridgeAddress,
-              suggestedParams: params,
-              note: new Uint8Array(Buffer.from(store.state.sourceTxNote)),
-              assetIndex: Number(store.state.sourceToken)
-            })
-          : algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-              amount: BigInt(store.state.sourceAmount),
-              sender,
-              receiver: store.state.sourceBridgeAddress,
-              suggestedParams: params,
-              note: new Uint8Array(Buffer.from(store.state.sourceTxNote))
-            })
+      const tx = makeBridgeTx()
       txToSign.push(tx)
       console.log('Added bridge txn', tx, store.state.sourceTxNote)
 
@@ -321,40 +324,20 @@ const signWithUseWallet = async () => {
     }
     // algo or asa
     else {
-      const tx =
-        Number(store.state.sourceToken) > 0
-          ? algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-              amount: BigInt(store.state.sourceAmount),
-              sender,
-              receiver: store.state.sourceBridgeAddress,
-              suggestedParams: params,
-              note: new Uint8Array(Buffer.from(store.state.sourceTxNote)),
-              assetIndex: Number(store.state.sourceToken)
-            })
-          : algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-              amount: BigInt(store.state.sourceAmount),
-              sender,
-              receiver: store.state.sourceBridgeAddress,
-              suggestedParams: params,
-              note: new Uint8Array(Buffer.from(store.state.sourceTxNote))
-            })
+      const tx = makeBridgeTx()
 
       toSign = [tx]
     }
     console.log('signing txns', toSign)
     if (disposed) throw new SignAbortedError()
     const signed = await signAs(sourceChain, sender, toSign, UseWalletNotReadyError)
-    if (signed.length > 0) {
-      // res.txId is the txId of the first transaction in the signed array
-      // algosdk.decodeSignedTransaction(signed.pop()).txn.txID() is the txId of the last transaction in the signed array
-      console.log('Signed txns', signed)
-      // one signature per transaction (a wallet may also leave out transactions it did not sign)
-      if (signed.length !== toSign.length || !signed.every((txn): txn is Uint8Array => txn instanceof Uint8Array)) throw Error(t('sign.useWalletNotAllSigned'))
-      // the bridge transaction is the last one of the group
-      submittedTxId = algosdk.decodeSignedTransaction(signed[signed.length - 1]).txn.txID()
-      await algodClient.sendRawTransaction(signed).do()
-      store.state.bridgeTx = submittedTxId
-    }
+    console.log('Signed txns', signed)
+    // one signature per transaction (an empty result, or a wallet leaving out transactions, is an error)
+    if (signed.length !== toSign.length || !signed.every((txn): txn is Uint8Array => txn instanceof Uint8Array)) throw Error(t('sign.useWalletNotAllSigned'))
+    // the bridge transaction is the last one of the group
+    submittedTxId = algosdk.decodeSignedTransaction(signed[signed.length - 1]).txn.txID()
+    await algodClient.sendRawTransaction(signed).do()
+    store.state.bridgeTx = submittedTxId
   } catch (e: any) {
     if (e instanceof SignAbortedError) return
     if (submittedTxId && !isDefinitelyRejected(e)) {

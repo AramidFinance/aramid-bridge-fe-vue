@@ -15,7 +15,7 @@ import { getArc200ASAClient, type Arc200ExchangeInfo } from 'arc200-client'
 import { useToast } from 'primevue/usetoast'
 import { onMounted, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import dummyTransactionSigner from '../scripts/algo/dummyTransactionSigner'
 import getAlgoAccountARC200TokenBalance from '../scripts/algo/getAlgoAccountARC200TokenBalance'
 import getAlgoClient from '../scripts/algo/getAlgoClient'
@@ -67,6 +67,18 @@ const state = reactive({
  * one, which drops the token selected for another chain), then applies the route's token params. Only
  * the latest run applies anything when the route changes while one is waiting.
  */
+// URLs of navigations this page makes from the store, while they are in flight
+const ownNavigations = new Set<string>()
+const navigate = async (to: RouteLocationRaw, replace = false) => {
+  const fullPath = router.resolve(to).fullPath
+  ownNavigations.add(fullPath)
+  try {
+    await (replace ? router.replace(to) : router.push(to))
+  } finally {
+    ownNavigations.delete(fullPath)
+  }
+}
+
 let routeRun = 0
 const applyRoute = async () => {
   const run = ++routeRun
@@ -84,7 +96,7 @@ const applyRoute = async () => {
     if (!onTargetChain) fillArc200BridgeChainConfiguration(targetChainId)
     if (unknown || (chainId && store.state.arc200BridgeChain !== chainId)) {
       // the route's network is unknown or has no configuration: its token params belong to another chain
-      await router.replace({ name: 'arc200-claim' })
+      await navigate({ name: 'arc200-claim' }, true)
       return
     }
     if (route.params['tokenId'] && route.params['amount'] && route.params['direction']) {
@@ -109,14 +121,26 @@ onMounted(async () => {
   state.mounted = true
 })
 // the arc200-claim routes share this component instance, so back/forward between them does not remount it
-watch([() => route.params['network'], () => route.params['tokenId'], () => route.params['amount'], () => route.params['direction']], () => applyRoute())
+// (navigations this page made from the store are not applied back: the store may have moved on since)
+watch(
+  [() => route.params['network'], () => route.params['tokenId'], () => route.params['amount'], () => route.params['direction']],
+  () => {
+    if (ownNavigations.has(route.fullPath)) return
+    applyRoute()
+  },
+  { flush: 'sync' }
+)
 const fillInRoute = () => {
   if (!state.mounted) return
-  if (!store.state.arc200BridgeToken) return
+  if (!store.state.arc200BridgeToken) {
+    // no token selected (e.g. dropped by a chain change): the URL must not keep the old token params
+    if (route.params['network']) navigate({ name: 'arc200-claim' }, true)
+    return
+  }
   const network = getUseWalletNetworkId(store.state.arc200BridgeChain ?? DEFAULT_ARC200_CHAIN)
   if (!network) return
 
-  router.push({
+  navigate({
     name: 'arc200-claim-t',
     params: {
       network,
