@@ -25,22 +25,29 @@ import WalletAddress from './ui/WalletAddress.vue'
 
 const { t } = useI18n()
 const wallet = useWallet()
-const { activeWallet, activeAccount } = wallet
+const { activeWallet } = wallet
 
 const toast = useToast()
 const store = useAppStore()
 
-const { clearIfDisconnected, syncNetwork } = useWalletSync({
+const clearSlot = () => {
+  store.state.connectedSourceChain = undefined
+  store.state.sourceAddress = ''
+}
+
+const { syncFromManager, syncNetwork } = useWalletSync({
   chainConfiguration: () => store.state.sourceChainConfiguration,
   connectorType: () => store.state.sourceAlgoConnectorType,
   address: () => store.state.sourceAddress,
+  connect: (address) => {
+    store.state.sourceAddress = address
+    store.state.sourceAlgoConnectorType = AlgoConnectorType.UseWallet
+    store.state.connectedSourceChain = store.state.sourceChain
+  },
   setAddress: (address) => {
     store.state.sourceAddress = address
   },
-  disconnect: () => {
-    store.state.connectedSourceChain = undefined
-    store.state.sourceAddress = ''
-  }
+  disconnect: clearSlot
 })
 
 interface IState {
@@ -134,18 +141,11 @@ const onSourceAddressChange = async () => {
 }
 
 onMounted(async () => {
+  // the use-wallet manager is shared with other pages, which may have switched its network
+  const networkSynced = await syncNetwork()
   state.publicConfiguration = await getPublicConfiguration(false)
   fillInState()
-  // the use-wallet manager is shared with other pages, which may have switched its network
-  await syncNetwork()
-  //console.log('WalletSource.activeAccount.value', activeWallet.value, activeAccount.value)
-
-  if (store.state.sourceChainConfiguration?.type == 'algo' && activeWallet.value && activeAccount.value?.address) {
-    store.state.sourceAddress = activeAccount.value?.address
-    store.state.sourceAlgoConnectorType = AlgoConnectorType.UseWallet
-    store.state.connectedSourceChain = store.state.sourceChain
-  }
-  clearIfDisconnected()
+  if (networkSynced) syncFromManager()
   if (store.state.sourceAddress) {
     onSourceAddressChange()
   }
@@ -193,14 +193,12 @@ const buttonClick = async () => {
       // disconnect
       switch (store.state.sourceAlgoConnectorType) {
         case AlgoConnectorType.QRCode:
-          store.state.connectedSourceChain = undefined
-          store.state.sourceAddress = ''
+          clearSlot()
           break
         case AlgoConnectorType.UseWallet:
-          store.state.connectedSourceChain = undefined
-          store.state.sourceAddress = ''
+          clearSlot()
           try {
-            activeWallet.value?.disconnect()
+            await activeWallet.value?.disconnect()
           } catch (e: any) {
             console.error(e)
             toast.add({

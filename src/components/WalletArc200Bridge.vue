@@ -21,22 +21,29 @@ import WalletAddress from './ui/WalletAddress.vue'
 
 const { t } = useI18n()
 const wallet = useWallet()
-const { activeWallet, activeAccount } = wallet
+const { activeWallet } = wallet
 
 const toast = useToast()
 const store = useAppStore()
 
-const { clearIfDisconnected, syncNetwork } = useWalletSync({
+const clearSlot = () => {
+  store.state.connectedArc200BridgeChain = undefined
+  store.state.arc200BridgeAddress = ''
+}
+
+const { syncFromManager, syncNetwork } = useWalletSync({
   chainConfiguration: () => store.state.arc200BridgeChainConfiguration,
   connectorType: () => store.state.arc200BridgeAlgoConnectorType,
   address: () => store.state.arc200BridgeAddress,
+  connect: (address) => {
+    store.state.arc200BridgeAddress = address
+    store.state.arc200BridgeAlgoConnectorType = AlgoConnectorType.UseWallet
+    store.state.connectedArc200BridgeChain = store.state.arc200BridgeChain
+  },
   setAddress: (address) => {
     store.state.arc200BridgeAddress = address
   },
-  disconnect: () => {
-    store.state.connectedArc200BridgeChain = undefined
-    store.state.arc200BridgeAddress = ''
-  }
+  disconnect: clearSlot
 })
 
 interface IState {
@@ -63,18 +70,11 @@ const fillInState = () => {
 }
 
 onMounted(async () => {
+  // the use-wallet manager is shared with other pages, which may have switched its network
+  const networkSynced = await syncNetwork()
   state.publicConfiguration = await getPublicConfiguration(false)
   fillInState()
-  // the use-wallet manager is shared with other pages, which may have switched its network
-  await syncNetwork()
-  //console.log('WalletSource.activeAccount.value', activeWallet.value, activeAccount.value)
-
-  if (store.state.arc200BridgeChainConfiguration?.type == 'algo' && activeWallet.value && activeAccount.value?.address) {
-    store.state.arc200BridgeAddress = activeAccount.value?.address
-    store.state.arc200BridgeAlgoConnectorType = AlgoConnectorType.UseWallet
-    store.state.connectedArc200BridgeChain = store.state.arc200BridgeChain
-  }
-  clearIfDisconnected()
+  if (networkSynced) syncFromManager()
 })
 
 watch(
@@ -110,14 +110,12 @@ const buttonClick = async () => {
       // disconnect
       switch (store.state.arc200BridgeAlgoConnectorType) {
         case AlgoConnectorType.QRCode:
-          store.state.connectedArc200BridgeChain = undefined
-          store.state.arc200BridgeAddress = ''
+          clearSlot()
           break
         case AlgoConnectorType.UseWallet:
-          store.state.connectedArc200BridgeChain = undefined
-          store.state.arc200BridgeAddress = ''
+          clearSlot()
           try {
-            activeWallet.value?.disconnect()
+            await activeWallet.value?.disconnect()
           } catch (e: any) {
             console.error(e)
             toast.add({
