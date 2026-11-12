@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { routeSourceAmount } from '@/scripts/common/routeSourceAmount'
 import { isPositiveBaseUnits } from '@/scripts/common/baseUnits'
 import { makeNoteField } from '@/scripts/aramid/makeNoteField'
 import calculateFeeAndDestinationAmount from '@/scripts/common/calculateFeeAndDestinationAmount'
@@ -287,8 +288,9 @@ onMounted(async () => {
   resetSourceTokenIfNotMatched()
   if (!store.state.sourceToken) fillSourceTokenConfiguration()
   // the route's amount is in base units of the route's token: apply it only while that token is selected
-  if (route.params['sourceAmount'] && route.params['sourceToken'] === store.state.sourceTokenConfiguration?.name) {
-    store.state.sourceAmount = route.params['sourceAmount'] as string
+  const amountFromRoute = routeSourceAmount(route, store.state.sourceTokenConfiguration?.name)
+  if (amountFromRoute) {
+    store.state.sourceAmount = amountFromRoute
     calculateFeeAndDestinationAmount()
   }
   if (route.params['note']) {

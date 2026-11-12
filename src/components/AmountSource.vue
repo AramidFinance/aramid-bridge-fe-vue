@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { routeSourceAmount } from '@/scripts/common/routeSourceAmount'
 import { makeNoteField } from '@/scripts/aramid/makeNoteField'
 import calculateFeeAndDestinationAmount from '@/scripts/common/calculateFeeAndDestinationAmount'
 import formatBaseAmount from '@/scripts/common/formatBaseAmount'
@@ -40,8 +41,9 @@ const fillInState = () => {
     if (!state.publicConfiguration) return
     if (!store.state.sourceTokenConfiguration) return
     // the route's amount is in base units of the route's token: apply it only while that token is selected
-    if (route && route.params && route.params['sourceAmount'] && route.params['sourceToken'] === store.state.sourceTokenConfiguration.name) {
-      store.state.sourceAmount = route.params['sourceAmount'] as string
+    const amountFromRoute = routeSourceAmount(route, store.state.sourceTokenConfiguration.name)
+    if (amountFromRoute) {
+      store.state.sourceAmount = amountFromRoute
       store.state.sourceAmountFormatted = formatBaseAmount(store.state.sourceAmount, store.state.sourceTokenConfiguration.decimals)
       state.sourceAmount = fromBaseUnits(store.state.sourceAmount, store.state.sourceTokenConfiguration.decimals)
       //console.log('state.sourceAmount', new BigNumber(state.sourceAmount).toNumber(), state.sourceAmount)
@@ -88,6 +90,9 @@ watch(
     if (config && previous && store.state.sourceAmount && config.decimals !== previous.decimals) {
       store.state.sourceAmount = rescaleBaseUnits(store.state.sourceAmount, previous.decimals, config.decimals)
       store.state.sourceAmountFormatted = store.state.sourceAmount ? formatBaseAmount(store.state.sourceAmount, config.decimals) : ''
+      // the conversion truncates to the new token's decimals: show what will be bridged
+      const shown = fromBaseUnits(store.state.sourceAmount, config.decimals)
+      state.sourceAmount = Number.isNaN(shown) ? 0 : shown
     }
   },
   { flush: 'sync' }

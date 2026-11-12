@@ -226,6 +226,7 @@ export const useWalletSync = (slot: UseWalletSlot) => {
       if (await switchToChain(chainId, isStillWanted)) return 'aligned'
       return isStillWanted() ? 'failed' : 'stale'
     } catch (e: any) {
+      if (!isStillWanted()) return 'stale'
       showError(toast, e)
       return 'failed'
     }

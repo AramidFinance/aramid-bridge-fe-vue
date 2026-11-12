@@ -20,7 +20,6 @@ import { useWallet } from '@txnlab/use-wallet-vue'
 import algosdk, { Address } from 'algosdk'
 import { type Arc200ExchangeInfo, getArc200ASAClient } from 'arc200-client'
 import { useWallet as useAvmWallet } from 'avm-wallet-vue'
-import { BigNumber } from 'bignumber.js'
 import { useToast } from 'primevue/usetoast'
 import QRCodeVue3 from 'qrcode-vue3'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
@@ -227,10 +226,7 @@ const signWithUseWallet = async () => {
       const indexerClient = await getIndexerClientByChainId(chainId)
       const algodClient = await getAlgodClientByChainId(chainId)
 
-      if (!indexerClient || !algodClient) {
-        console.error('Failed to get algod or indexer client for ARC200')
-        return new BigNumber('0')
-      }
+      if (!indexerClient || !algodClient) throw Error(t('sign.algodClientNotInitialized'))
       const algoClient = await getAlgoClient(sourceChain)
 
       const clientArc200UserSender = getArc200ASAClient({

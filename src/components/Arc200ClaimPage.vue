@@ -150,6 +150,8 @@ onMounted(async () => {
   // Arc200ClaimView has just (re)loaded the public configuration
   await applyRoute()
   state.mounted = true
+  // the store watchers triggered by applying the route ran before mounted was set: normalise the URL now
+  fillInRoute(true)
 })
 // the arc200-claim routes share this component instance, so back/forward between them does not remount it
 // (navigations this page made from the store are not applied back: the store may have moved on since)
@@ -162,7 +164,8 @@ watch(
   },
   { flush: 'sync' }
 )
-const fillInRoute = () => {
+/** Writes the store into the URL. replace: never add a history entry (e.g. when normalising on mount). */
+const fillInRoute = (replace = false) => {
   if (!state.mounted) return
   if (!store.state.arc200BridgeToken) {
     // no token selected (e.g. dropped by a chain change): the URL must not keep the old token params
@@ -187,7 +190,7 @@ const fillInRoute = () => {
   const current = lastTokenRoute ?? (route.name === 'arc200-claim-t' ? route.params : undefined)
   const amountOnly = !!current && current['network'] === params.network && current['tokenId'] === params.tokenId && current['direction'] === params.direction
   lastTokenRoute = params
-  navigate({ name: 'arc200-claim-t', params }, amountOnly)
+  navigate({ name: 'arc200-claim-t', params }, replace || amountOnly)
 }
 
 watch(
@@ -246,7 +249,8 @@ const bridginigButtonClick = async () => {
       return
     }
 
-    assertSigner(boundChain(store.state.arc200BridgeChain), store.state.arc200BridgeAddress)
+    const bridgeChainId = boundChain(store.state.arc200BridgeChain)
+    assertSigner(bridgeChainId, store.state.arc200BridgeAddress)
     // the inputs stay editable while bridging: build everything from the values checked here
     const tokenConfiguration = store.state.arc200BridgeTokenConfiguration
     const tokenId = store.state.arc200BridgeToken
@@ -254,10 +258,10 @@ const bridginigButtonClick = async () => {
     if (!tokenId) throw new Error('No ARC200 token selected')
     const arc200TokenId = tokenConfiguration.arc200TokenId ?? tokenConfiguration.optionalArc200TokenId
     if (!arc200TokenId) throw new Error('No ARC200 token ID found in configuration')
-    if (!store.state.arc200BridgeAddress) throw Error(t('sign.destinationAddressMissing'))
     const order: BridgeOrder = {
-      chainId: boundChain(store.state.arc200BridgeChain),
-      sender: store.state.arc200BridgeAddress,
+      chainId: bridgeChainId,
+      // assertSigner ensured the bound address is set
+      sender: store.state.arc200BridgeAddress as string,
       tokenId,
       tokenConfiguration,
       arc200TokenId,
@@ -288,7 +292,7 @@ const bridgeArc200ToAsa = async (order: BridgeOrder) => {
     state.bridginig = true
     const algodClient = await getAlgodClientByChainId(builtChain)
     if (!algodClient) throw Error(t('sign.algodClientNotInitialized'))
-    const exchangeInfo: Arc200ExchangeInfo | undefined = await getExchangeInfo('arc200Bridge')
+    const exchangeInfo: Arc200ExchangeInfo | undefined = await getExchangeInfo('arc200Bridge', { chainId: builtChain, arc200TokenId })
     console.log('exchangeInfo', exchangeInfo)
     // at this point we received ASA on our destination address. now we can swap asa to arc200.
     // when token is excchangeable, we use arc200_exchange arc200_redeem otherwise we use wnnt200 deposit
@@ -441,7 +445,7 @@ const bridgeAsaToArc200 = async (order: BridgeOrder) => {
     const algodClient = await getAlgodClientByChainId(builtChain)
     if (!algodClient) throw Error(t('sign.algodClientNotInitialized'))
     const destinationAmount = BigInt(order.amount)
-    const exchangeInfo: Arc200ExchangeInfo | undefined = await getExchangeInfo('arc200Bridge')
+    const exchangeInfo: Arc200ExchangeInfo | undefined = await getExchangeInfo('arc200Bridge', { chainId: builtChain, arc200TokenId })
     // at this point we received ASA on our destination address. now we can swap asa to arc200.
     // when token is excchangeable, we use arc200_exchange arc200_redeem otherwise we use wnnt200 deposit
     const tokenIdASA = BigInt(order.tokenId)

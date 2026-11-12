@@ -5,7 +5,11 @@ import { useAppStore } from '../../stores/app'
 import getAlgoClient from './getAlgoClient'
 import getAlgodClientByChainId from './getAlgodClientByChainId'
 
-const getExchangeInfo = async (type: 'source' | 'destination' | 'arc200Bridge'): Promise<Arc200ExchangeInfo | undefined> => {
+/**
+ * @param bridge for 'arc200Bridge': the chain and ARC200 app the bridge transactions are built for; when
+ * given, these are used instead of the (possibly changed meanwhile) store values
+ */
+const getExchangeInfo = async (type: 'source' | 'destination' | 'arc200Bridge', bridge?: { chainId: number; arc200TokenId: bigint | number | string }): Promise<Arc200ExchangeInfo | undefined> => {
   try {
     const store = useAppStore()
     console.log('Getting exchange info for type', type)
@@ -26,6 +30,11 @@ const getExchangeInfo = async (type: 'source' | 'destination' | 'arc200Bridge'):
       const algodClient = await getAlgodClientByChainId(store.state.destinationChain)
       if (!algodClient) return undefined
       algoClient = await getAlgoClient(store.state.destinationChain)
+    } else if (type === 'arc200Bridge' && bridge) {
+      arc200Token = BigInt(bridge.arc200TokenId)
+      const algodClient = await getAlgodClientByChainId(bridge.chainId)
+      if (!algodClient) return undefined
+      algoClient = await getAlgoClient(bridge.chainId)
     } else if (type === 'arc200Bridge') {
       if (!store.state.arc200BridgeAddress) return undefined
       if (!store.state.arc200BridgeChain) return undefined
