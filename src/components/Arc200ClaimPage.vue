@@ -181,6 +181,9 @@ const fillInRoute = () => {
   }
   // typing an amount should not add a history entry per keystroke: only a new network, token or
   // direction is a new entry
+  // several watchers can ask for the same URL in one flush: a second identical request must not turn the
+  // first one's push into a replace
+  if (lastTokenRoute && (['network', 'tokenId', 'amount', 'direction'] as const).every((key) => lastTokenRoute?.[key] === params[key])) return
   const current = lastTokenRoute ?? (route.name === 'arc200-claim-t' ? route.params : undefined)
   const amountOnly = !!current && current['network'] === params.network && current['tokenId'] === params.tokenId && current['direction'] === params.direction
   lastTokenRoute = params
