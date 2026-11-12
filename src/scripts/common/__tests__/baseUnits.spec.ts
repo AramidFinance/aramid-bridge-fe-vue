@@ -1,4 +1,4 @@
-import { fromBaseUnits, rescaleBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
+import { fromBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
 import { describe, expect, it } from 'vitest'
 
 describe('base units', () => {
@@ -8,15 +8,17 @@ describe('base units', () => {
     expect(toBaseUnits('1.5', 0)).toBe('1')
   })
 
+  it('gives an empty amount for an empty or invalid input (never NaN)', () => {
+    expect(toBaseUnits('', 6)).toBe('')
+    expect(toBaseUnits(null, 6)).toBe('')
+    expect(toBaseUnits(Number.NaN, 6)).toBe('')
+    expect(toBaseUnits('1e', 6)).toBe('')
+  })
+
   it('converts base units to displayed amounts without float division drift', () => {
     expect(fromBaseUnits('5000000', 6)).toBe(5)
     expect(fromBaseUnits('123', 2)).toBe(1.23)
-  })
-
-  it('rescales base units exactly between decimals', () => {
-    expect(rescaleBaseUnits('5000000', 6, 8)).toBe('500000000')
-    expect(rescaleBaseUnits('500000000', 8, 6)).toBe('5000000')
-    expect(rescaleBaseUnits('1234567890123456789', 18, 18)).toBe('1234567890123456789')
-    expect(rescaleBaseUnits('123456789', 8, 6)).toBe('1234567')
+    expect(fromBaseUnits('', 2)).toBeNaN()
+    expect(fromBaseUnits('x', 2)).toBeNaN()
   })
 })

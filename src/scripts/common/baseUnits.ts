@@ -1,10 +1,18 @@
 import BigNumber from 'bignumber.js'
 
-/** Displayed (decimal) amount -> base units, truncated. */
-export const toBaseUnits = (value: BigNumber.Value, decimals: number): string => new BigNumber(value).shiftedBy(decimals).toFixed(0, 1)
+/** A finite BigNumber for the value, or undefined (bignumber.js 11 throws on invalid strings). */
+const parse = (value: BigNumber.Value | null | undefined): BigNumber | undefined => {
+  if (value === '' || value === null || value === undefined) return undefined
+  try {
+    const amount = new BigNumber(value)
+    return amount.isFinite() ? amount : undefined
+  } catch {
+    return undefined
+  }
+}
 
-/** Base units -> displayed (decimal) amount for a number input. */
-export const fromBaseUnits = (amount: BigNumber.Value, decimals: number): number => new BigNumber(amount).shiftedBy(-decimals).toNumber()
+/** Displayed (decimal) amount -> base units, truncated; '' for an empty or invalid input. */
+export const toBaseUnits = (value: BigNumber.Value | null | undefined, decimals: number): string => parse(value)?.shiftedBy(decimals).toFixed(0, 1) ?? ''
 
-/** Base units of a token with fromDecimals -> the same amount in base units of a token with toDecimals, truncated. */
-export const rescaleBaseUnits = (amount: BigNumber.Value, fromDecimals: number, toDecimals: number): string => new BigNumber(amount).shiftedBy(toDecimals - fromDecimals).toFixed(0, 1)
+/** Base units -> displayed (decimal) amount for a number input; NaN for an empty or invalid amount. */
+export const fromBaseUnits = (amount: BigNumber.Value | null | undefined, decimals: number): number => parse(amount)?.shiftedBy(-decimals).toNumber() ?? Number.NaN

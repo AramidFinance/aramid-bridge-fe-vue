@@ -95,7 +95,11 @@ const applyRoute = async () => {
     const onTargetChain = store.state.arc200BridgeChain === targetChainId && store.state.arc200BridgeChainConfiguration?.chainId === targetChainId
     const { tokenId, amount, direction } = route.params
     // nothing to apply when the route already matches the store (e.g. it was just written from the store)
-    if (!unknown && onTargetChain && (!tokenId || (tokenId === store.state.arc200BridgeToken && amount === store.state.arc200BridgeAmount && direction === store.state.arc200BridgeDirection))) {
+    if (
+      !unknown &&
+      onTargetChain &&
+      (tokenId ? tokenId === store.state.arc200BridgeToken && amount === store.state.arc200BridgeAmount && direction === store.state.arc200BridgeDirection : !store.state.arc200BridgeToken)
+    ) {
       return
     }
     await getPublicConfiguration(false)
@@ -107,13 +111,19 @@ const applyRoute = async () => {
       return
     }
     if (route.params['tokenId'] && route.params['amount'] && route.params['direction']) {
+      // select the token first and only then set the route's amount (in that token's units), so the
+      // token change does not re-derive it from the input
       store.state.arc200BridgeToken = route.params['tokenId'] as string
+      fillArc200BridgeTokenConfiguration(store.state.arc200BridgeToken)
       store.state.arc200BridgeAmount = route.params['amount'] as string
       store.state.arc200BridgeDirection = route.params['direction'] as 'ARC200ToASA' | 'ASAToARC200'
       if (store.state.arc200BridgeDirection !== 'ARC200ToASA' && store.state.arc200BridgeDirection !== 'ASAToARC200') {
         store.state.arc200BridgeDirection = 'ARC200ToASA'
       }
-      fillArc200BridgeTokenConfiguration(store.state.arc200BridgeToken)
+    } else if (!route.params['tokenId'] && store.state.arc200BridgeToken) {
+      // a URL without a token (e.g. Back to /arc200-claim/) clears the token selection
+      store.state.arc200BridgeToken = undefined
+      store.state.arc200BridgeTokenConfiguration = undefined
     }
   } catch (e: any) {
     showError(toast, e)

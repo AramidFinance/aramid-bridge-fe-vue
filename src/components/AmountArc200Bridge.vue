@@ -8,7 +8,7 @@ import { viewAmount } from '@/scripts/common/viewAmount'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
-import { fromBaseUnits, rescaleBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
+import { fromBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
 import BigNumber from 'bignumber.js'
 import { useToast } from 'primevue/usetoast'
 import { onMounted, reactive, watch } from 'vue'
@@ -71,9 +71,10 @@ const fillInState = async () => {
 const setAmount = () => {
   if (!store.state.arc200BridgeTokenConfiguration) return
 
+  // '' for an empty or invalid input
   const base = toBaseUnits(state.arc200BridgeAmount, store.state.arc200BridgeTokenConfiguration.decimals)
   store.state.arc200BridgeAmount = base
-  store.state.arc200BridgeAmountFormatted = formatBaseAmount(base, store.state.arc200BridgeTokenConfiguration.decimals)
+  store.state.arc200BridgeAmountFormatted = base ? formatBaseAmount(base, store.state.arc200BridgeTokenConfiguration.decimals) : ''
   //console.log('store.state.arc200BridgeAmount', store.state.arc200BridgeAmount)
 }
 
@@ -98,21 +99,15 @@ watch(
     if (value !== state.arc200BridgeAmount) state.arc200BridgeAmount = value
   }
 )
-// decimals of the token the store amount is expressed in (kept while no token is selected)
-let amountDecimals = store.state.arc200BridgeTokenConfiguration?.decimals
+// A token change keeps the amount the user sees: the store amount is re-derived from the input in the new
+// token's units right away (sync), so a route amount that the page writes after selecting the token wins.
 watch(
   () => store.state.arc200BridgeTokenConfiguration,
   async (config) => {
-    if (config) {
-      // another token can have other decimals: keep the amount the user sees by rescaling the base
-      // units exactly, before anything reads them
-      if (amountDecimals !== undefined && amountDecimals !== config.decimals && store.state.arc200BridgeAmount) {
-        store.state.arc200BridgeAmount = rescaleBaseUnits(store.state.arc200BridgeAmount, amountDecimals, config.decimals)
-      }
-      amountDecimals = config.decimals
-    }
+    if (config && state.arc200BridgeAmount && toBaseUnits(state.arc200BridgeAmount, config.decimals)) setAmount()
     await fillInState()
-  }
+  },
+  { flush: 'sync' }
 )
 watch(
   () => store.state.arc200BridgeAddress,

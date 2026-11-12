@@ -60,9 +60,10 @@ const fillInState = () => {
 const setAmount = () => {
   if (!store.state.sourceTokenConfiguration) return
 
+  // '' for an empty or invalid input
   const base = toBaseUnits(state.sourceAmount, store.state.sourceTokenConfiguration.decimals)
   store.state.sourceAmount = base
-  store.state.sourceAmountFormatted = formatBaseAmount(base, store.state.sourceTokenConfiguration.decimals)
+  store.state.sourceAmountFormatted = base ? formatBaseAmount(base, store.state.sourceTokenConfiguration.decimals) : ''
   //console.log('store.state.sourceAmount', store.state.sourceAmount)
   calculateFeeAndDestinationAmount()
   makeNoteField()
@@ -70,7 +71,11 @@ const setAmount = () => {
 
 watch(
   () => state.sourceAmount,
-  () => {
+  (value) => {
+    const config = store.state.sourceTokenConfiguration
+    // the input shows the store amount already (e.g. Max or the route set it): writing the displayed
+    // float back could round an exact base-unit amount
+    if (config && store.state.sourceAmount && fromBaseUnits(store.state.sourceAmount, config.decimals) === value) return
     setAmount()
   }
 )
