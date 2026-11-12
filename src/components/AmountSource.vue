@@ -8,7 +8,7 @@ import { viewAmount } from '@/scripts/common/viewAmount'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
-import { fromBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
+import { fromBaseUnits, rescaleBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
 import BigNumber from 'bignumber.js'
 import { useToast } from 'primevue/usetoast'
 import { onMounted, reactive, watch } from 'vue'
@@ -78,6 +78,18 @@ watch(
     if (config && store.state.sourceAmount && fromBaseUnits(store.state.sourceAmount, config.decimals) === value) return
     setAmount()
   }
+)
+// another token can have other decimals: keep the amount the user sees by converting the stored base units
+// once, right away (before fillInState may apply a route amount for the new token)
+watch(
+  () => store.state.sourceTokenConfiguration,
+  (config, previous) => {
+    if (config && previous && store.state.sourceAmount && config.decimals !== previous.decimals) {
+      store.state.sourceAmount = rescaleBaseUnits(store.state.sourceAmount, previous.decimals, config.decimals)
+      store.state.sourceAmountFormatted = store.state.sourceAmount ? formatBaseAmount(store.state.sourceAmount, config.decimals) : ''
+    }
+  },
+  { flush: 'sync' }
 )
 watch(
   () => store.state.sourceTokenConfiguration,

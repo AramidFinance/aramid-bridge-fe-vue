@@ -1,9 +1,10 @@
+import { CHAIN_ID_VOI } from '@/scripts/common/chainIds'
 import { useAppStore } from '@/stores/app'
 import getChainConfigurationSync from '../common/getChainConfigurationSync'
 import { fillRouteInfo } from './fillRouteInfo'
 
 /** The ARC200 chain used when none is selected or the selected one has no configuration (only Voi has arc200 tokens atm). */
-export const DEFAULT_ARC200_CHAIN = 416101
+export const DEFAULT_ARC200_CHAIN = CHAIN_ID_VOI
 
 export const fillArc200BridgeChainConfiguration = (chainId: number | undefined = undefined, _paramValue: string | string[] | undefined = undefined) => {
   const store = useAppStore()

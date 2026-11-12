@@ -7,6 +7,7 @@ import { Config, populateAppCallResources } from '@algorandfoundation/algokit-ut
 import { AlgoAmount } from '@algorandfoundation/algokit-utils/types/amount'
 import { TransactionComposer } from '@algorandfoundation/algokit-utils/types/composer'
 import { getChainIdByUseWalletNetwork, getUseWalletNetworkId, useWalletNetwork } from '@/scripts/algo/useWalletSync'
+import { isPositiveBaseUnits } from '@/scripts/common/baseUnits'
 import { showError } from '@/scripts/common/showError'
 import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import { useWallet } from '@txnlab/use-wallet-vue'
@@ -67,18 +68,23 @@ const state = reactive({
  * one, which drops the token selected for another chain), then applies the route's token params. Only
  * the latest run applies anything when the route changes while one is waiting.
  */
-// URLs of navigations this page makes from the store, while they are in flight
-const ownNavigations = new Set<string>()
+// URLs of navigations this page makes from the store while they are in flight (counted: two
+// navigations to the same URL can overlap)
+const ownNavigations = new Map<string, number>()
 const navigate = async (to: RouteLocationRaw, replace = false) => {
   let fullPath: string | undefined
   try {
     fullPath = router.resolve(to).fullPath
-    ownNavigations.add(fullPath)
+    ownNavigations.set(fullPath, (ownNavigations.get(fullPath) ?? 0) + 1)
     await (replace ? router.replace(to) : router.push(to))
   } catch (e: any) {
     console.error(e)
   } finally {
-    if (fullPath) ownNavigations.delete(fullPath)
+    if (fullPath) {
+      const count = (ownNavigations.get(fullPath) ?? 1) - 1
+      if (count > 0) ownNavigations.set(fullPath, count)
+      else ownNavigations.delete(fullPath)
+    }
   }
 }
 
@@ -215,6 +221,7 @@ const bridginigButtonClick = async () => {
     }
 
     assertSigner(boundChain(store.state.arc200BridgeChain), store.state.arc200BridgeAddress)
+    if (!isPositiveBaseUnits(store.state.arc200BridgeAmount)) throw Error(t('bridge.amountZero'))
 
     if (store.state.arc200BridgeDirection === 'ARC200ToASA') {
       await bridgeArc200ToAsa()

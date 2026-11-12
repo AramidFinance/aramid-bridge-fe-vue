@@ -16,3 +16,12 @@ export const toBaseUnits = (value: BigNumber.Value | null | undefined, decimals:
 
 /** Base units -> displayed (decimal) amount for a number input; NaN for an empty or invalid amount. */
 export const fromBaseUnits = (amount: BigNumber.Value | null | undefined, decimals: number): number => parse(amount)?.shiftedBy(-decimals).toNumber() ?? Number.NaN
+
+/** Base units of a token with fromDecimals -> the same amount in base units of a token with toDecimals (exact, truncated); '' if invalid. */
+export const rescaleBaseUnits = (amount: BigNumber.Value | null | undefined, fromDecimals: number, toDecimals: number): string =>
+  parse(amount)
+    ?.shiftedBy(toDecimals - fromDecimals)
+    .toFixed(0, 1) ?? ''
+
+/** Whether a base-unit amount is a positive integer (something to send). */
+export const isPositiveBaseUnits = (amount: string | null | undefined): boolean => !!amount && /^\d+$/.test(amount) && BigInt(amount) > 0n

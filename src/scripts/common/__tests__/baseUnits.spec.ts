@@ -1,4 +1,4 @@
-import { fromBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
+import { fromBaseUnits, isPositiveBaseUnits, rescaleBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
 import { describe, expect, it } from 'vitest'
 
 describe('base units', () => {
@@ -20,5 +20,21 @@ describe('base units', () => {
     expect(fromBaseUnits('123', 2)).toBe(1.23)
     expect(fromBaseUnits('', 2)).toBeNaN()
     expect(fromBaseUnits('x', 2)).toBeNaN()
+  })
+
+  it('rescales base units exactly between decimals', () => {
+    expect(rescaleBaseUnits('5000000', 6, 8)).toBe('500000000')
+    expect(rescaleBaseUnits('123456789', 8, 6)).toBe('1234567')
+    expect(rescaleBaseUnits('1234567890123456789', 18, 18)).toBe('1234567890123456789')
+    expect(rescaleBaseUnits('', 6, 8)).toBe('')
+  })
+
+  it('recognises positive base-unit amounts', () => {
+    expect(isPositiveBaseUnits('1')).toBe(true)
+    expect(isPositiveBaseUnits('0')).toBe(false)
+    expect(isPositiveBaseUnits('')).toBe(false)
+    expect(isPositiveBaseUnits('NaN')).toBe(false)
+    expect(isPositiveBaseUnits('-5')).toBe(false)
+    expect(isPositiveBaseUnits(undefined)).toBe(false)
   })
 })

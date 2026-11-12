@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CHAIN_ID_VOI } from '@/scripts/common/chainIds'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import { fillArc200BridgeTokenConfiguration } from '@/scripts/events/fillArc200BridgeTokenConfiguration'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
@@ -34,7 +35,6 @@ const popularTokenSymbols = ['USDC', 'ETH', 'BTC', 'ALGO', 'VOI', 'WBTC', 'cbBTC
 // Special tokens that should be ignored
 // TODO: migrate to public configuration
 const specialTokens = ['UNIT Classic']
-const CHAIN_ID_VOI = 416101
 
 // Computed property for filtered tokens based on search
 const filteredAssets = computed(() => {
