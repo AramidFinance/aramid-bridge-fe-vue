@@ -286,7 +286,8 @@ onMounted(async () => {
   if (!store.state.destinationChain) fillDestinationChainConfiguration()
   resetSourceTokenIfNotMatched()
   if (!store.state.sourceToken) fillSourceTokenConfiguration()
-  if (route.params['sourceAmount']) {
+  // the route's amount is in base units of the route's token: apply it only while that token is selected
+  if (route.params['sourceAmount'] && route.params['sourceToken'] === store.state.sourceTokenConfiguration?.name) {
     store.state.sourceAmount = route.params['sourceAmount'] as string
     calculateFeeAndDestinationAmount()
   }

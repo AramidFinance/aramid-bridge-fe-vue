@@ -50,15 +50,13 @@ const routeChain = () => {
   const chainId = typeof network === 'string' ? getChainIdByUseWalletNetwork(network) : undefined
   return { chainId, unknown: typeof network === 'string' && !chainId }
 }
-/** Selects the route's chain (with its configuration) unless it is selected already. */
-const selectRouteChain = () => {
-  const targetChainId = routeChain().chainId ?? DEFAULT_ARC200_CHAIN
-  if (store.state.arc200BridgeChain === targetChainId && store.state.arc200BridgeChainConfiguration?.chainId === targetChainId) return
-  fillArc200BridgeChainConfiguration(targetChainId)
-}
-// Arc200ClaimView renders this page once the public configuration is loaded: select the route's chain
-// before child components read it
-selectRouteChain()
+/** The chain the route asks for, or the default ARC200 chain. */
+const routeTargetChain = () => routeChain().chainId ?? DEFAULT_ARC200_CHAIN
+/** Whether the chain is selected together with its configuration. */
+const isOnChain = (chainId: number) => store.state.arc200BridgeChain === chainId && store.state.arc200BridgeChainConfiguration?.chainId === chainId
+// Arc200ClaimView renders this page right after (re)loading the public configuration: (re)select the
+// route's chain with the fresh configuration before child components read it
+fillArc200BridgeChainConfiguration(routeTargetChain())
 const state = reactive({
   inputTx: '',
   fromRoute: false,
@@ -75,6 +73,9 @@ const state = reactive({
  * one, which drops the token selected for another chain), then applies the route's token params. Only
  * the latest run applies anything when the route changes while one is waiting.
  */
+// params of the last token URL this page navigated to (route.params lags while that navigation runs);
+// cleared when an external navigation is applied
+let lastTokenRoute: Record<string, string> | undefined
 // URLs of navigations this page makes from the store while they are in flight (counted: two
 // navigations to the same URL can overlap)
 const ownNavigations = new Map<string, number>()
@@ -104,8 +105,8 @@ const applyRoute = async () => {
   const run = ++routeRun
   try {
     const { chainId, unknown } = routeChain()
-    const targetChainId = chainId ?? DEFAULT_ARC200_CHAIN
-    const onTargetChain = store.state.arc200BridgeChain === targetChainId && store.state.arc200BridgeChainConfiguration?.chainId === targetChainId
+    const targetChainId = routeTargetChain()
+    const onTargetChain = isOnChain(targetChainId)
     const { tokenId, amount, direction } = route.params
     // nothing to apply when the route already matches the store (e.g. it was just written from the store)
     if (
@@ -117,7 +118,7 @@ const applyRoute = async () => {
     }
     await getPublicConfiguration(false)
     if (unmounted || run !== routeRun || !store.state.publicConfiguration) return
-    selectRouteChain()
+    if (!isOnChain(targetChainId)) fillArc200BridgeChainConfiguration(targetChainId)
     if (unknown || (chainId && store.state.arc200BridgeChain !== chainId)) {
       // the route's network is unknown or has no configuration: its token params belong to another chain
       await navigate({ name: 'arc200-claim' }, true)
@@ -156,6 +157,7 @@ watch(
   [() => route.params['network'], () => route.params['tokenId'], () => route.params['amount'], () => route.params['direction']],
   () => {
     if (ownNavigations.has(route.fullPath)) return
+    lastTokenRoute = undefined
     applyRoute()
   },
   { flush: 'sync' }
@@ -164,6 +166,7 @@ const fillInRoute = () => {
   if (!state.mounted) return
   if (!store.state.arc200BridgeToken) {
     // no token selected (e.g. dropped by a chain change): the URL must not keep the old token params
+    lastTokenRoute = undefined
     if (route.params['network']) navigate({ name: 'arc200-claim' }, true)
     return
   }
@@ -178,7 +181,9 @@ const fillInRoute = () => {
   }
   // typing an amount should not add a history entry per keystroke: only a new network, token or
   // direction is a new entry
-  const amountOnly = route.name === 'arc200-claim-t' && route.params['network'] === params.network && route.params['tokenId'] === params.tokenId && route.params['direction'] === params.direction
+  const current = lastTokenRoute ?? (route.name === 'arc200-claim-t' ? route.params : undefined)
+  const amountOnly = !!current && current['network'] === params.network && current['tokenId'] === params.tokenId && current['direction'] === params.direction
+  lastTokenRoute = params
   navigate({ name: 'arc200-claim-t', params }, amountOnly)
 }
 
@@ -203,10 +208,13 @@ watch(
 
 // the use-wallet manager is shared with other pages: sign only with the account this page is bound to,
 // checked before building the transactions and again right before signing them (with their sender)
-/** The token and amount to bridge, captured when the bridge button was clicked. */
+/** Everything the bridge transactions are built from, captured and validated when Bridge was clicked. */
 interface BridgeOrder {
-  tokenId: string | undefined
-  tokenConfiguration: TokenItem | undefined
+  chainId: number
+  sender: string
+  tokenId: string
+  tokenConfiguration: TokenItem
+  arc200TokenId: NonNullable<TokenItem['arc200TokenId']>
   amount: string
 }
 
@@ -237,9 +245,19 @@ const bridginigButtonClick = async () => {
 
     assertSigner(boundChain(store.state.arc200BridgeChain), store.state.arc200BridgeAddress)
     // the inputs stay editable while bridging: build everything from the values checked here
+    const tokenConfiguration = store.state.arc200BridgeTokenConfiguration
+    const tokenId = store.state.arc200BridgeToken
+    if (!tokenConfiguration) throw new Error('No ARC200 token configuration selected')
+    if (!tokenId) throw new Error('No ARC200 token selected')
+    const arc200TokenId = tokenConfiguration.arc200TokenId ?? tokenConfiguration.optionalArc200TokenId
+    if (!arc200TokenId) throw new Error('No ARC200 token ID found in configuration')
+    if (!store.state.arc200BridgeAddress) throw Error(t('sign.destinationAddressMissing'))
     const order: BridgeOrder = {
-      tokenId: store.state.arc200BridgeToken,
-      tokenConfiguration: store.state.arc200BridgeTokenConfiguration,
+      chainId: boundChain(store.state.arc200BridgeChain),
+      sender: store.state.arc200BridgeAddress,
+      tokenId,
+      tokenConfiguration,
+      arc200TokenId,
       amount: store.state.arc200BridgeAmount
     }
     if (!isPositiveBaseUnits(order.amount)) throw Error(t('bridge.amountZero'))
@@ -262,26 +280,15 @@ const bridginigButtonClick = async () => {
 const bridgeArc200ToAsa = async (order: BridgeOrder) => {
   console.log('bridgeArc200ToAsa')
   try {
-    if (!order.tokenConfiguration) throw new Error('No ARC200 token configuration selected')
-    if (!order.tokenId) throw new Error('No ARC200 token selected')
-    const arc200TokenId = order.tokenConfiguration?.arc200TokenId ?? order.tokenConfiguration?.optionalArc200TokenId
-    if (!arc200TokenId) throw new Error('No ARC200 token ID found in configuration')
+    // the transactions below are built for this chain and sender
+    const { arc200TokenId, chainId: builtChain, sender: destinationAddress } = order
     state.bridginig = true
-    if (!store.state.arc200BridgeChain) throw Error('Chain is not selected')
-    if (!store.state.arc200BridgeAddress) throw Error('Source address is not set')
-    console.log('store.state.arc200BridgeChain', store.state.arc200BridgeChain)
-    // the transactions below are built for this chain
-    const builtChain = store.state.arc200BridgeChain
     const algodClient = await getAlgodClientByChainId(builtChain)
     if (!algodClient) throw Error(t('sign.algodClientNotInitialized'))
-    // get asset balance
-    if (!store.state.arc200BridgeAddress) throw Error(t('sign.destinationAddressMissing'))
-    const destinationAddress = store.state.arc200BridgeAddress
     const exchangeInfo: Arc200ExchangeInfo | undefined = await getExchangeInfo('arc200Bridge')
     console.log('exchangeInfo', exchangeInfo)
     // at this point we received ASA on our destination address. now we can swap asa to arc200.
     // when token is excchangeable, we use arc200_exchange arc200_redeem otherwise we use wnnt200 deposit
-    if (order.tokenId === undefined) throw Error(t('sign.destinationTokenMissing'))
     const tokenIdASA = BigInt(order.tokenId)
 
     // first tx is the asset transfer from destination address to arc200 contract
@@ -425,20 +432,11 @@ const bridgeArc200ToAsa = async (order: BridgeOrder) => {
 const bridgeAsaToArc200 = async (order: BridgeOrder) => {
   console.log('bridgeAsaToArc200')
   try {
-    if (!order.tokenConfiguration) throw new Error('No ARC200 token configuration selected')
-    if (!order.tokenId) throw new Error('No ARC200 token selected')
-    const arc200TokenId = order.tokenConfiguration?.arc200TokenId ?? order.tokenConfiguration?.optionalArc200TokenId
-    if (!arc200TokenId) throw new Error('No ARC200 token ID found in configuration')
+    // the transactions below are built for this chain and sender
+    const { arc200TokenId, chainId: builtChain, sender: destinationAddress } = order
     state.bridginig = true
-    if (!store.state.arc200BridgeChain) throw Error(t('sign.destinationChainMissing'))
-    console.log('store.state.destinationChain', store.state.arc200BridgeChain)
-    // the transactions below are built for this chain
-    const builtChain = store.state.arc200BridgeChain
     const algodClient = await getAlgodClientByChainId(builtChain)
     if (!algodClient) throw Error(t('sign.algodClientNotInitialized'))
-    // get asset balance
-    if (!store.state.arc200BridgeAddress) throw Error(t('sign.destinationAddressMissing'))
-    const destinationAddress = store.state.arc200BridgeAddress
     const destinationAmount = BigInt(order.amount)
     const exchangeInfo: Arc200ExchangeInfo | undefined = await getExchangeInfo('arc200Bridge')
     // at this point we received ASA on our destination address. now we can swap asa to arc200.

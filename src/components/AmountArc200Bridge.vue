@@ -62,6 +62,9 @@ onMounted(async () => {
 let balanceRequestId = 0
 const fillInState = async () => {
   const requestId = ++balanceRequestId
+  // balances of the previous token/address must not be shown or used by Max meanwhile
+  store.state.arc200BridgeAddressARC200Balance = undefined
+  store.state.arc200BridgeAddressASABalance = undefined
   try {
     if (!state.publicConfiguration) return
     if (!store.state.arc200BridgeTokenConfiguration) return
@@ -115,12 +118,6 @@ watch(
 )
 watch(
   () => store.state.arc200BridgeAddress,
-  async () => {
-    await fillInState()
-  }
-)
-watch(
-  () => store.state.arc200BridgeToken,
   async () => {
     await fillInState()
   }
