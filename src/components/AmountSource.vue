@@ -9,7 +9,7 @@ import { viewAmount } from '@/scripts/common/viewAmount'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
-import { fromBaseUnits, rescaleBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
+import { fromBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
 import BigNumber from 'bignumber.js'
 import { useToast } from 'primevue/usetoast'
 import { onMounted, reactive, watch } from 'vue'
@@ -41,7 +41,7 @@ const fillInState = () => {
     if (!state.publicConfiguration) return
     if (!store.state.sourceTokenConfiguration) return
     // the route's amount is in base units of the route's token: apply it only while that token is selected
-    const amountFromRoute = routeSourceAmount(route, store.state.sourceTokenConfiguration.name)
+    const amountFromRoute = routeSourceAmount(route, store.state.sourceTokenConfiguration.name, store.state.sourceChainConfiguration?.name)
     if (amountFromRoute) {
       store.state.sourceAmount = amountFromRoute
       store.state.sourceAmountFormatted = formatBaseAmount(store.state.sourceAmount, store.state.sourceTokenConfiguration.decimals)
@@ -82,20 +82,15 @@ watch(
     setAmount()
   }
 )
-// another token can have other decimals: keep the amount the user sees by converting the stored base units
-// once, right away (before fillInState may apply a route amount for the new token)
+// the store amount can change outside the input (token picker conversion, swap, Max): show it
 watch(
-  () => store.state.sourceTokenConfiguration,
-  (config, previous) => {
-    if (config && previous && store.state.sourceAmount && config.decimals !== previous.decimals) {
-      store.state.sourceAmount = rescaleBaseUnits(store.state.sourceAmount, previous.decimals, config.decimals)
-      store.state.sourceAmountFormatted = store.state.sourceAmount ? formatBaseAmount(store.state.sourceAmount, config.decimals) : ''
-      // the conversion truncates to the new token's decimals: show what will be bridged
-      const shown = fromBaseUnits(store.state.sourceAmount, config.decimals)
-      state.sourceAmount = Number.isNaN(shown) ? 0 : shown
-    }
-  },
-  { flush: 'sync' }
+  () => store.state.sourceAmount,
+  (amount) => {
+    const config = store.state.sourceTokenConfiguration
+    if (!config || !amount) return
+    const shown = fromBaseUnits(amount, config.decimals)
+    if (!Number.isNaN(shown) && shown !== state.sourceAmount) state.sourceAmount = shown
+  }
 )
 watch(
   () => store.state.sourceTokenConfiguration,

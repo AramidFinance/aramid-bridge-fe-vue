@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import formatBaseAmount from '@/scripts/common/formatBaseAmount'
+import { rescaleBaseUnits } from '@/scripts/common/baseUnits'
 import { CHAIN_ID_VOI } from '@/scripts/common/chainIds'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import { fillDestinationTokenConfiguration } from '@/scripts/events/fillDestinationTokenConfiguration'
@@ -17,7 +19,14 @@ const store = useAppStore()
 const searchQuery = ref('')
 
 const assetButtonClick = (tokenId: string) => {
+  const previousDecimals = store.state.sourceTokenConfiguration?.decimals
   fillSourceTokenConfiguration(tokenId)
+  // another token can have other decimals: keep the amount the user sees by converting its base units
+  const decimals = store.state.sourceTokenConfiguration?.decimals
+  if (previousDecimals !== undefined && decimals !== undefined && decimals !== previousDecimals && store.state.sourceAmount) {
+    store.state.sourceAmount = rescaleBaseUnits(store.state.sourceAmount, previousDecimals, decimals)
+    store.state.sourceAmountFormatted = store.state.sourceAmount ? formatBaseAmount(store.state.sourceAmount, decimals) : ''
+  }
 
   resetDestinationTokenIfNotMatched()
   if (!store.state.destinationToken) {

@@ -20,6 +20,14 @@ const calculateFeeAndDestinationAmount = () => {
 
   const feeTokenConfiguration = store.state.sourceTokenConfiguration
 
+  // an empty or invalid amount (e.g. the input was cleared) has no fee and nothing to receive
+  if (!/^\d+$/.test(store.state.sourceAmount ?? '')) {
+    store.state.feeAmount = '0'
+    store.state.feeAmountFormatted = formatBaseAmount('0', feeTokenConfiguration.decimals)
+    store.state.destinationAmount = '0'
+    store.state.destinationAmountFormatted = formatBaseAmount('0', store.state.destinationTokenConfiguration.decimals)
+    return
+  }
   const sourceAmount = new BigNumber(store.state.sourceAmount)
   // const fee = sourceAmount.minus(new BigNumber(sourceAmount.dividedToIntegerBy(1.001)).toFixed(0, 1));
   //console.log('dest chain tokens:', store.state.routeConfig, store.state.feeToken, store.state.destinationToken)

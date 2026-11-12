@@ -6,17 +6,22 @@ import getAlgoClient from './getAlgoClient'
 import getAlgodClientByChainId from './getAlgodClientByChainId'
 
 /**
- * @param bridge for 'arc200Bridge': the chain and ARC200 app the bridge transactions are built for; when
- * given, these are used instead of the (possibly changed meanwhile) store values
+ * @param explicit the chain and ARC200 app the transactions are built for. Required for 'arc200Bridge';
+ * for 'source'/'destination' it replaces the (possibly changed meanwhile) store values when given.
  */
-const getExchangeInfo = async (type: 'source' | 'destination' | 'arc200Bridge', bridge?: { chainId: number; arc200TokenId: bigint | number | string }): Promise<Arc200ExchangeInfo | undefined> => {
+const getExchangeInfo = async (type: 'source' | 'destination' | 'arc200Bridge', explicit?: { chainId: number; arc200TokenId: bigint | number | string }): Promise<Arc200ExchangeInfo | undefined> => {
   try {
     const store = useAppStore()
     console.log('Getting exchange info for type', type)
 
     let arc200Token: bigint | undefined = undefined
     let algoClient: AlgorandClient | null = null
-    if (type === 'source') {
+    if (explicit) {
+      arc200Token = BigInt(explicit.arc200TokenId)
+      const algodClient = await getAlgodClientByChainId(explicit.chainId)
+      if (!algodClient) return undefined
+      algoClient = await getAlgoClient(explicit.chainId)
+    } else if (type === 'source') {
       if (!store.state.sourceChain) return undefined
       if (!store.state.sourceTokenConfiguration) return undefined
       arc200Token = BigInt(store.state.sourceTokenConfiguration.arc200TokenId ?? 0n)
@@ -30,19 +35,8 @@ const getExchangeInfo = async (type: 'source' | 'destination' | 'arc200Bridge', 
       const algodClient = await getAlgodClientByChainId(store.state.destinationChain)
       if (!algodClient) return undefined
       algoClient = await getAlgoClient(store.state.destinationChain)
-    } else if (type === 'arc200Bridge' && bridge) {
-      arc200Token = BigInt(bridge.arc200TokenId)
-      const algodClient = await getAlgodClientByChainId(bridge.chainId)
-      if (!algodClient) return undefined
-      algoClient = await getAlgoClient(bridge.chainId)
     } else if (type === 'arc200Bridge') {
-      if (!store.state.arc200BridgeAddress) return undefined
-      if (!store.state.arc200BridgeChain) return undefined
-      if (!store.state.arc200BridgeTokenConfiguration) return undefined
-      arc200Token = BigInt(store.state.arc200BridgeTokenConfiguration.arc200TokenId ?? store.state.arc200BridgeTokenConfiguration.optionalArc200TokenId ?? 0)
-      const algodClient = await getAlgodClientByChainId(store.state.arc200BridgeChain)
-      if (!algodClient) return undefined
-      algoClient = await getAlgoClient(store.state.arc200BridgeChain)
+      throw new Error('getExchangeInfo(arc200Bridge) needs the chain and ARC200 app of the bridge transactions')
     }
     console.log('arc200Token', arc200Token, 'algoClient', algoClient)
     if (!algoClient) throw new Error('Algo client not initialized')

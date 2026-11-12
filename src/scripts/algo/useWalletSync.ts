@@ -4,7 +4,7 @@ import { showError } from '@/scripts/common/showError'
 import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import { NetworkId, useNetwork, useWallet, useWalletManager, type WalletManager } from '@txnlab/use-wallet-vue'
-import type algosdk from 'algosdk'
+import algosdk from 'algosdk'
 import { useToast } from 'primevue/usetoast'
 import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -238,7 +238,12 @@ export const useWalletSync = (slot: UseWalletSlot) => {
    */
   const sync = async () => {
     const chain = algoChain()
-    if (!isReady.value || !chain) return
+    if (!chain) {
+      // the slot moved to a non-AVM chain: an Algorand address bound through use-wallet cannot be used there
+      if (slot.chainConfiguration() && slot.connectorType() === AlgoConnectorType.UseWallet && algosdk.isValidAddress(slot.address() ?? '')) slot.disconnect()
+      return
+    }
+    if (!isReady.value) return
     const network = await syncNetwork(chain.chainId)
     if (network === 'aligned') syncFromManager(chain.chainId)
     // the manager cannot be on this chain's network, so a use-wallet slot cannot sign for it

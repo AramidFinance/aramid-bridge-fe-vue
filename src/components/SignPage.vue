@@ -248,7 +248,7 @@ const signWithUseWallet = async () => {
         defaultSigner: undefined
       })
 
-      const exchangeInfo: Arc200ExchangeInfo | undefined = await getExchangeInfo('source')
+      const exchangeInfo: Arc200ExchangeInfo | undefined = await getExchangeInfo('source', { chainId: sourceChain, arc200TokenId })
 
       // withdraw asa from the arc200 contract and send it to the bridge address
       // if user is not opted in to the asa, opt in him
