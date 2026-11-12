@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { TokenItem } from '@/scripts/interface/mapping/TokenItem'
 import getAlgoAcountTokenOptin from '@/scripts/algo/getAlgoAccountTokenOptedIn'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import { resetStateSoft } from '@/scripts/common/resetStateSoft'
@@ -49,9 +50,15 @@ const routeChain = () => {
   const chainId = typeof network === 'string' ? getChainIdByUseWalletNetwork(network) : undefined
   return { chainId, unknown: typeof network === 'string' && !chainId }
 }
+/** Selects the route's chain (with its configuration) unless it is selected already. */
+const selectRouteChain = () => {
+  const targetChainId = routeChain().chainId ?? DEFAULT_ARC200_CHAIN
+  if (store.state.arc200BridgeChain === targetChainId && store.state.arc200BridgeChainConfiguration?.chainId === targetChainId) return
+  fillArc200BridgeChainConfiguration(targetChainId)
+}
 // Arc200ClaimView renders this page once the public configuration is loaded: select the route's chain
-// (with its configuration) before child components read it
-fillArc200BridgeChainConfiguration(routeChain().chainId ?? DEFAULT_ARC200_CHAIN)
+// before child components read it
+selectRouteChain()
 const state = reactive({
   inputTx: '',
   fromRoute: false,
@@ -110,7 +117,7 @@ const applyRoute = async () => {
     }
     await getPublicConfiguration(false)
     if (unmounted || run !== routeRun || !store.state.publicConfiguration) return
-    if (!onTargetChain) fillArc200BridgeChainConfiguration(targetChainId)
+    selectRouteChain()
     if (unknown || (chainId && store.state.arc200BridgeChain !== chainId)) {
       // the route's network is unknown or has no configuration: its token params belong to another chain
       await navigate({ name: 'arc200-claim' }, true)
@@ -163,15 +170,16 @@ const fillInRoute = () => {
   const network = getUseWalletNetworkId(store.state.arc200BridgeChain ?? DEFAULT_ARC200_CHAIN)
   if (!network) return
 
-  navigate({
-    name: 'arc200-claim-t',
-    params: {
-      network,
-      tokenId: store.state.arc200BridgeToken,
-      amount: store.state.arc200BridgeAmount || '0',
-      direction: store.state.arc200BridgeDirection ?? 'ARC200ToASA'
-    }
-  })
+  const params = {
+    network,
+    tokenId: store.state.arc200BridgeToken,
+    amount: store.state.arc200BridgeAmount || '0',
+    direction: store.state.arc200BridgeDirection ?? 'ARC200ToASA'
+  }
+  // typing an amount should not add a history entry per keystroke: only a new network, token or
+  // direction is a new entry
+  const amountOnly = route.name === 'arc200-claim-t' && route.params['network'] === params.network && route.params['tokenId'] === params.tokenId && route.params['direction'] === params.direction
+  navigate({ name: 'arc200-claim-t', params }, amountOnly)
 }
 
 watch(
@@ -195,6 +203,13 @@ watch(
 
 // the use-wallet manager is shared with other pages: sign only with the account this page is bound to,
 // checked before building the transactions and again right before signing them (with their sender)
+/** The token and amount to bridge, captured when the bridge button was clicked. */
+interface BridgeOrder {
+  tokenId: string | undefined
+  tokenConfiguration: TokenItem | undefined
+  amount: string
+}
+
 const boundChain = (chain: number | undefined): number => {
   if (!chain || store.state.arc200BridgeAlgoConnectorType !== AlgoConnectorType.UseWallet) throw Error(t('sign.useWalletNotInitialized'))
   return chain
@@ -221,12 +236,18 @@ const bridginigButtonClick = async () => {
     }
 
     assertSigner(boundChain(store.state.arc200BridgeChain), store.state.arc200BridgeAddress)
-    if (!isPositiveBaseUnits(store.state.arc200BridgeAmount)) throw Error(t('bridge.amountZero'))
+    // the inputs stay editable while bridging: build everything from the values checked here
+    const order: BridgeOrder = {
+      tokenId: store.state.arc200BridgeToken,
+      tokenConfiguration: store.state.arc200BridgeTokenConfiguration,
+      amount: store.state.arc200BridgeAmount
+    }
+    if (!isPositiveBaseUnits(order.amount)) throw Error(t('bridge.amountZero'))
 
     if (store.state.arc200BridgeDirection === 'ARC200ToASA') {
-      await bridgeArc200ToAsa()
+      await bridgeArc200ToAsa(order)
     } else if (store.state.arc200BridgeDirection === 'ASAToARC200') {
-      await bridgeAsaToArc200()
+      await bridgeAsaToArc200(order)
     } else {
       throw new Error('No bridge direction selected')
     }
@@ -238,12 +259,12 @@ const bridginigButtonClick = async () => {
   }
 }
 
-const bridgeArc200ToAsa = async () => {
+const bridgeArc200ToAsa = async (order: BridgeOrder) => {
   console.log('bridgeArc200ToAsa')
   try {
-    if (!store.state.arc200BridgeTokenConfiguration) throw new Error('No ARC200 token configuration selected')
-    if (!store.state.arc200BridgeToken) throw new Error('No ARC200 token selected')
-    const arc200TokenId = store.state.arc200BridgeTokenConfiguration?.arc200TokenId ?? store.state.arc200BridgeTokenConfiguration?.optionalArc200TokenId
+    if (!order.tokenConfiguration) throw new Error('No ARC200 token configuration selected')
+    if (!order.tokenId) throw new Error('No ARC200 token selected')
+    const arc200TokenId = order.tokenConfiguration?.arc200TokenId ?? order.tokenConfiguration?.optionalArc200TokenId
     if (!arc200TokenId) throw new Error('No ARC200 token ID found in configuration')
     state.bridginig = true
     if (!store.state.arc200BridgeChain) throw Error('Chain is not selected')
@@ -260,8 +281,8 @@ const bridgeArc200ToAsa = async () => {
     console.log('exchangeInfo', exchangeInfo)
     // at this point we received ASA on our destination address. now we can swap asa to arc200.
     // when token is excchangeable, we use arc200_exchange arc200_redeem otherwise we use wnnt200 deposit
-    if (store.state.arc200BridgeToken === undefined) throw Error(t('sign.destinationTokenMissing'))
-    const tokenIdASA = BigInt(store.state.arc200BridgeToken)
+    if (order.tokenId === undefined) throw Error(t('sign.destinationTokenMissing'))
+    const tokenIdASA = BigInt(order.tokenId)
 
     // first tx is the asset transfer from destination address to arc200 contract
     const params = await algodClient.getTransactionParams().do()
@@ -276,7 +297,7 @@ const bridgeArc200ToAsa = async () => {
       defaultSender: destinationAddress,
       defaultSigner: undefined
     })
-    const sourceAmount = BigInt(store.state.arc200BridgeAmount)
+    const sourceAmount = BigInt(order.amount)
     const contractAddress = algosdk.getApplicationAddress(Number(arc200TokenId)).toString()
     const txToSign: algosdk.Transaction[] = []
 
@@ -401,12 +422,12 @@ const bridgeArc200ToAsa = async () => {
   }
 }
 
-const bridgeAsaToArc200 = async () => {
+const bridgeAsaToArc200 = async (order: BridgeOrder) => {
   console.log('bridgeAsaToArc200')
   try {
-    if (!store.state.arc200BridgeTokenConfiguration) throw new Error('No ARC200 token configuration selected')
-    if (!store.state.arc200BridgeToken) throw new Error('No ARC200 token selected')
-    const arc200TokenId = store.state.arc200BridgeTokenConfiguration?.arc200TokenId ?? store.state.arc200BridgeTokenConfiguration?.optionalArc200TokenId
+    if (!order.tokenConfiguration) throw new Error('No ARC200 token configuration selected')
+    if (!order.tokenId) throw new Error('No ARC200 token selected')
+    const arc200TokenId = order.tokenConfiguration?.arc200TokenId ?? order.tokenConfiguration?.optionalArc200TokenId
     if (!arc200TokenId) throw new Error('No ARC200 token ID found in configuration')
     state.bridginig = true
     if (!store.state.arc200BridgeChain) throw Error(t('sign.destinationChainMissing'))
@@ -418,11 +439,11 @@ const bridgeAsaToArc200 = async () => {
     // get asset balance
     if (!store.state.arc200BridgeAddress) throw Error(t('sign.destinationAddressMissing'))
     const destinationAddress = store.state.arc200BridgeAddress
-    const destinationAmount = BigInt(store.state.arc200BridgeAmount)
+    const destinationAmount = BigInt(order.amount)
     const exchangeInfo: Arc200ExchangeInfo | undefined = await getExchangeInfo('arc200Bridge')
     // at this point we received ASA on our destination address. now we can swap asa to arc200.
     // when token is excchangeable, we use arc200_exchange arc200_redeem otherwise we use wnnt200 deposit
-    const tokenIdASA = BigInt(store.state.arc200BridgeToken)
+    const tokenIdASA = BigInt(order.tokenId)
 
     // first tx is the asset transfer from destination address to arc200 contract
     const params = await algodClient.getTransactionParams().do()

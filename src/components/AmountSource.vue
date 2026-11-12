@@ -39,7 +39,8 @@ const fillInState = () => {
   try {
     if (!state.publicConfiguration) return
     if (!store.state.sourceTokenConfiguration) return
-    if (route && route.params && route.params['sourceAmount']) {
+    // the route's amount is in base units of the route's token: apply it only while that token is selected
+    if (route && route.params && route.params['sourceAmount'] && route.params['sourceToken'] === store.state.sourceTokenConfiguration.name) {
       store.state.sourceAmount = route.params['sourceAmount'] as string
       store.state.sourceAmountFormatted = formatBaseAmount(store.state.sourceAmount, store.state.sourceTokenConfiguration.decimals)
       state.sourceAmount = fromBaseUnits(store.state.sourceAmount, store.state.sourceTokenConfiguration.decimals)

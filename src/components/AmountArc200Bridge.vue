@@ -58,7 +58,10 @@ onMounted(async () => {
   state.publicConfiguration = await getPublicConfiguration(false)
   await fillInState()
 })
+// token/address can change while balance requests are in flight: only the latest call writes balances
+let balanceRequestId = 0
 const fillInState = async () => {
+  const requestId = ++balanceRequestId
   try {
     if (!state.publicConfiguration) return
     if (!store.state.arc200BridgeTokenConfiguration) return
@@ -68,13 +71,15 @@ const fillInState = async () => {
 
     if (!store.state.arc200BridgeAddress) return
     if (!store.state.arc200BridgeChain) return
-    const balanceArc200 = await getAlgoAccountARC200TokenBalance(store.state.arc200BridgeChain, store.state.arc200BridgeAddress, arc200Token)
+    const [balanceArc200, balanceASA] = await Promise.all([
+      getAlgoAccountARC200TokenBalance(store.state.arc200BridgeChain, store.state.arc200BridgeAddress, arc200Token),
+      getAlgoAccountTokenBalance(store.state.arc200BridgeChain, store.state.arc200BridgeAddress, BigInt(store.state.arc200BridgeToken))
+    ])
+    if (requestId !== balanceRequestId) return
     store.state.arc200BridgeAddressARC200Balance = balanceArc200?.toString() || '0'
-
-    const balanceASA = await getAlgoAccountTokenBalance(store.state.arc200BridgeChain, store.state.arc200BridgeAddress, BigInt(store.state.arc200BridgeToken))
     store.state.arc200BridgeAddressASABalance = balanceASA?.toString() || '0'
   } catch (e: any) {
-    showError(toast, e)
+    if (requestId === balanceRequestId) showError(toast, e)
   }
 }
 

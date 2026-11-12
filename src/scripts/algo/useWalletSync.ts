@@ -1,4 +1,5 @@
 import { isWalletForChain } from '@/scripts/algo/isWalletForChain'
+import { CHAIN_ID_ALGORAND, CHAIN_ID_ALGORAND_TESTNET, CHAIN_ID_ARAMID, CHAIN_ID_VOI } from '@/scripts/common/chainIds'
 import { showError } from '@/scripts/common/showError'
 import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
@@ -9,10 +10,10 @@ import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const networkIdByChainId = new Map<number, string>([
-  [416001, NetworkId.MAINNET],
-  [416002, NetworkId.TESTNET],
-  [416101, 'voimain'],
-  [101003, 'aramidmain']
+  [CHAIN_ID_ALGORAND, NetworkId.MAINNET],
+  [CHAIN_ID_ALGORAND_TESTNET, NetworkId.TESTNET],
+  [CHAIN_ID_VOI, 'voimain'],
+  [CHAIN_ID_ARAMID, 'aramidmain']
 ])
 const chainIdByNetworkId = new Map<string, number>([...networkIdByChainId].map(([chainId, networkId]) => [networkId, chainId]))
 
