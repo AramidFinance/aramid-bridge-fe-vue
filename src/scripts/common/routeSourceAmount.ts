@@ -7,6 +7,7 @@ import type { RouteLocationNormalizedLoaded } from 'vue-router'
  */
 export const routeSourceAmount = (route: RouteLocationNormalizedLoaded | undefined, selectedTokenName: string | undefined, selectedChainName: string | undefined): string | undefined => {
   const amount = route?.params?.['sourceAmount']
-  if (typeof amount !== 'string' || !amount) return undefined
+  // base units are a non-negative integer
+  if (typeof amount !== 'string' || !/^\d+$/.test(amount)) return undefined
   return route?.params?.['sourceToken'] === selectedTokenName && route?.params?.['sourceChain'] === selectedChainName ? amount : undefined
 }

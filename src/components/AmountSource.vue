@@ -78,20 +78,21 @@ watch(
     const config = store.state.sourceTokenConfiguration
     // the input shows the store amount already (e.g. Max or the route set it): writing the displayed
     // float back could round an exact base-unit amount
-    if (config && store.state.sourceAmount && fromBaseUnits(store.state.sourceAmount, config.decimals) === value) return
+    // (a non-canonical store amount, e.g. '5000000.0' from a link, is still rewritten)
+    if (config && /^\d+$/.test(store.state.sourceAmount) && fromBaseUnits(store.state.sourceAmount, config.decimals) === value) return
     setAmount()
   }
 )
-// the store amount can change outside the input (token picker conversion, swap, Max): show it
-watch(
-  () => store.state.sourceAmount,
-  (amount) => {
-    const config = store.state.sourceTokenConfiguration
-    if (!config || !amount) return
-    const shown = fromBaseUnits(amount, config.decimals)
-    if (!Number.isNaN(shown) && shown !== state.sourceAmount) state.sourceAmount = shown
-  }
-)
+// The store amount or its token can change outside the input (token picker, swap, Max, a chain change
+// selecting another token): the input and the formatted amount always show the store's base units in the
+// selected token's decimals.
+watch([() => store.state.sourceAmount, () => store.state.sourceTokenConfiguration], ([amount, config]) => {
+  if (!config || !amount) return
+  const shown = fromBaseUnits(amount, config.decimals)
+  if (Number.isNaN(shown)) return
+  store.state.sourceAmountFormatted = formatBaseAmount(amount, config.decimals)
+  if (shown !== state.sourceAmount) state.sourceAmount = shown
+})
 watch(
   () => store.state.sourceTokenConfiguration,
   () => {

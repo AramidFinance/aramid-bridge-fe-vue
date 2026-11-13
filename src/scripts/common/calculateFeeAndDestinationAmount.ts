@@ -24,6 +24,7 @@ const calculateFeeAndDestinationAmount = () => {
   if (!/^\d+$/.test(store.state.sourceAmount ?? '')) {
     store.state.feeAmount = '0'
     store.state.feeAmountFormatted = formatBaseAmount('0', feeTokenConfiguration.decimals)
+    store.state.sourceAmountNet = '0'
     store.state.destinationAmount = '0'
     store.state.destinationAmountFormatted = formatBaseAmount('0', store.state.destinationTokenConfiguration.decimals)
     return

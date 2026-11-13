@@ -15,5 +15,6 @@ describe('routeSourceAmount', () => {
     expect(routeSourceAmount(route(params), 'USDC', 'Base')).toBeUndefined()
     expect(routeSourceAmount(route({ sourceChain: 'Algorand', sourceToken: 'USDC' }), 'USDC', 'Algorand')).toBeUndefined()
     expect(routeSourceAmount(undefined, 'USDC', 'Algorand')).toBeUndefined()
+    expect(routeSourceAmount(route({ ...params, sourceAmount: '5000000.0' }), 'USDC', 'Algorand')).toBeUndefined()
   })
 })
