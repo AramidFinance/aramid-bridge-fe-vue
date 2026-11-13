@@ -29,7 +29,8 @@ interface IState {
 const state: IState = reactive({
   publicConfiguration: null,
   chain: store.state.sourceChainConfiguration as ChainItem,
-  sourceAmount: 0
+  // the input shows the store's amount (e.g. when returning to the page without an amount in the URL)
+  sourceAmount: store.state.sourceTokenConfiguration && store.state.sourceAmount ? fromBaseUnits(store.state.sourceAmount, store.state.sourceTokenConfiguration.decimals) || 0 : 0
 })
 
 onMounted(async () => {

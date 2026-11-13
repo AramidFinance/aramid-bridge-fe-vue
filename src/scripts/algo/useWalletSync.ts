@@ -92,7 +92,7 @@ export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWalle
       // the manager (and its algod client) is on the chain's network
       activeNetwork.value === getUseWalletNetworkId(chainId) &&
       // the app's own wallet/chain matrix (what the picker offers for this chain)
-      isWalletForChain(active.id, chainId) &&
+      !!isWalletForChain(active.id, chainId) &&
       // a wallet that does not support the active network is being disconnected by use-wallet v5
       manager.availableWallets.some((w) => w.walletKey === active.walletKey) &&
       sessionAllowsActiveNetwork(manager, active.walletKey)
@@ -266,7 +266,9 @@ export const useWalletSync = (slot: UseWalletSlot) => {
    * active is shown again by the next sync().
    */
   const disconnect = async () => {
-    const usesWallet = slot.connectorType() === AlgoConnectorType.UseWallet
+    // end the manager's session only when it is the one this slot was bound to (another page or tab may
+    // have connected a different wallet meanwhile)
+    const usesWallet = slot.connectorType() === AlgoConnectorType.UseWallet && (!activeAddress.value || activeAddress.value === slot.address())
     slot.disconnect()
     if (!usesWallet) return
     try {
