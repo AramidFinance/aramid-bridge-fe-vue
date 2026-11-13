@@ -2,14 +2,11 @@ import { AlgorandClient } from '@algorandfoundation/algokit-utils'
 import type algosdk from 'algosdk'
 import { getArc200ASAClient, type Arc200ExchangeInfo } from 'arc200-client'
 import getAlgoClient from './getAlgoClient'
-import getAlgodClientByChainId from './getAlgodClientByChainId'
 
 /** Exchange info of an ARC200 app on a chain: the values the caller builds its transactions for. */
 const getExchangeInfo = async ({ chainId, arc200TokenId }: { chainId: number; arc200TokenId: bigint | number | string }): Promise<Arc200ExchangeInfo | undefined> => {
   try {
     const arc200Token = BigInt(arc200TokenId)
-    const algodClient = await getAlgodClientByChainId(chainId)
-    if (!algodClient) return undefined
     const algoClient: AlgorandClient | null = await getAlgoClient(chainId)
     console.log('arc200Token', arc200Token, 'algoClient', algoClient)
     if (!algoClient) throw new Error('Algo client not initialized')

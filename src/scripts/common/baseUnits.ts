@@ -23,5 +23,8 @@ export const rescaleBaseUnits = (amount: BigNumber.Value | null | undefined, fro
     ?.shiftedBy(toDecimals - fromDecimals)
     .toFixed(0, 1) ?? ''
 
+/** Whether the value is a base-unit amount: a non-negative integer string. */
+export const isBaseUnits = (amount: unknown): amount is string => typeof amount === 'string' && /^\d+$/.test(amount)
+
 /** Whether a base-unit amount is a positive integer (something to send). */
-export const isPositiveBaseUnits = (amount: string | null | undefined): boolean => !!amount && /^\d+$/.test(amount) && BigInt(amount) > 0n
+export const isPositiveBaseUnits = (amount: string | null | undefined): boolean => isBaseUnits(amount) && BigInt(amount) > 0n

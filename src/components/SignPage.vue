@@ -13,7 +13,7 @@ import { useAppStore } from '@/stores/app'
 import { populateAppCallResources } from '@algorandfoundation/algokit-utils'
 import { AlgoAmount } from '@algorandfoundation/algokit-utils/types/amount'
 import { TransactionComposer } from '@algorandfoundation/algokit-utils/types/composer'
-import { getUseWalletNetworkId, useWalletNetwork } from '@/scripts/algo/useWalletSync'
+import { getUseWalletNetworkId, useWalletNetwork, WalletNotUsableError } from '@/scripts/algo/useWalletSync'
 import { isDefinitelyRejected } from '@/scripts/algo/sendOutcome'
 import { showError } from '@/scripts/common/showError'
 import { useWallet } from '@txnlab/use-wallet-vue'
@@ -155,7 +155,6 @@ const dummyTransactionSigner = async (_txnGroup: algosdk.Transaction[], _indexes
  * - reconnect: the origin wallet/data is not usable here, the user has to reconnect on the bridge screen
  */
 const useWalletSignOutcome = ref<'retry' | 'reconnect' | undefined>()
-class UseWalletNotReadyError extends Error {}
 // thrown when the page was left while signing was being prepared: stop without signing or reporting
 class SignAbortedError extends Error {}
 let disposed = false
@@ -164,7 +163,7 @@ const signWithUseWallet = async () => {
   let submittedTxId: string | undefined
   try {
     if (!store.state.sourceChain || !store.state.sourceToken || !store.state.sourceAddress || !store.state.sourceTxNote) {
-      throw new UseWalletNotReadyError(t('sign.useWalletNotInitialized'))
+      throw new WalletNotUsableError(t('sign.useWalletNotInitialized'))
     }
     // the use-wallet manager is shared with other pages, which may have switched its network; skip the
     // switch when the page was left meanwhile, and treat a failing switch like an unusable wallet
@@ -172,14 +171,14 @@ const signWithUseWallet = async () => {
     try {
       onSourceNetwork = await switchToChain(store.state.sourceChain, () => !disposed)
     } catch (e: any) {
-      throw new UseWalletNotReadyError(e?.message ?? String(e))
+      throw new WalletNotUsableError(e?.message ?? String(e))
     }
     if (disposed) throw new SignAbortedError()
-    if (!onSourceNetwork) throw new UseWalletNotReadyError(t('sign.useWalletNotInitialized'))
+    if (!onSourceNetwork) throw new WalletNotUsableError(t('sign.useWalletNotInitialized'))
     // the transactions below are built for this chain and sender
     const sourceChain = store.state.sourceChain
     const sender = store.state.sourceAddress
-    assertSigner(sourceChain, sender, UseWalletNotReadyError)
+    assertSigner(sourceChain, sender)
 
     const algodClient = await getAlgodClientByChainId(sourceChain)
     if (!algodClient) throw Error(t('sign.algodClientNotInitialized'))
@@ -217,9 +216,7 @@ const signWithUseWallet = async () => {
       const chainId = config.chainId
 
       const sourceAddress = sender
-      const tokenId = store.state.sourceToken
-      const sourceAmount = BigInt(store.state.sourceAmount)
-      const asaOptin = await getAlgoAcountTokenOptin(chainId, sourceAddress, Number(tokenId))
+      const asaOptin = await getAlgoAcountTokenOptin(chainId, sourceAddress, bridgeToken)
 
       // For ARC200 we need both algod and indexer clients, but we'll use the first available
       // since arc200 library expects specific client instances
@@ -262,10 +259,10 @@ const signWithUseWallet = async () => {
             sender: sourceAddress,
             receiver: sourceAddress,
             suggestedParams: params,
-            assetIndex: Number(tokenId)
+            assetIndex: bridgeToken
           })
         )
-        console.log('Added optin txn for ASA', tokenId)
+        console.log('Added optin txn for ASA', bridgeToken)
       }
 
       // if exchangeInfo is defined, we use exchange method to withdraw ASA otherwise we use wnnt200
@@ -274,30 +271,30 @@ const signWithUseWallet = async () => {
       const approveTxs = await clientArc200UserSender.createTransaction.arc200Approve({
         args: {
           spender: exchangeInfo?.sink ?? algosdk.getApplicationAddress(Number(arc200TokenId)).toString(),
-          value: sourceAmount
+          value: bridgeAmount
         }
       })
       // there must be only one txn
       approveTxs.transactions.forEach((tx) => txToSign.push(tx))
-      console.log('Added approve txn for ARC200', arc200TokenId, sourceAmount)
+      console.log('Added approve txn for ARC200', arc200TokenId, bridgeAmount)
       if (exchangeInfo?.sink) {
         const exchangeTxs = await clientArc200AsaUserSender.createTransaction.arc200SwapBack({
           args: {
-            amount: sourceAmount
+            amount: bridgeAmount
           },
           staticFee: AlgoAmount.MicroAlgos(2000)
         })
         exchangeTxs.transactions.forEach((tx) => txToSign.push(tx))
-        console.log('Added exchange arc200SwapBack txn for ARC200', arc200TokenId, sourceAmount)
+        console.log('Added exchange arc200SwapBack txn for ARC200', arc200TokenId, bridgeAmount)
       } else {
         const wnnt200Txs = await clientArc200AsaUserSender.createTransaction.withdraw({
           args: {
-            amount: sourceAmount
+            amount: bridgeAmount
           },
           staticFee: AlgoAmount.MicroAlgos(2000)
         })
         wnnt200Txs.transactions.forEach((tx) => txToSign.push(tx))
-        console.log('Added wnnt200 withdraw txn for ARC200', arc200TokenId, sourceAmount)
+        console.log('Added wnnt200 withdraw txn for ARC200', arc200TokenId, bridgeAmount)
       }
 
       // finally send to bridge address
@@ -330,7 +327,7 @@ const signWithUseWallet = async () => {
     }
     console.log('signing txns', toSign)
     if (disposed) throw new SignAbortedError()
-    const signed = await signAs(sourceChain, sender, toSign, UseWalletNotReadyError)
+    const signed = await signAs(sourceChain, sender, toSign)
     console.log('Signed txns', signed)
     // one signature per transaction (an empty result, or a wallet leaving out transactions, is an error)
     if (signed.length !== toSign.length || !signed.every((txn): txn is Uint8Array => txn instanceof Uint8Array)) throw Error(t('sign.useWalletNotAllSigned'))
@@ -352,7 +349,7 @@ const signWithUseWallet = async () => {
       })
       return
     }
-    if (e instanceof UseWalletNotReadyError) useWalletSignOutcome.value = 'reconnect'
+    if (e instanceof WalletNotUsableError) useWalletSignOutcome.value = 'reconnect'
     showError(toast, e)
   } finally {
     if (!disposed && !store.state.bridgeTx && !useWalletSignOutcome.value) useWalletSignOutcome.value = 'retry'

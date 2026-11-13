@@ -1,3 +1,4 @@
+import { isBaseUnits } from './baseUnits'
 import { useAppStore } from '@/stores/app'
 import BigNumber from 'bignumber.js'
 import formatBaseAmount from './formatBaseAmount'
@@ -21,7 +22,7 @@ const calculateFeeAndDestinationAmount = () => {
   const feeTokenConfiguration = store.state.sourceTokenConfiguration
 
   // an empty or invalid amount (e.g. the input was cleared) has no fee and nothing to receive
-  if (!/^\d+$/.test(store.state.sourceAmount ?? '')) {
+  if (!isBaseUnits(store.state.sourceAmount ?? '')) {
     store.state.feeAmount = '0'
     store.state.feeAmountFormatted = formatBaseAmount('0', feeTokenConfiguration.decimals)
     store.state.sourceAmountNet = '0'

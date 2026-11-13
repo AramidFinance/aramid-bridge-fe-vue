@@ -9,7 +9,7 @@ import { viewAmount } from '@/scripts/common/viewAmount'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
-import { fromBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
+import { fromBaseUnits, isBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
 import BigNumber from 'bignumber.js'
 import { useToast } from 'primevue/usetoast'
 import { onMounted, reactive, watch } from 'vue'
@@ -79,14 +79,19 @@ watch(
     // the input shows the store amount already (e.g. Max or the route set it): writing the displayed
     // float back could round an exact base-unit amount
     // (a non-canonical store amount, e.g. '5000000.0' from a link, is still rewritten)
-    if (config && /^\d+$/.test(store.state.sourceAmount) && fromBaseUnits(store.state.sourceAmount, config.decimals) === value) return
+    if (config && isBaseUnits(store.state.sourceAmount) && fromBaseUnits(store.state.sourceAmount, config.decimals) === value) return
     setAmount()
   }
 )
 // The store amount or its token can change outside the input (token picker, swap, Max, a chain change
 // selecting another token): the input and the formatted amount always show the store's base units in the
 // selected token's decimals.
-watch([() => store.state.sourceAmount, () => store.state.sourceTokenConfiguration], ([amount, config]) => {
+watch([() => store.state.sourceAmount, () => store.state.sourceTokenConfiguration], ([amount, config], [, previousConfig]) => {
+  if (config && config !== previousConfig) {
+    // another token can have another fee tier and other decimals
+    calculateFeeAndDestinationAmount()
+    makeNoteField()
+  }
   if (!config || !amount) return
   const shown = fromBaseUnits(amount, config.decimals)
   if (Number.isNaN(shown)) return

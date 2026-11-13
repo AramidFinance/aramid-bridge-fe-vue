@@ -1,4 +1,4 @@
-import { getChainIdByUseWalletNetwork, getUseWalletNetworkId, useWalletNetwork, useWalletSync } from '@/scripts/algo/useWalletSync'
+import { getChainIdByUseWalletNetwork, getUseWalletNetworkId, useWalletNetwork, useWalletSync, WalletNotUsableError } from '@/scripts/algo/useWalletSync'
 import { arc200BridgeWalletSlot, sourceWalletSlot } from '@/scripts/algo/walletSlots'
 import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
@@ -444,13 +444,12 @@ describe('useWalletSync with a chain that changes while waiting', () => {
 })
 
 describe('useWalletNetwork.assertSigner', () => {
-  it('throws the given error class with the matching message', () => {
-    class Custom extends Error {}
+  it('throws a WalletNotUsableError with the matching message', () => {
     scope = effectScope()
     const { assertSigner } = scope.run(() => useWalletNetwork())!
     useActiveWallet(makeWallet('biatec'), ADDR_A)
-    expect(() => assertSigner(416001, ADDR_A, Custom)).not.toThrow()
-    expect(() => assertSigner(416001, ADDR_B, Custom)).toThrow(Custom)
+    expect(() => assertSigner(416001, ADDR_A)).not.toThrow()
+    expect(() => assertSigner(416001, ADDR_B)).toThrow(WalletNotUsableError)
     expect(() => assertSigner(416001, ADDR_B)).toThrow('sign.useWalletAddressMismatch')
     expect(() => assertSigner(416101, ADDR_A)).toThrow('sign.useWalletNotInitialized')
   })
@@ -529,5 +528,18 @@ describe('Biatec WalletConnect sessions', () => {
     expect(isActiveWalletUsable(416101)).toBe(false)
     manager.sessions.biatec = { activeMethod: 'liquid', walletConnect: { session: wcSession } }
     expect(isActiveWalletUsable(416101)).toBe(true)
+  })
+})
+
+describe('WalletConnect adapters without a live session', () => {
+  it('are not usable', () => {
+    scope = effectScope()
+    const { isActiveWalletUsable } = scope.run(() => useWalletNetwork())!
+    useActiveWallet(makeWallet('walletconnect'), ADDR_A)
+    manager.sessions.walletconnect = { session: null }
+    expect(isActiveWalletUsable(416001)).toBe(false)
+    useActiveWallet(makeWallet('biatec'), ADDR_A)
+    manager.sessions.biatec = { activeMethod: 'walletconnect', walletConnect: { session: null } }
+    expect(isActiveWalletUsable(416001)).toBe(false)
   })
 })

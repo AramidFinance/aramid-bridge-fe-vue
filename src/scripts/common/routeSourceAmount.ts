@@ -1,3 +1,4 @@
+import { isBaseUnits } from './baseUnits'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 
 /**
@@ -8,6 +9,6 @@ import type { RouteLocationNormalizedLoaded } from 'vue-router'
 export const routeSourceAmount = (route: RouteLocationNormalizedLoaded | undefined, selectedTokenName: string | undefined, selectedChainName: string | undefined): string | undefined => {
   const amount = route?.params?.['sourceAmount']
   // base units are a non-negative integer
-  if (typeof amount !== 'string' || !/^\d+$/.test(amount)) return undefined
+  if (!isBaseUnits(amount)) return undefined
   return route?.params?.['sourceToken'] === selectedTokenName && route?.params?.['sourceChain'] === selectedChainName ? amount : undefined
 }

@@ -63,8 +63,9 @@ const onSourceAddressChange = async () => {
     if (!store.state.sourceChainConfiguration) return
     if (!store.state.sourceAddress) return
     if (!store.state.sourceTokenConfiguration) return
-    const sourceChainConfiguration = store.state.sourceChainConfiguration
-    const { name: sourceChainName } = sourceChainConfiguration
+    // captured: the store can change while a balance request is in flight
+    const { sourceChain, sourceAddress, sourceToken } = store.state
+    const { name: sourceChainName, type: sourceChainType } = store.state.sourceChainConfiguration
     const sourceTokenConfig = store.state.sourceTokenConfiguration
     const { type: sourceTokenType } = sourceTokenConfig
     console.log('sourceTokenType', sourceTokenType)
@@ -72,15 +73,15 @@ const onSourceAddressChange = async () => {
     let balance: { toString: () => string } | null = null
     if (sourceTokenType == 'algo') {
       if (sourceChainName == 'Voi' && sourceTokenConfig?.arc200TokenId) {
-        balance = await getAlgoAccountARC200TokenBalance(store.state.sourceChain, store.state.sourceAddress, Number(sourceTokenConfig.arc200TokenId))
+        balance = await getAlgoAccountARC200TokenBalance(sourceChain, sourceAddress, Number(sourceTokenConfig.arc200TokenId))
       } else {
         store.state.loadingSourceAddressBalance = true
-        balance = await getAlgoAccountTokenBalance(store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
+        balance = await getAlgoAccountTokenBalance(sourceChain, sourceAddress, Number(sourceToken))
       }
     }
-    if (store.state.sourceChainConfiguration.type == 'eth' && store.state.sourceToken) {
+    if (sourceChainType == 'eth' && sourceToken && isCurrent()) {
       store.state.loadingSourceAddressBalance = true
-      balance = await getEthAccountTokenBalance(store.state.sourceChain, store.state.sourceAddress, store.state.sourceToken)
+      balance = await getEthAccountTokenBalance(sourceChain, sourceAddress, sourceToken)
     }
     // only the latest request may write the balance
     if (balance !== null && isCurrent()) {

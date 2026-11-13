@@ -8,7 +8,7 @@ import { Config, populateAppCallResources } from '@algorandfoundation/algokit-ut
 import { AlgoAmount } from '@algorandfoundation/algokit-utils/types/amount'
 import { TransactionComposer } from '@algorandfoundation/algokit-utils/types/composer'
 import { getChainIdByUseWalletNetwork, getUseWalletNetworkId, useWalletNetwork } from '@/scripts/algo/useWalletSync'
-import { isPositiveBaseUnits } from '@/scripts/common/baseUnits'
+import { isBaseUnits, isPositiveBaseUnits } from '@/scripts/common/baseUnits'
 import { showError } from '@/scripts/common/showError'
 import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import { useWallet } from '@txnlab/use-wallet-vue'
@@ -109,7 +109,7 @@ const applyRoute = async () => {
     const onTargetChain = isOnChain(targetChainId)
     const { tokenId, direction } = route.params
     // base units are a non-negative integer: anything else in the URL is no amount
-    const amount = typeof route.params['amount'] === 'string' && /^\d+$/.test(route.params['amount']) ? route.params['amount'] : ''
+    const amount = isBaseUnits(route.params['amount']) ? route.params['amount'] : ''
     // nothing to apply when the route already matches the store (e.g. it was just written from the store)
     if (
       !unknown &&

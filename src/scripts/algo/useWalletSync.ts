@@ -42,13 +42,16 @@ const whenManagerReady = (manager: WalletManager): Promise<void> => {
   return promise
 }
 
+/** The connected wallet cannot sign for the wanted chain/account: the user has to reconnect. */
+export class WalletNotUsableError extends Error {}
+
 type WalletConnectSession = { namespaces?: { algorand?: { chains?: string[]; accounts?: string[] } } }
 type AdapterWithSession = {
   // the generic WalletConnect adapter
-  session?: WalletConnectSession
+  session?: WalletConnectSession | null
   // Biatec Wallet: its WalletConnect transport, when that is the active connection method
   activeMethod?: string
-  walletConnect?: { session?: WalletConnectSession }
+  walletConnect?: { session?: WalletConnectSession | null }
 }
 
 /**
@@ -59,6 +62,8 @@ type AdapterWithSession = {
  */
 const sessionAllowsActiveNetwork = (manager: WalletManager, walletKey: string): boolean => {
   const adapter = manager.getWallet(walletKey) as unknown as AdapterWithSession | undefined
+  // a WalletConnect adapter whose session ended or expired (null) cannot sign at all
+  if (adapter?.session === null || (adapter?.activeMethod === 'walletconnect' && adapter.walletConnect?.session === null)) return false
   const session = adapter?.session ?? (adapter?.activeMethod === 'walletconnect' ? adapter.walletConnect?.session : undefined)
   const algorand = session?.namespaces?.algorand
   const caipChainId = manager.activeNetworkConfig?.caipChainId
@@ -124,13 +129,15 @@ export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWalle
    * Connects the picked wallet and binds the slot to its account. Returns whether that worked; errors
    * (including a cancelled connect) are shown as a toast.
    */
-  const connectAndBind = async (picked: { connect: () => Promise<unknown> }, slot: UseWalletSlot): Promise<boolean> => {
+  const connectAndBind = async (picked: { connect: () => Promise<unknown>; setActive?: () => void }, slot: UseWalletSlot): Promise<boolean> => {
     try {
       // align first so a WalletConnect session is approved for this chain; once the manager is ready
       // this is a short await, which keeps the click's user activation for popup wallets
       const chainId = slot.chainConfiguration()?.chainId
       if (chainId && manager.isReady) await switchToChain(chainId)
       await picked.connect()
+      // reconnecting a wallet that is still connected does not make it the active one by itself
+      picked.setActive?.()
       await bindActiveAccount(slot)
       return true
     } catch (e: any) {
@@ -140,20 +147,20 @@ export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWalle
   }
 
   /**
-   * Throws (as ErrorClass) when the active account cannot sign transactions sent from sender on the
-   * chain. Call it before building the transactions and again right before signing them.
+   * Throws a WalletNotUsableError when the active account cannot sign transactions sent from sender on
+   * the chain. Call it before building the transactions and again right before signing them.
    */
-  const assertSigner = (chainId: number, sender: string | undefined, ErrorClass: new (message: string) => Error = Error): void => {
-    if (!activeAddress.value || !isActiveWalletUsable(chainId)) throw new ErrorClass(t('sign.useWalletNotInitialized'))
-    if (!sender || activeAddress.value !== sender) throw new ErrorClass(t('sign.useWalletAddressMismatch'))
+  const assertSigner = (chainId: number, sender: string | undefined): void => {
+    if (!activeAddress.value || !isActiveWalletUsable(chainId)) throw new WalletNotUsableError(t('sign.useWalletNotInitialized'))
+    if (!sender || activeAddress.value !== sender) throw new WalletNotUsableError(t('sign.useWalletAddressMismatch'))
   }
 
   /**
    * The only signing path for bound accounts: checks that the manager is on the chain the transactions
    * were built for with their sender, then signs them.
    */
-  const signAs = async (chainId: number, sender: string, txns: algosdk.Transaction[], ErrorClass: new (message: string) => Error = Error): Promise<(Uint8Array | null)[]> => {
-    assertSigner(chainId, sender, ErrorClass)
+  const signAs = async (chainId: number, sender: string, txns: algosdk.Transaction[]): Promise<(Uint8Array | null)[]> => {
+    assertSigner(chainId, sender)
     return signTransactions(txns)
   }
 
