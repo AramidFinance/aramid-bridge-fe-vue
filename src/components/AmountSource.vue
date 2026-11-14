@@ -44,9 +44,8 @@ const fillInState = () => {
     // the route's amount is in base units of the route's token: apply it only while that token is selected
     const amountFromRoute = routeSourceAmount(route, store.state.sourceTokenConfiguration.name, store.state.sourceChainConfiguration?.name)
     if (amountFromRoute) {
+      // the input and the formatted amount follow the store (watcher below)
       store.state.sourceAmount = amountFromRoute
-      store.state.sourceAmountFormatted = formatBaseAmount(store.state.sourceAmount, store.state.sourceTokenConfiguration.decimals)
-      state.sourceAmount = fromBaseUnits(store.state.sourceAmount, store.state.sourceTokenConfiguration.decimals)
       //console.log('state.sourceAmount', new BigNumber(state.sourceAmount).toNumber(), state.sourceAmount)
       calculateFeeAndDestinationAmount()
       makeNoteField()
@@ -105,12 +104,8 @@ watch(
     fillInState()
   }
 )
-watch(
-  () => store.state.sourceAddress,
-  () => {
-    fillInState()
-  }
-)
+// (no re-apply on an address change: wallet sync changes the address on its own, and the route's
+// amount would overwrite the amount the user typed)
 watch(
   () => store.state.sourceToken,
   () => {
@@ -132,9 +127,7 @@ const setMax = () => {
     // on AVM make sure we deduct the tx fee
     store.state.sourceAmount = new BigNumber(store.state.sourceAddressBalance).minus(101000).toFixed(0, 1)
   }
-  store.state.sourceAmountFormatted = formatBaseAmount(store.state.sourceAmount, store.state.sourceTokenConfiguration.decimals)
-
-  state.sourceAmount = fromBaseUnits(store.state.sourceAmount, store.state.sourceTokenConfiguration.decimals)
+  // the input and the formatted amount follow the store (watcher above)
   calculateFeeAndDestinationAmount()
   makeNoteField()
 }

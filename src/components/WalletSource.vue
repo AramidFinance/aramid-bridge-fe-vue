@@ -41,10 +41,13 @@ const state: IState = reactive({
   chain: store.state.sourceChainConfiguration as ChainItem
 })
 
+const updateConnected = () => {
+  state.connected = !!store.state.connectedSourceChain && !!store.state.sourceAddress
+}
 const fillInState = () => {
   try {
     fillSourceTokenConfiguration()
-    state.connected = !!store.state.connectedSourceChain && !!store.state.sourceAddress
+    updateConnected()
   } catch (e: any) {
     showError(toast, e)
   }
@@ -105,8 +108,11 @@ onMounted(async () => {
 })
 
 // one watcher, so that changing several of these at once (e.g. a wallet sync) makes one balance request
-watch([() => store.state.sourceChain, () => store.state.sourceAddress, () => store.state.connectedSourceChain], async () => {
-  fillInState()
+// (the source token is re-resolved only for a new chain: wallet sync changes the address on its own and
+// must not reset the token the user picked)
+watch([() => store.state.sourceChain, () => store.state.sourceAddress, () => store.state.connectedSourceChain], async ([chain], [previousChain]) => {
+  if (chain !== previousChain) fillInState()
+  else updateConnected()
   await onSourceAddressChange()
 })
 // separate: fillInState() would reset the selected source token

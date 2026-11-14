@@ -131,6 +131,9 @@ watch(
 
 const setMax = () => {
   if (!store.state.arc200BridgeTokenConfiguration) return
+  // balances are being (re)loaded: there is no maximum yet
+  const balance = store.state.arc200BridgeDirection === 'ASAToARC200' ? store.state.arc200BridgeAddressASABalance : store.state.arc200BridgeAddressARC200Balance
+  if (balance === undefined) return
   if (store.state.arc200BridgeDirection === 'ASAToARC200') {
     if (store.state.arc200BridgeToken === '0') {
       // on AVM make sure we deduct the tx fee

@@ -150,11 +150,14 @@ onMounted(async () => {
   state.inputTx = route.params['sourceTxId'] as string
   state.fromRoute = !!state.inputTx
   // Arc200ClaimView has just (re)loaded the public configuration
-  await applyRoute()
+  const applying = applyRoute()
+  const mountRun = routeRun
+  await applying
   if (unmounted) return
   state.mounted = true
-  // the store watchers triggered by applying the route ran before mounted was set: normalise the URL now
-  fillInRoute(true)
+  // the store watchers triggered by applying the route ran before mounted was set: normalise the URL now,
+  // unless a newer route (e.g. Back during the mount) is being applied: it owns the URL
+  if (mountRun === routeRun) fillInRoute(true)
 })
 // the arc200-claim routes share this component instance, so back/forward between them does not remount it
 // (navigations this page made from the store are not applied back: the store may have moved on since)
