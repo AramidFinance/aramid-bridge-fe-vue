@@ -19,9 +19,17 @@ const { connectAndBind } = useWalletNetwork(useWalletState)
 const store = useAppStore()
 const slot = arc200BridgeWalletSlot(store)
 
+// one connect at a time (a double click would start two connects/pairings)
+let connecting = false
 const walletButtonClick = async (wallet: Wallet) => {
-  // keep the picker open when connecting failed, so another wallet can be picked
-  if (await connectAndBind(wallet, slot)) store.state.dialogSelectArc200BridgeWalletIsOpen = false
+  if (connecting) return
+  connecting = true
+  try {
+    // keep the picker open when connecting failed, so another wallet can be picked
+    if (await connectAndBind(wallet, slot)) store.state.dialogSelectArc200BridgeWalletIsOpen = false
+  } finally {
+    connecting = false
+  }
 }
 interface IState {
   publicConfiguration: PublicConfigurationRoot | null

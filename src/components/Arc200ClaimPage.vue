@@ -284,6 +284,26 @@ const bridginigButtonClick = async () => {
   }
 }
 
+/** Signs the group with the bound account, sends it and shows the bridge transaction (the last one). */
+const signAndSend = async (order: BridgeOrder, algodClient: algosdk.Algodv2, txns: algosdk.Transaction[]) => {
+  const signed = await signBound(order.sender, order.chainId, txns)
+  // Filter out any null values to satisfy the type requirement
+  const filteredSigned = signed.filter((s: Uint8Array | null): s is Uint8Array => s !== null)
+  if (filteredSigned.length === 0) {
+    throw Error(t('sign.noTransactionsSigned'))
+  }
+  await algodClient.sendRawTransaction(filteredSigned).do()
+  // the group's own txid is its first transaction (e.g. an opt-in): show the swap/withdraw/deposit one
+  state.resultTx = algosdk.decodeSignedTransaction(filteredSigned[filteredSigned.length - 1]).txn.txID()
+  console.log('Claim tx sent with txid', state.resultTx)
+  state.bridgingIsSuccessful = true
+  toast.add({
+    severity: 'success',
+    detail: t('sign.claimSuccess'),
+    life: 3000
+  })
+}
+
 const bridgeArc200ToAsa = async (order: BridgeOrder) => {
   console.log('bridgeArc200ToAsa')
   try {
@@ -409,27 +429,7 @@ const bridgeArc200ToAsa = async (order: BridgeOrder) => {
     })
     console.log('signing txns', toSignFinal)
 
-    // Sign with destination wallet
-    const signed = await signBound(destinationAddress, builtChain, toSignFinal)
-    // Filter out any null values to satisfy the type requirement
-    const filteredSigned = signed.filter((s: Uint8Array | null): s is Uint8Array => s !== null)
-    if (filteredSigned.length === 0) {
-      throw Error(t('sign.noTransactionsSigned'))
-    }
-    const result = await algodClient.sendRawTransaction(filteredSigned).do()
-    console.log('Claim tx sent with txid', result.txid)
-    state.resultTx = result.txid
-    // Wait for confirmation
-    // await algodClient.status().do()
-    // await algodClient.pendingTransactionInformation(result.txid).do()
-    state.bridgingIsSuccessful = true
-    toast.add({
-      severity: 'success',
-      detail: t('sign.claimSuccess'),
-      life: 3000
-    })
-    // Reset state and redirect
-    //await resetButtonClick()
+    await signAndSend(order, algodClient, toSignFinal)
   } catch (e: any) {
     showError(toast, e)
   } finally {
@@ -601,27 +601,7 @@ const bridgeAsaToArc200 = async (order: BridgeOrder) => {
       return txnWithSigner.txn
     })
     console.log('toSignFinal', toSignFinal)
-    // Sign with destination wallet
-    const signed = await signBound(destinationAddress, builtChain, toSignFinal)
-    // Filter out any null values to satisfy the type requirement
-    const filteredSigned = signed.filter((s: Uint8Array | null): s is Uint8Array => s !== null)
-    if (filteredSigned.length === 0) {
-      throw Error(t('sign.noTransactionsSigned'))
-    }
-    const result = await algodClient.sendRawTransaction(filteredSigned).do()
-    console.log('Claim tx sent with txid', result.txid)
-    state.resultTx = result.txid
-    // Wait for confirmation
-    // await algodClient.status().do()
-    // await algodClient.pendingTransactionInformation(result.txid).do()
-    state.bridgingIsSuccessful = true
-    toast.add({
-      severity: 'success',
-      detail: t('sign.claimSuccess'),
-      life: 3000
-    })
-    // Reset state and redirect
-    //await resetButtonClick()
+    await signAndSend(order, algodClient, toSignFinal)
   } catch (e: any) {
     showError(toast, e)
   } finally {

@@ -325,7 +325,7 @@ const signWithUseWallet = async () => {
     const signed = await signAs(sourceChain, sender, toSign)
     console.log('Signed txns', signed)
     // one signature per transaction (an empty result, or a wallet leaving out transactions, is an error)
-    if (signed.length !== toSign.length || !signed.every((txn): txn is Uint8Array => txn instanceof Uint8Array)) throw Error(t('sign.useWalletNotAllSigned'))
+    if (signed.length !== toSign.length || !signed.every((txn): txn is Uint8Array => !!txn && ArrayBuffer.isView(txn) && txn.byteLength > 0)) throw Error(t('sign.useWalletNotAllSigned'))
     // the bridge transaction is the last one of the group
     submittedTxId = algosdk.decodeSignedTransaction(signed[signed.length - 1]).txn.txID()
     await algodClient.sendRawTransaction(signed).do()

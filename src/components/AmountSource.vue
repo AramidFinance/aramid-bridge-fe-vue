@@ -10,8 +10,7 @@ import { viewAmount } from '@/scripts/common/viewAmount'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
-import { fromBaseUnits, isBaseUnits, isPositiveBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
-import BigNumber from 'bignumber.js'
+import { fromBaseUnits, isBaseUnits, isPositiveBaseUnits, maxSendable, toBaseUnits } from '@/scripts/common/baseUnits'
 import { useToast } from 'primevue/usetoast'
 import { onMounted, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -113,11 +112,8 @@ const setMax = () => {
   if (!store.state.sourceAddressBalance) return
   if (!store.state.sourceTokenConfiguration) return
 
-  store.state.sourceAmount = store.state.sourceAddressBalance
-  if (store.state.sourceToken === '0') {
-    // on AVM make sure we deduct the tx fee
-    store.state.sourceAmount = BigNumber.max(0, new BigNumber(store.state.sourceAddressBalance).minus(101000)).toFixed(0, 1)
-  }
+  // for the native token the fee reserve is kept
+  store.state.sourceAmount = maxSendable(store.state.sourceAddressBalance, store.state.sourceToken === '0')
   // the input and the formatted amount follow the store (watcher above)
   calculateFeeAndDestinationAmount()
   makeNoteField()

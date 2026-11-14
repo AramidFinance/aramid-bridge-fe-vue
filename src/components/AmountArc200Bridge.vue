@@ -6,11 +6,10 @@ import { viewAmount } from '@/scripts/common/viewAmount'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
-import { fromBaseUnits, rescaleBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
+import { fromBaseUnits, maxSendable, rescaleBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
 import { showError } from '@/scripts/common/showError'
-import BigNumber from 'bignumber.js'
 import { useToast } from 'primevue/usetoast'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import getAlgoAccountARC200TokenBalance from '../scripts/algo/getAlgoAccountARC200TokenBalance'
@@ -48,9 +47,19 @@ const amountInput = computed<number | ''>({
       return
     }
     // '' for an empty or invalid input
-    store.state.arc200BridgeAmount = toBaseUnits(value, config.decimals)
+    const base = toBaseUnits(value, config.decimals)
+    store.state.arc200BridgeAmount = base
+    // more fraction digits than the token has were cut off: show what will be bridged (the computed value
+    // may not change, so the input is not re-rendered by itself)
+    const shown = fromBaseUnits(base, config.decimals)
+    if (base && !Number.isNaN(shown) && shown !== value) {
+      nextTick(() => {
+        if (amountInputEl.value) amountInputEl.value.value = String(shown)
+      })
+    }
   }
 })
+const amountInputEl = ref<HTMLInputElement | null>(null)
 
 onMounted(async () => {
   state.publicConfiguration = await getPublicConfiguration(false)
@@ -132,16 +141,8 @@ const setMax = () => {
   // balances are being (re)loaded: there is no maximum yet
   const balance = store.state.arc200BridgeDirection === 'ASAToARC200' ? store.state.arc200BridgeAddressASABalance : store.state.arc200BridgeAddressARC200Balance
   if (balance === undefined) return
-  if (store.state.arc200BridgeDirection === 'ASAToARC200') {
-    if (store.state.arc200BridgeToken === '0') {
-      // on AVM make sure we deduct the tx fee
-      store.state.arc200BridgeAmount = BigNumber.max(0, new BigNumber(store.state.arc200BridgeAddressASABalance ?? '101000').minus(101000)).toFixed(0, 1)
-    } else {
-      store.state.arc200BridgeAmount = store.state.arc200BridgeAddressASABalance || '0'
-    }
-  } else {
-    store.state.arc200BridgeAmount = store.state.arc200BridgeAddressARC200Balance || '0'
-  }
+  // the native token keeps the fee reserve (only an ASA side can be the native token)
+  store.state.arc200BridgeAmount = maxSendable(balance, store.state.arc200BridgeDirection === 'ASAToARC200' && store.state.arc200BridgeToken === '0')
 }
 </script>
 <template>
@@ -157,6 +158,7 @@ const setMax = () => {
           max="1000000000"
           step="0.00001"
           class="bg-transparent placeholder-current text-2xl font-bold rounded-[2px] focus:outline-none text-center w-full border-b-2 border-indigo-500/50"
+          ref="amountInputEl"
           v-model="amountInput"
         />
         <div

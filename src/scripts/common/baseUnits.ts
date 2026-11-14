@@ -26,6 +26,12 @@ export const rescaleBaseUnits = (amount: BigNumber.Value | null | undefined, fro
     ?.shiftedBy(toDecimals - fromDecimals)
     .toFixed(0, 1) ?? ''
 
+/** Fee reserve kept on the account when sending the chain's native token (Max). */
+const NATIVE_FEE_RESERVE = 101000
+
+/** The most that can be sent from a base-unit balance: for the native token the fee reserve is kept. */
+export const maxSendable = (balance: string, isNative: boolean): string => (isNative ? BigNumber.max(0, new BigNumber(balance).minus(NATIVE_FEE_RESERVE)).toFixed(0, 1) : balance)
+
 /** Whether the value is a base-unit amount: a non-negative integer string. */
 export const isBaseUnits = (amount: unknown): amount is string => typeof amount === 'string' && /^\d+$/.test(amount)
 

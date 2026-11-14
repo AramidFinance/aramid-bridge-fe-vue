@@ -1,4 +1,4 @@
-import { fromBaseUnits, isPositiveBaseUnits, rescaleBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
+import { fromBaseUnits, isPositiveBaseUnits, maxSendable, rescaleBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
 import { describe, expect, it } from 'vitest'
 
 describe('base units', () => {
@@ -37,5 +37,11 @@ describe('base units', () => {
     expect(isPositiveBaseUnits('NaN')).toBe(false)
     expect(isPositiveBaseUnits('-5')).toBe(false)
     expect(isPositiveBaseUnits(undefined)).toBe(false)
+  })
+
+  it('keeps the fee reserve when sending the whole native balance', () => {
+    expect(maxSendable('5000000', true)).toBe('4899000')
+    expect(maxSendable('50000', true)).toBe('0')
+    expect(maxSendable('5000000', false)).toBe('5000000')
   })
 })
