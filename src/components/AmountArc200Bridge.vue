@@ -144,9 +144,6 @@ const setMax = () => {
   } else {
     store.state.arc200BridgeAmount = store.state.arc200BridgeAddressARC200Balance || '0'
   }
-
-  calculateFeeAndDestinationAmount()
-  makeNoteField()
 }
 </script>
 <template>

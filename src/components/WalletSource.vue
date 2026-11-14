@@ -124,8 +124,10 @@ watch(
 
 watch(
   () => store.state.sourceChainConfiguration,
-  () => {
+  async () => {
     fillInState()
+    // the balance request started for the new chain used the previous token configuration
+    await onSourceAddressChange()
   }
 )
 

@@ -164,6 +164,8 @@ onMounted(async () => {
 watch(
   [() => route.params['network'], () => route.params['tokenId'], () => route.params['amount'], () => route.params['direction']],
   () => {
+    // leaving the page (to a route without these params) is not a route for this page to apply
+    if (!String(route.name ?? '').startsWith('arc200-claim')) return
     if (ownNavigations.has(route.fullPath)) return
     lastTokenRoute = undefined
     applyRoute()
@@ -639,7 +641,7 @@ const resetButtonClick = async () => {
         </div>
         <div class="w-full" v-else>
           <MainActionButton v-if="activeNetwork == getUseWalletNetworkId(store.state.arc200BridgeChain)" @click="bridginigButtonClick">Bridge</MainActionButton>
-          <MainActionButton v-else-if="store.state.claimData" @click="bridginigButtonClick">{{
+          <MainActionButton v-else-if="getUseWalletNetworkId(store.state.arc200BridgeChain)" @click="bridginigButtonClick">{{
             t('bridge.switchNetwork', { chain: store.state.arc200BridgeChainConfiguration?.name })
           }}</MainActionButton>
           <div v-else>
@@ -650,7 +652,7 @@ const resetButtonClick = async () => {
       <div v-else-if="state.bridgingIsSuccessful">
         <p class="text-center">
           {{ t('sign.bridgeSuccessShort') }}
-          <span v-if="state.resultTx">{{ t('sign.txnIdPrefix') }} <ShortTx :txId="state.resultTx" :length="6" :chain="store.state.destinationChain"></ShortTx></span>
+          <span v-if="state.resultTx">{{ t('sign.txnIdPrefix') }} <ShortTx :txId="state.resultTx" :length="6" :chain="store.state.arc200BridgeChain"></ShortTx></span>
         </p>
         <FireworksEffect></FireworksEffect>
         <MainActionButton @click="resetButtonClick">{{ t('sign.bridgeAgain') }}</MainActionButton>

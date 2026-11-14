@@ -66,6 +66,9 @@ const setAmount = () => {
   const base = toBaseUnits(state.sourceAmount, store.state.sourceTokenConfiguration.decimals)
   store.state.sourceAmount = base
   store.state.sourceAmountFormatted = base ? formatBaseAmount(base, store.state.sourceTokenConfiguration.decimals) : ''
+  // more fraction digits than the token has were cut off: show what will be bridged
+  const shown = fromBaseUnits(base, store.state.sourceTokenConfiguration.decimals)
+  if (base && !Number.isNaN(shown) && shown !== state.sourceAmount) state.sourceAmount = shown
   //console.log('store.state.sourceAmount', store.state.sourceAmount)
   calculateFeeAndDestinationAmount()
   makeNoteField()

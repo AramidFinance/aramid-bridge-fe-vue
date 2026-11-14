@@ -179,6 +179,8 @@ const signWithUseWallet = async () => {
     const sourceChain = store.state.sourceChain
     const sender = store.state.sourceAddress
     assertSigner(sourceChain, sender)
+    // the token configuration, captured with the other inputs before any await
+    const config = store.state.sourceTokenConfiguration
 
     const algodClient = await getAlgodClientByChainId(sourceChain)
     if (!algodClient) throw Error(t('sign.algodClientNotInitialized'))
@@ -210,10 +212,10 @@ const signWithUseWallet = async () => {
           })
 
     // smart asset (arc200)
-    const config = store.state.sourceTokenConfiguration
     if (config && config.arc200TokenId) {
       const arc200TokenId = config.arc200TokenId
-      const chainId = config.chainId
+      // one chain for everything this group is built and sent on
+      const chainId = sourceChain
 
       const sourceAddress = sender
       const asaOptin = await getAlgoAcountTokenOptin(chainId, sourceAddress, bridgeToken)
