@@ -13,6 +13,7 @@ describe('base units', () => {
     expect(toBaseUnits(null, 6)).toBe('')
     expect(toBaseUnits(Number.NaN, 6)).toBe('')
     expect(toBaseUnits('1e', 6)).toBe('')
+    expect(toBaseUnits(-1, 6)).toBe('')
   })
 
   it('converts base units to displayed amounts without float division drift', () => {

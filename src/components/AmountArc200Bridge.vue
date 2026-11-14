@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { makeNoteField } from '@/scripts/aramid/makeNoteField'
-import calculateFeeAndDestinationAmount from '@/scripts/common/calculateFeeAndDestinationAmount'
 import formatBaseAmount from '@/scripts/common/formatBaseAmount'
 import { formatTooltip } from '@/scripts/common/formatTooltip'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
@@ -137,7 +135,7 @@ const setMax = () => {
   if (store.state.arc200BridgeDirection === 'ASAToARC200') {
     if (store.state.arc200BridgeToken === '0') {
       // on AVM make sure we deduct the tx fee
-      store.state.arc200BridgeAmount = new BigNumber(store.state.arc200BridgeAddressASABalance ?? '101000').minus(101000).toFixed(0, 1)
+      store.state.arc200BridgeAmount = BigNumber.max(0, new BigNumber(store.state.arc200BridgeAddressASABalance ?? '101000').minus(101000)).toFixed(0, 1)
     } else {
       store.state.arc200BridgeAmount = store.state.arc200BridgeAddressASABalance || '0'
     }

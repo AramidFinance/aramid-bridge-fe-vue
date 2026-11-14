@@ -90,6 +90,11 @@ watch(
 // selected token's decimals.
 watch([() => store.state.sourceAmount, () => store.state.sourceTokenConfiguration], ([amount, config], [, previousConfig]) => {
   if (config && config !== previousConfig) {
+    // an amount typed while no token was selected: store it now that its units are known
+    if (!previousConfig && !amount && state.sourceAmount) {
+      setAmount()
+      return
+    }
     // another token can have another fee tier and other decimals
     calculateFeeAndDestinationAmount()
     makeNoteField()
@@ -110,7 +115,7 @@ const setMax = () => {
   store.state.sourceAmount = store.state.sourceAddressBalance
   if (store.state.sourceToken === '0') {
     // on AVM make sure we deduct the tx fee
-    store.state.sourceAmount = new BigNumber(store.state.sourceAddressBalance).minus(101000).toFixed(0, 1)
+    store.state.sourceAmount = BigNumber.max(0, new BigNumber(store.state.sourceAddressBalance).minus(101000)).toFixed(0, 1)
   }
   // the input and the formatted amount follow the store (watcher above)
   calculateFeeAndDestinationAmount()

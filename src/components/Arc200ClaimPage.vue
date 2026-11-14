@@ -109,7 +109,8 @@ const applyRoute = async () => {
     const onTargetChain = isOnChain(targetChainId)
     const { tokenId, direction } = route.params
     // base units are a non-negative integer: anything else in the URL is no amount
-    const amount = isBaseUnits(route.params['amount']) ? route.params['amount'] : ''
+    // ('0' is what an empty amount is written to the URL as)
+    const amount = isBaseUnits(route.params['amount']) && route.params['amount'] !== '0' ? route.params['amount'] : ''
     // nothing to apply when the route already matches the store (e.g. it was just written from the store)
     if (
       !unknown &&
@@ -122,15 +123,24 @@ const applyRoute = async () => {
     if (unmounted || run !== routeRun || !store.state.publicConfiguration) return
     if (!isOnChain(targetChainId)) fillArc200BridgeChainConfiguration(targetChainId)
     if (unknown || (chainId && store.state.arc200BridgeChain !== chainId)) {
-      // the route's network is unknown or has no configuration: its token params belong to another chain
+      // the route's network is unknown or has no configuration: its token params belong to another chain,
+      // and the token selected before must not stay behind a URL without a token
+      store.state.arc200BridgeToken = undefined
+      store.state.arc200BridgeTokenConfiguration = undefined
       await navigate({ name: 'arc200-claim' }, true)
       return
     }
     if (route.params['tokenId'] && route.params['amount'] && route.params['direction']) {
       // select the token first and only then set the route's amount (in that token's units), so the
       // token change does not re-derive it from the input
-      store.state.arc200BridgeToken = route.params['tokenId'] as string
-      fillArc200BridgeTokenConfiguration(store.state.arc200BridgeToken)
+      fillArc200BridgeTokenConfiguration(route.params['tokenId'] as string)
+      if (store.state.arc200BridgeTokenConfiguration?.tokenId !== route.params['tokenId']) {
+        // the URL's token is not configured for this chain: no selection rather than a token with another
+        // token's configuration
+        store.state.arc200BridgeToken = undefined
+        store.state.arc200BridgeTokenConfiguration = undefined
+        return
+      }
       store.state.arc200BridgeAmount = amount
       store.state.arc200BridgeDirection = route.params['direction'] as 'ARC200ToASA' | 'ASAToARC200'
       if (store.state.arc200BridgeDirection !== 'ARC200ToASA' && store.state.arc200BridgeDirection !== 'ASAToARC200') {
@@ -246,6 +256,7 @@ const bridginigButtonClick = async () => {
     if (!tokenId) throw new Error('No ARC200 token selected')
     const arc200TokenId = tokenConfiguration.arc200TokenId ?? tokenConfiguration.optionalArc200TokenId
     if (!arc200TokenId) throw new Error('No ARC200 token ID found in configuration')
+    if (tokenConfiguration.tokenId !== tokenId) throw new Error('No ARC200 token configuration selected')
     const order: BridgeOrder = {
       chainId: bridgeChainId,
       // assertSigner ensured the bound address is set
@@ -405,6 +416,7 @@ const bridgeArc200ToAsa = async (order: BridgeOrder) => {
     }
     const result = await algodClient.sendRawTransaction(filteredSigned).do()
     console.log('Claim tx sent with txid', result.txid)
+    state.resultTx = result.txid
     // Wait for confirmation
     // await algodClient.status().do()
     // await algodClient.pendingTransactionInformation(result.txid).do()
@@ -596,6 +608,7 @@ const bridgeAsaToArc200 = async (order: BridgeOrder) => {
     }
     const result = await algodClient.sendRawTransaction(filteredSigned).do()
     console.log('Claim tx sent with txid', result.txid)
+    state.resultTx = result.txid
     // Wait for confirmation
     // await algodClient.status().do()
     // await algodClient.pendingTransactionInformation(result.txid).do()
