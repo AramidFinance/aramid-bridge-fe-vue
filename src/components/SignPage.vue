@@ -179,20 +179,19 @@ const signWithUseWallet = async () => {
     const sourceChain = store.state.sourceChain
     const sender = store.state.sourceAddress
     assertSigner(sourceChain, sender)
-    // the token configuration, captured with the other inputs before any await
+    // everything the transactions are built from, captured together before any await
     const config = store.state.sourceTokenConfiguration
+    const note = store.state.sourceTxNote
+    const bridgeAmount = BigInt(store.state.sourceAmount)
+    const bridgeToken = Number(store.state.sourceToken)
+    const bridgeReceiver = store.state.sourceBridgeAddress
 
     const algodClient = await getAlgodClientByChainId(sourceChain)
     if (!algodClient) throw Error(t('sign.algodClientNotInitialized'))
     const params = await algodClient.getTransactionParams().do()
 
     let toSign: algosdk.Transaction[]
-    // the transfer to the bridge address that carries the bridge note, from values captured now (the
-    // ARC200 path awaits several lookups before adding it)
-    const note = store.state.sourceTxNote
-    const bridgeAmount = BigInt(store.state.sourceAmount)
-    const bridgeToken = Number(store.state.sourceToken)
-    const bridgeReceiver = store.state.sourceBridgeAddress
+    // the transfer to the bridge address that carries the bridge note
     const makeBridgeTx = () =>
       bridgeToken > 0
         ? algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
@@ -214,18 +213,12 @@ const signWithUseWallet = async () => {
     // smart asset (arc200)
     if (config && config.arc200TokenId) {
       const arc200TokenId = config.arc200TokenId
-      // one chain for everything this group is built and sent on
-      const chainId = sourceChain
-
-      const sourceAddress = sender
-      const asaOptin = await getAlgoAcountTokenOptin(chainId, sourceAddress, bridgeToken)
+      const asaOptin = await getAlgoAcountTokenOptin(sourceChain, sender, bridgeToken)
 
       // For ARC200 we need both algod and indexer clients, but we'll use the first available
       // since arc200 library expects specific client instances
-      const indexerClient = await getIndexerClientByChainId(chainId)
-      const algodClient = await getAlgodClientByChainId(chainId)
-
-      if (!indexerClient || !algodClient) throw Error(t('sign.algodClientNotInitialized'))
+      const indexerClient = await getIndexerClientByChainId(sourceChain)
+      if (!indexerClient) throw Error(t('sign.algodClientNotInitialized'))
       const algoClient = await getAlgoClient(sourceChain)
 
       const clientArc200UserSender = getArc200ASAClient({
@@ -234,7 +227,7 @@ const signWithUseWallet = async () => {
         appName: 'asa2arc200Bridge',
         approvalSourceMap: undefined,
         clearSourceMap: undefined,
-        defaultSender: sourceAddress,
+        defaultSender: sender,
         defaultSigner: undefined
       })
       const clientArc200AsaUserSender = getArc200ASAClient({
@@ -243,7 +236,7 @@ const signWithUseWallet = async () => {
         appName: 'asa2arc200Bridge',
         approvalSourceMap: undefined,
         clearSourceMap: undefined,
-        defaultSender: sourceAddress,
+        defaultSender: sender,
         defaultSigner: undefined
       })
 
@@ -258,8 +251,8 @@ const signWithUseWallet = async () => {
         txToSign.push(
           algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
             amount: 0n,
-            sender: sourceAddress,
-            receiver: sourceAddress,
+            sender: sender,
+            receiver: sender,
             suggestedParams: params,
             assetIndex: bridgeToken
           })

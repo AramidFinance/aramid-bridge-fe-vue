@@ -24,6 +24,7 @@ const calculateFeeAndDestinationAmount = () => {
   // an empty or invalid amount (e.g. the input was cleared) has no fee and nothing to receive
   if (!isBaseUnits(store.state.sourceAmount ?? '')) {
     store.state.feeAmount = '0'
+    store.state.feePercentage = 0
     store.state.feeAmountFormatted = formatBaseAmount('0', feeTokenConfiguration.decimals)
     store.state.sourceAmountNet = '0'
     store.state.destinationAmount = '0'

@@ -139,6 +139,8 @@ const applyRoute = async () => {
         // token's configuration
         store.state.arc200BridgeToken = undefined
         store.state.arc200BridgeTokenConfiguration = undefined
+        lastTokenRoute = undefined
+        await navigate({ name: 'arc200-claim' }, true)
         return
       }
       store.state.arc200BridgeAmount = amount

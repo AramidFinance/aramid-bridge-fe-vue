@@ -10,7 +10,7 @@ import { viewAmount } from '@/scripts/common/viewAmount'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
-import { fromBaseUnits, isBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
+import { fromBaseUnits, isBaseUnits, isPositiveBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
 import BigNumber from 'bignumber.js'
 import { useToast } from 'primevue/usetoast'
 import { onMounted, reactive, watch } from 'vue'
@@ -91,7 +91,8 @@ watch(
 watch([() => store.state.sourceAmount, () => store.state.sourceTokenConfiguration], ([amount, config], [, previousConfig]) => {
   if (config && config !== previousConfig) {
     // an amount typed while no token was selected: store it now that its units are known
-    if (!previousConfig && !amount && state.sourceAmount) {
+    // (the store default '0' counts as no amount)
+    if (!previousConfig && !isPositiveBaseUnits(amount) && state.sourceAmount) {
       setAmount()
       return
     }
