@@ -108,11 +108,10 @@ onMounted(async () => {
 })
 
 // one watcher, so that changing several of these at once (e.g. a wallet sync) makes one balance request
-// (the source token is re-resolved only for a new chain: wallet sync changes the address on its own and
-// must not reset the token the user picked)
-watch([() => store.state.sourceChain, () => store.state.sourceAddress, () => store.state.connectedSourceChain], async ([chain], [previousChain]) => {
-  if (chain !== previousChain) fillInState()
-  else updateConnected()
+// (the source token is re-resolved only for a new chain, by the sourceChainConfiguration watcher below:
+// wallet sync changes the address on its own and must not reset the token the user picked)
+watch([() => store.state.sourceChain, () => store.state.sourceAddress, () => store.state.connectedSourceChain], async () => {
+  updateConnected()
   await onSourceAddressChange()
 })
 // separate: fillInState() would reset the selected source token

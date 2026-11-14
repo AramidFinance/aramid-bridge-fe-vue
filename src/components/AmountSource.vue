@@ -50,11 +50,9 @@ const fillInState = () => {
     const routeKey = `${route.params['sourceChain']}/${route.params['sourceToken']}/${amountFromRoute}`
     if (amountFromRoute && routeKey !== appliedRouteAmount) {
       appliedRouteAmount = routeKey
-      // the input and the formatted amount follow the store (watcher below)
+      // the input and the formatted amount follow the store (watcher below); fee, destination amount and
+      // note follow it too (AmountDestination's sourceAmount watcher, and the token watcher below)
       store.state.sourceAmount = amountFromRoute
-      //console.log('state.sourceAmount', new BigNumber(state.sourceAmount).toNumber(), state.sourceAmount)
-      calculateFeeAndDestinationAmount()
-      makeNoteField()
     }
   } catch (e: any) {
     showError(toast, e)

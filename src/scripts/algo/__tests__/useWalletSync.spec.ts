@@ -402,6 +402,7 @@ describe('useWalletNetwork.assertSigner problems', () => {
     manager.activeNetwork.value = 'mainnet'
     expect(() => assertSigner(416001, ADDR_A)).not.toThrow()
     expect(() => assertSigner(416001, undefined)).toThrow('sign.useWalletAddressMismatch')
+    expect(() => assertSigner(416001, ADDR_B)).toThrow(WalletNotUsableError)
     expect(() => assertSigner(416101, ADDR_A)).toThrow('sign.useWalletNotInitialized') // manager on another network
     useActiveWallet(null, null)
     expect(() => assertSigner(416001, ADDR_A)).toThrow('sign.useWalletNotInitialized')
@@ -440,18 +441,6 @@ describe('useWalletSync with a chain that changes while waiting', () => {
     await settle()
     expect(manager.setActiveNetwork).not.toHaveBeenCalledWith('voimain')
     expect(manager.activeNetwork.value).toBe('mainnet')
-  })
-})
-
-describe('useWalletNetwork.assertSigner', () => {
-  it('throws a WalletNotUsableError with the matching message', () => {
-    scope = effectScope()
-    const { assertSigner } = scope.run(() => useWalletNetwork())!
-    useActiveWallet(makeWallet('biatec'), ADDR_A)
-    expect(() => assertSigner(416001, ADDR_A)).not.toThrow()
-    expect(() => assertSigner(416001, ADDR_B)).toThrow(WalletNotUsableError)
-    expect(() => assertSigner(416001, ADDR_B)).toThrow('sign.useWalletAddressMismatch')
-    expect(() => assertSigner(416101, ADDR_A)).toThrow('sign.useWalletNotInitialized')
   })
 })
 
