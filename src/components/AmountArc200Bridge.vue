@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { makeNoteField } from '@/scripts/aramid/makeNoteField'
-import calculateFeeAndDestinationAmount from '@/scripts/common/calculateFeeAndDestinationAmount'
 import formatBaseAmount from '@/scripts/common/formatBaseAmount'
 import { formatTooltip } from '@/scripts/common/formatTooltip'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
@@ -8,9 +6,10 @@ import { viewAmount } from '@/scripts/common/viewAmount'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
-import BigNumber from 'bignumber.js'
+import { fromBaseUnits, maxSendable, rescaleBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
+import { showError } from '@/scripts/common/showError'
 import { useToast } from 'primevue/usetoast'
-import { onMounted, reactive, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import getAlgoAccountARC200TokenBalance from '../scripts/algo/getAlgoAccountARC200TokenBalance'
@@ -24,19 +23,55 @@ const route = useRoute()
 interface IState {
   publicConfiguration: PublicConfigurationRoot | null
   chain: ChainItem
-  arc200BridgeAmount: number
 }
 const state: IState = reactive({
   publicConfiguration: null,
-  chain: store.state.arc200BridgeChainConfiguration as ChainItem,
-  arc200BridgeAmount: 0
+  chain: store.state.arc200BridgeChainConfiguration as ChainItem
 })
+
+// An amount typed while no token is selected: its base units are unknown until a token is picked.
+const pendingAmount = ref<number | ''>('')
+
+/** The amount input: a view of the store's base-unit amount in the selected token's decimals. */
+const amountInput = computed<number | ''>({
+  get: () => {
+    const config = store.state.arc200BridgeTokenConfiguration
+    if (!config) return pendingAmount.value
+    const value = fromBaseUnits(store.state.arc200BridgeAmount, config.decimals)
+    return Number.isNaN(value) ? '' : value
+  },
+  set: (value) => {
+    const config = store.state.arc200BridgeTokenConfiguration
+    if (!config) {
+      pendingAmount.value = value
+      return
+    }
+    // '' for an empty or invalid input
+    const base = toBaseUnits(value, config.decimals)
+    store.state.arc200BridgeAmount = base
+    // more fraction digits than the token has were cut off: show what will be bridged (the computed value
+    // may not change, so the input is not re-rendered by itself)
+    const shown = fromBaseUnits(base, config.decimals)
+    if (base && !Number.isNaN(shown) && shown !== value) {
+      nextTick(() => {
+        if (amountInputEl.value) amountInputEl.value.value = String(shown)
+      })
+    }
+  }
+})
+const amountInputEl = ref<HTMLInputElement | null>(null)
 
 onMounted(async () => {
   state.publicConfiguration = await getPublicConfiguration(false)
   await fillInState()
 })
+// token/address can change while balance requests are in flight: only the latest call writes balances
+let balanceRequestId = 0
 const fillInState = async () => {
+  const requestId = ++balanceRequestId
+  // balances of the previous token/address must not be shown or used by Max meanwhile
+  store.state.arc200BridgeAddressARC200Balance = undefined
+  store.state.arc200BridgeAddressASABalance = undefined
   try {
     if (!state.publicConfiguration) return
     if (!store.state.arc200BridgeTokenConfiguration) return
@@ -44,59 +79,52 @@ const fillInState = async () => {
     const arc200Token = store.state.arc200BridgeTokenConfiguration.arc200TokenId ?? store.state.arc200BridgeTokenConfiguration.optionalArc200TokenId
     if (!arc200Token) return
 
-    if (route && route.params && route.params['amount']) {
-      store.state.arc200BridgeAmount = route.params['amount'] as string
-      store.state.arc200BridgeAmountFormatted = formatBaseAmount(store.state.arc200BridgeAmount, store.state.arc200BridgeTokenConfiguration.decimals)
-      state.arc200BridgeAmount = new BigNumber(store.state.arc200BridgeAmount).toNumber() / 10 ** store.state.arc200BridgeTokenConfiguration.decimals
-      //console.log('state.arc200BridgeAmount', new BigNumber(state.arc200BridgeAmount).toNumber(), state.arc200BridgeAmount)
-    }
-
     if (!store.state.arc200BridgeAddress) return
     if (!store.state.arc200BridgeChain) return
-    const balanceArc200 = await getAlgoAccountARC200TokenBalance(store.state.arc200BridgeChain, store.state.arc200BridgeAddress, arc200Token)
+    const [balanceArc200, balanceASA] = await Promise.all([
+      getAlgoAccountARC200TokenBalance(store.state.arc200BridgeChain, store.state.arc200BridgeAddress, arc200Token),
+      getAlgoAccountTokenBalance(store.state.arc200BridgeChain, store.state.arc200BridgeAddress, BigInt(store.state.arc200BridgeToken))
+    ])
+    if (requestId !== balanceRequestId) return
     store.state.arc200BridgeAddressARC200Balance = balanceArc200?.toString() || '0'
-
-    const balanceASA = await getAlgoAccountTokenBalance(store.state.arc200BridgeChain, store.state.arc200BridgeAddress, BigInt(store.state.arc200BridgeToken))
     store.state.arc200BridgeAddressASABalance = balanceASA?.toString() || '0'
   } catch (e: any) {
-    console.error(e)
-    toast.add({
-      severity: 'error',
-      detail: e.message ?? e,
-      life: 3000
-    })
+    if (requestId === balanceRequestId) showError(toast, e)
   }
-}
-
-const setAmount = () => {
-  if (!store.state.arc200BridgeTokenConfiguration) return
-
-  const base = new BigNumber(state.arc200BridgeAmount).multipliedBy(new BigNumber(10).pow(store.state.arc200BridgeTokenConfiguration.decimals)).toFixed(0, 1)
-  store.state.arc200BridgeAmount = base
-  store.state.arc200BridgeAmountFormatted = formatBaseAmount(base, store.state.arc200BridgeTokenConfiguration.decimals)
-  //console.log('store.state.arc200BridgeAmount', store.state.arc200BridgeAmount)
 }
 
 watch(
-  () => state.arc200BridgeAmount,
-  () => {
-    setAmount()
-  }
+  [() => store.state.arc200BridgeAmount, () => store.state.arc200BridgeTokenConfiguration],
+  ([amount, config]) => {
+    store.state.arc200BridgeAmountFormatted = amount && config ? formatBaseAmount(amount, config.decimals) : ''
+  },
+  { immediate: true }
 )
+// A token change keeps the amount the user sees, converted once to the new token's base units. It runs
+// synchronously, so an amount the page writes from the route right after selecting a token wins.
 watch(
   () => store.state.arc200BridgeTokenConfiguration,
-  async () => {
+  async (config, previous) => {
+    if (config && previous) {
+      if (store.state.arc200BridgeAmount && config.decimals !== previous.decimals) {
+        store.state.arc200BridgeAmount = rescaleBaseUnits(store.state.arc200BridgeAmount, previous.decimals, config.decimals)
+      }
+    } else if (config) {
+      // the first token after none: apply the amount typed meanwhile (an amount left in unknown units is dropped)
+      store.state.arc200BridgeAmount = toBaseUnits(pendingAmount.value, config.decimals)
+      pendingAmount.value = ''
+    } else if (previous) {
+      // the token was dropped: keep showing the amount until the next token is picked
+      const shown = fromBaseUnits(store.state.arc200BridgeAmount, previous.decimals)
+      pendingAmount.value = Number.isNaN(shown) ? '' : shown
+      store.state.arc200BridgeAmount = ''
+    }
     await fillInState()
-  }
+  },
+  { flush: 'sync' }
 )
 watch(
   () => store.state.arc200BridgeAddress,
-  async () => {
-    await fillInState()
-  }
-)
-watch(
-  () => store.state.arc200BridgeToken,
   async () => {
     await fillInState()
   }
@@ -110,22 +138,11 @@ watch(
 
 const setMax = () => {
   if (!store.state.arc200BridgeTokenConfiguration) return
-  if (store.state.arc200BridgeDirection === 'ASAToARC200') {
-    if (store.state.arc200BridgeToken === '0') {
-      // on AVM make sure we deduct the tx fee
-      store.state.arc200BridgeAmount = new BigNumber(store.state.arc200BridgeAddressASABalance ?? '101000').minus(101000).toFixed(0, 1)
-    } else {
-      store.state.arc200BridgeAmount = store.state.arc200BridgeAddressASABalance || '0'
-    }
-  } else {
-    store.state.arc200BridgeAmount = store.state.arc200BridgeAddressARC200Balance || '0'
-  }
-
-  store.state.arc200BridgeAmountFormatted = formatBaseAmount(store.state.arc200BridgeAmount, store.state.arc200BridgeTokenConfiguration.decimals)
-
-  state.arc200BridgeAmount = new BigNumber(store.state.arc200BridgeAmount).toNumber() / 10 ** store.state.arc200BridgeTokenConfiguration.decimals
-  calculateFeeAndDestinationAmount()
-  makeNoteField()
+  // balances are being (re)loaded: there is no maximum yet
+  const balance = store.state.arc200BridgeDirection === 'ASAToARC200' ? store.state.arc200BridgeAddressASABalance : store.state.arc200BridgeAddressARC200Balance
+  if (balance === undefined) return
+  // the native token keeps the fee reserve (only an ASA side can be the native token)
+  store.state.arc200BridgeAmount = maxSendable(balance, store.state.arc200BridgeDirection === 'ASAToARC200' && store.state.arc200BridgeToken === '0')
 }
 </script>
 <template>
@@ -141,7 +158,8 @@ const setMax = () => {
           max="1000000000"
           step="0.00001"
           class="bg-transparent placeholder-current text-2xl font-bold rounded-[2px] focus:outline-none text-center w-full border-b-2 border-indigo-500/50"
-          v-model="state.arc200BridgeAmount"
+          ref="amountInputEl"
+          v-model="amountInput"
         />
         <div
           v-if="store.state.arc200BridgeAddress"

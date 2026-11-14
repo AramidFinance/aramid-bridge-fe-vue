@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CHAIN_ID_VOI } from '@/scripts/common/chainIds'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
@@ -29,7 +30,7 @@ const state: IState = reactive({
 const displayedChains = computed(() => {
   if (!state.chains) return null
   if (props.arc200TokensOnly) {
-    return state.chains.filter((chain) => chain.type === 'algo' && chain.chainId === 416101) // only voi atm
+    return state.chains.filter((chain) => chain.type === 'algo' && chain.chainId === CHAIN_ID_VOI) // only voi atm
   }
   return state.chains
 })

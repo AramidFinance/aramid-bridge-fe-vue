@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { isWalletForChain } from '@/scripts/algo/isWalletForChain'
+import { useWalletNetwork } from '@/scripts/algo/useWalletSync'
+import { sourceWalletSlot } from '@/scripts/algo/walletSlots'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
@@ -15,31 +17,24 @@ import WalletButton from '../ui/WalletButton.vue'
 
 const toast = useToast()
 
-const { wallets, activeWallet, activeAccount } = useWallet()
+const useWalletState = useWallet()
+const { wallets } = useWalletState
+const { connectAndBind } = useWalletNetwork(useWalletState)
 
 const store = useAppStore()
+const slot = sourceWalletSlot(store)
 
+// one connect at a time (a double click would start two connects/pairings)
+let connecting = false
 const walletButtonClick = async (wallet: Wallet) => {
-  console.log('source.wallet', wallet, activeWallet, activeAccount)
-  await wallet.connect()
-  console.log('source.wallet2', wallet, activeWallet.value, activeAccount.value)
-  if (activeAccount.value?.address) {
-    store.state.sourceAddress = activeAccount.value?.address
-    store.state.sourceAlgoConnectorType = AlgoConnectorType.UseWallet
-    store.state.connectedSourceChain = store.state.sourceChain
+  if (connecting) return
+  connecting = true
+  try {
+    // keep the picker open when connecting failed, so another wallet can be picked
+    if (await connectAndBind(wallet, slot)) store.state.dialogSelectSourceWalletIsOpen = false
+  } finally {
+    connecting = false
   }
-  // else {
-  //   if (wallet.accounts.length > 0) {
-  //     console.log('setting active account to first account', wallet.accounts[0].address)
-  //     await wallet.setActive()
-  //     await wallet.setActiveAccount(wallet.accounts[0].address)
-
-  //     store.state.sourceAddress = wallet.accounts[0].address
-  //     store.state.sourceAlgoConnectorType = AlgoConnectorType.UseWallet
-  //     store.state.connectedSourceChain = store.state.sourceChain
-  //   }
-  // }
-  store.state.dialogSelectSourceWalletIsOpen = false
 }
 const qrPaymentClick = () => {
   try {

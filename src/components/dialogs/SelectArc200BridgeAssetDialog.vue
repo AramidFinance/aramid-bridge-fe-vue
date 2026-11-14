@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { CHAIN_ID_VOI } from '@/scripts/common/chainIds'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import { fillArc200BridgeTokenConfiguration } from '@/scripts/events/fillArc200BridgeTokenConfiguration'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
@@ -34,7 +35,6 @@ const popularTokenSymbols = ['USDC', 'ETH', 'BTC', 'ALGO', 'VOI', 'WBTC', 'cbBTC
 // Special tokens that should be ignored
 // TODO: migrate to public configuration
 const specialTokens = ['UNIT Classic']
-const CHAIN_ID_VOI = 416101
 
 // Computed property for filtered tokens based on search
 const filteredAssets = computed(() => {
@@ -74,39 +74,21 @@ const fillInState = () => {
   if (!state.publicConfiguration) return
   if (!store.state.arc200BridgeChain) return
 
-  // if there is a route between source and destination chain, filter the assets to only include the allowed routes
-  if (
-    state.publicConfiguration.chains2tokens[store.state.arc200BridgeChain.toString()] &&
-    state.publicConfiguration.chains2tokens[store.state.arc200BridgeChain.toString()][store.state.arc200BridgeChain.toString()]
-  ) {
-    // voi source chain specific override
-    if (store.state.arc200BridgeChain === CHAIN_ID_VOI) {
-      state.assets = Object.values(state.publicConfiguration.chains[store.state.arc200BridgeChain.toString()].tokens)
-        .filter((asset) => !specialTokens.includes(asset.name))
-        .filter((c) => c.arc200TokenId !== undefined || c.optionalArc200TokenId !== undefined)
-    }
-    // default behavior config driven
-    else {
-      const allowedRoutes = Object.keys(state.publicConfiguration.chains2tokens[store.state.arc200BridgeChain.toString()][store.state.arc200BridgeChain.toString()])
-      state.assets = Object.values(state.publicConfiguration.chains[store.state.arc200BridgeChain.toString()].tokens)
-        .filter((c) => allowedRoutes.includes(c.tokenId))
-        .filter((c) => c.arc200TokenId !== undefined || c.optionalArc200TokenId !== undefined)
-    }
-  }
-  // if there is no route between source and destination chain, show all assets
-  else {
-    // voi source chain specific override
-    if (store.state.arc200BridgeChain === CHAIN_ID_VOI) {
-      state.assets = Object.values(state.publicConfiguration.chains[store.state.arc200BridgeChain.toString()].tokens)
-        .filter((asset) => !specialTokens.includes(asset.name))
-        .filter((c) => c.arc200TokenId !== undefined || c.optionalArc200TokenId !== undefined)
-    }
-    // default behavior config driven
-    else {
-      state.assets = Object.values(state.publicConfiguration.chains[store.state.arc200BridgeChain.toString()].tokens).filter(
-        (c) => c.arc200TokenId !== undefined || c.optionalArc200TokenId !== undefined
-      )
-    }
+  // arc200-capable tokens of the selected chain (none for a chain without configuration)
+  const chainTokens = Object.values(state.publicConfiguration.chains[store.state.arc200BridgeChain.toString()]?.tokens ?? {}).filter(
+    (c) => c.arc200TokenId !== undefined || c.optionalArc200TokenId !== undefined
+  )
+  const routes = state.publicConfiguration.chains2tokens[store.state.arc200BridgeChain.toString()]?.[store.state.arc200BridgeChain.toString()]
+  if (store.state.arc200BridgeChain === CHAIN_ID_VOI) {
+    // voi specific override
+    state.assets = chainTokens.filter((asset) => !specialTokens.includes(asset.name))
+  } else if (routes) {
+    // only the tokens with a route on this chain
+    const allowedRoutes = Object.keys(routes)
+    state.assets = chainTokens.filter((c) => allowedRoutes.includes(c.tokenId))
+  } else {
+    // no route configured: show all arc200 tokens
+    state.assets = chainTokens
   }
   console.log('sourceChain', store.state.arc200BridgeChain)
   console.log('destinationChain', store.state.arc200BridgeChain)
