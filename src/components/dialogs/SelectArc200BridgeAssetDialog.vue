@@ -74,7 +74,6 @@ const fillInState = () => {
   if (!state.publicConfiguration) return
   if (!store.state.arc200BridgeChain) return
 
-  // if there is a route between source and destination chain, filter the assets to only include the allowed routes
   // arc200-capable tokens of the selected chain (none for a chain without configuration)
   const chainTokens = Object.values(state.publicConfiguration.chains[store.state.arc200BridgeChain.toString()]?.tokens ?? {}).filter(
     (c) => c.arc200TokenId !== undefined || c.optionalArc200TokenId !== undefined

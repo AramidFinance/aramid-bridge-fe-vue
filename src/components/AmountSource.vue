@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { showError } from '@/scripts/common/showError'
 import { routeSourceAmount } from '@/scripts/common/routeSourceAmount'
 import { makeNoteField } from '@/scripts/aramid/makeNoteField'
 import calculateFeeAndDestinationAmount from '@/scripts/common/calculateFeeAndDestinationAmount'
@@ -37,13 +38,18 @@ onMounted(async () => {
   state.publicConfiguration = await getPublicConfiguration(false)
   fillInState()
 })
+// the URL amount last applied (chain/token/amount): a URL amount is applied once, so re-selecting the
+// URL's token later does not overwrite an amount typed since
+let appliedRouteAmount: string | undefined
 const fillInState = () => {
   try {
     if (!state.publicConfiguration) return
     if (!store.state.sourceTokenConfiguration) return
     // the route's amount is in base units of the route's token: apply it only while that token is selected
     const amountFromRoute = routeSourceAmount(route, store.state.sourceTokenConfiguration.name, store.state.sourceChainConfiguration?.name)
-    if (amountFromRoute) {
+    const routeKey = `${route.params['sourceChain']}/${route.params['sourceToken']}/${amountFromRoute}`
+    if (amountFromRoute && routeKey !== appliedRouteAmount) {
+      appliedRouteAmount = routeKey
       // the input and the formatted amount follow the store (watcher below)
       store.state.sourceAmount = amountFromRoute
       //console.log('state.sourceAmount', new BigNumber(state.sourceAmount).toNumber(), state.sourceAmount)
@@ -51,12 +57,7 @@ const fillInState = () => {
       makeNoteField()
     }
   } catch (e: any) {
-    console.error(e)
-    toast.add({
-      severity: 'error',
-      detail: e.message ?? e,
-      life: 3000
-    })
+    showError(toast, e)
   }
 }
 
@@ -98,26 +99,9 @@ watch([() => store.state.sourceAmount, () => store.state.sourceTokenConfiguratio
   store.state.sourceAmountFormatted = formatBaseAmount(amount, config.decimals)
   if (shown !== state.sourceAmount) state.sourceAmount = shown
 })
-watch(
-  () => store.state.sourceTokenConfiguration,
-  () => {
-    fillInState()
-  }
-)
-// (no re-apply on an address change: wallet sync changes the address on its own, and the route's
-// amount would overwrite the amount the user typed)
-watch(
-  () => store.state.sourceToken,
-  () => {
-    fillInState()
-  }
-)
-watch(
-  () => route.params?.sourceAmount,
-  () => {
-    fillInState()
-  }
-)
+// one watcher for what makes a URL amount applicable (no re-apply on an address change: wallet sync
+// changes the address on its own)
+watch([() => store.state.sourceTokenConfiguration, () => route.params?.sourceAmount], () => fillInState())
 const setMax = () => {
   if (!store.state.sourceAddressBalance) return
   if (!store.state.sourceTokenConfiguration) return

@@ -240,7 +240,6 @@
     "pleaseWait": "Počas spracovania transakcie prosím čakajte.",
     "useWalletNotInitialized": "Konektor UseWallet nie je správne inicializovaný.",
     "useWalletAddressMismatch": "Aktívny účet peňaženky nezodpovedá zdrojovej adrese. Znovu pripojte zdrojovú peňaženku.",
-    "claimNotAvailableOnChain": "Nárokovanie nie je pre {chain} dostupné.",
     "useWalletNotAllSigned": "Peňaženka nepodpísala všetky transakcie.",
     "useWalletSubmitUncertain": "Odoslanie transakcie zlyhalo, ale mohla byť napriek tomu prijatá. Pred začatím nového prevodu skontrolujte históriu peňaženky.",
     "algodClientNotInitialized": "Algod klient nie je inicializovaný.",

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import formatBaseAmount from '@/scripts/common/formatBaseAmount'
 import { rescaleBaseUnits } from '@/scripts/common/baseUnits'
 import { CHAIN_ID_VOI } from '@/scripts/common/chainIds'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'

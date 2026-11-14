@@ -376,7 +376,8 @@ const claimButtonClick = async () => {
   console.log('claimButtonClick')
   try {
     const network = getUseWalletNetworkId(store.state.destinationChain)
-    if (!network) throw Error(t('sign.claimNotAvailableOnChain', { chain: store.state.destinationChainConfiguration?.name ?? '' }))
+    // the claim button is shown for Voi destinations only, which always have a use-wallet network
+    if (!network) return
     router.push({
       name: 'arc200-claim-t',
       params: {
