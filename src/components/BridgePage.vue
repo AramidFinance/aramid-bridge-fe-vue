@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { routeSourceAmount } from '@/scripts/common/routeSourceAmount'
+import { isPositiveBaseUnits } from '@/scripts/common/baseUnits'
 import { makeNoteField } from '@/scripts/aramid/makeNoteField'
 import calculateFeeAndDestinationAmount from '@/scripts/common/calculateFeeAndDestinationAmount'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
@@ -154,7 +156,7 @@ const doValidation = (): boolean => {
       throw Error(t('bridge.selectSourceAsset'))
     } else if (!store.state.destinationToken) {
       throw Error(t('bridge.selectDestinationAsset'))
-    } else if (new BigNumber(store.state.sourceAmount).lte(0) || store.state.sourceAmount === 'NaN') {
+    } else if (!isPositiveBaseUnits(store.state.sourceAmount)) {
       throw Error(t('bridge.amountZero'))
     } else if (!store.state.sourceAddressBalance || new BigNumber(store.state.sourceAmount).gt(new BigNumber(store.state.sourceAddressBalance))) {
       throw Error(t('bridge.amountGreaterThanBalance'))
@@ -285,8 +287,10 @@ onMounted(async () => {
   if (!store.state.destinationChain) fillDestinationChainConfiguration()
   resetSourceTokenIfNotMatched()
   if (!store.state.sourceToken) fillSourceTokenConfiguration()
-  if (route.params['sourceAmount']) {
-    store.state.sourceAmount = route.params['sourceAmount'] as string
+  // the route's amount is in base units of the route's token: apply it only while that token is selected
+  const amountFromRoute = routeSourceAmount(route, store.state.sourceTokenConfiguration?.name, store.state.sourceChainConfiguration?.name)
+  if (amountFromRoute) {
+    store.state.sourceAmount = amountFromRoute
     calculateFeeAndDestinationAmount()
   }
   if (route.params['note']) {

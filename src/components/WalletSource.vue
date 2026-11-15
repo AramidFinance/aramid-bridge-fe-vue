@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { showError } from '@/scripts/common/showError'
 import SelectSourceWalletAlgoDialog from './dialogs/SelectSourceWalletAlgoDialog.vue'
 import SimpleLabel from './ui/SimpleLabel.vue'
 
@@ -14,7 +15,8 @@ import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
-import { NetworkId, useNetwork, useWallet } from '@txnlab/use-wallet-vue'
+import { useWalletSync } from '@/scripts/algo/useWalletSync'
+import { sourceWalletSlot } from '@/scripts/algo/walletSlots'
 import { useAppKitAccount, useAppKitNetwork, useDisconnect } from '@reown/appkit/vue'
 import { useToast } from 'primevue/usetoast'
 import { onMounted, reactive, watch } from 'vue'
@@ -23,13 +25,11 @@ import RoundButton from './ui/RoundButton.vue'
 import WalletAddress from './ui/WalletAddress.vue'
 
 const { t } = useI18n()
-const wallet = useWallet()
-const { activeWallet, activeAccount } = wallet
-
-const network = useNetwork()
-
 const toast = useToast()
 const store = useAppStore()
+
+const slot = sourceWalletSlot(store)
+const { disconnect } = useWalletSync(slot)
 
 interface IState {
   connected: boolean
@@ -41,82 +41,60 @@ const state: IState = reactive({
   chain: store.state.sourceChainConfiguration as ChainItem
 })
 
+const updateConnected = () => {
+  state.connected = !!store.state.connectedSourceChain && !!store.state.sourceAddress
+}
 const fillInState = () => {
   try {
     fillSourceTokenConfiguration()
-    state.connected = !!store.state.connectedSourceChain && !!store.state.sourceAddress
+    updateConnected()
   } catch (e: any) {
-    console.error(e)
-    toast.add({
-      severity: 'error',
-      detail: e.message ?? e,
-      life: 3000
-    })
+    showError(toast, e)
   }
 }
 
+// address/chain/token can change while a balance request is in flight (e.g. wallet sync): only the
+// latest request may write the balance, and any newer call clears the loading flag of older ones
+let balanceRequestId = 0
 const onSourceAddressChange = async () => {
+  const requestId = ++balanceRequestId
+  const isCurrent = () => requestId === balanceRequestId
+  store.state.loadingSourceAddressBalance = false
   try {
     // refresh balance of source account
     if (!store.state.sourceChain) return
     if (!store.state.sourceChainConfiguration) return
     if (!store.state.sourceAddress) return
     if (!store.state.sourceTokenConfiguration) return
-    const sourceChainConfiguration = store.state.sourceChainConfiguration
-    const { name: sourceChainName } = sourceChainConfiguration
+    // captured: the store can change while a balance request is in flight
+    const { sourceChain, sourceAddress, sourceToken } = store.state
+    const { name: sourceChainName, type: sourceChainType } = store.state.sourceChainConfiguration
     const sourceTokenConfig = store.state.sourceTokenConfiguration
     const { type: sourceTokenType } = sourceTokenConfig
     console.log('sourceTokenType', sourceTokenType)
     console.log('sourceTokenConfig', sourceTokenConfig)
+    let balance: { toString: () => string } | null = null
     if (sourceTokenType == 'algo') {
-      switch (sourceChainName) {
-        case 'Voi': {
-          if (sourceTokenConfig?.arc200TokenId) {
-            const balance = await getAlgoAccountARC200TokenBalance(store.state.sourceChain, store.state.sourceAddress, Number(sourceTokenConfig?.arc200TokenId))
-            if (balance !== null) {
-              store.state.sourceAddressBalance = balance.toString()
-              store.state.loadingSourceAddressBalance = false
-              //console.log('onSourceAddressChange.balance', store.state.sourceAddressBalance, store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
-            }
-          } else {
-            store.state.loadingSourceAddressBalance = true
-            const balance = await getAlgoAccountTokenBalance(store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
-            if (balance !== null) {
-              store.state.sourceAddressBalance = balance.toString()
-              store.state.loadingSourceAddressBalance = false
-              //console.log('onSourceAddressChange.balance', store.state.sourceAddressBalance, store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
-            }
-          }
-          break
-        }
-        default: {
-          store.state.loadingSourceAddressBalance = true
-          const balance = await getAlgoAccountTokenBalance(store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
-          if (balance !== null) {
-            store.state.sourceAddressBalance = balance.toString()
-            store.state.loadingSourceAddressBalance = false
-            //console.log('onSourceAddressChange.balance', store.state.sourceAddressBalance, store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
-          }
-        }
+      if (sourceChainName == 'Voi' && sourceTokenConfig?.arc200TokenId) {
+        balance = await getAlgoAccountARC200TokenBalance(sourceChain, sourceAddress, Number(sourceTokenConfig.arc200TokenId))
+      } else {
+        store.state.loadingSourceAddressBalance = true
+        balance = await getAlgoAccountTokenBalance(sourceChain, sourceAddress, Number(sourceToken))
       }
     }
-    if (store.state.sourceChainConfiguration.type == 'eth' && store.state.sourceToken) {
+    if (sourceChainType == 'eth' && sourceToken && isCurrent()) {
       store.state.loadingSourceAddressBalance = true
-      const balance = await getEthAccountTokenBalance(store.state.sourceChain, store.state.sourceAddress, store.state.sourceToken)
-      if (balance !== null) {
-        store.state.sourceAddressBalance = balance.toString()
-        store.state.loadingSourceAddressBalance = false
-        //console.log('onSourceAddressChange.balance', store.state.sourceAddressBalance, store.state.sourceChain, store.state.sourceAddress, Number(store.state.sourceToken))
-      }
+      balance = await getEthAccountTokenBalance(sourceChain, sourceAddress, sourceToken)
+    }
+    // only the latest request may write the balance
+    if (balance !== null && isCurrent()) {
+      store.state.sourceAddressBalance = balance.toString()
+      store.state.loadingSourceAddressBalance = false
     }
   } catch (e: any) {
+    if (!isCurrent()) return false
     store.state.loadingSourceAddressBalance = false
-    console.error(e)
-    toast.add({
-      severity: 'error',
-      detail: e.message,
-      life: 3000
-    })
+    showError(toast, e)
     return false
   }
 }
@@ -124,94 +102,39 @@ const onSourceAddressChange = async () => {
 onMounted(async () => {
   state.publicConfiguration = await getPublicConfiguration(false)
   fillInState()
-  //console.log('WalletSource.activeAccount.value', activeWallet.value, activeAccount.value)
-
-  if (store.state.sourceChainConfiguration?.type == 'algo' && activeWallet.value && activeAccount.value?.address) {
-    store.state.sourceAddress = activeAccount.value?.address
-    store.state.sourceAlgoConnectorType = AlgoConnectorType.UseWallet
-    store.state.connectedSourceChain = store.state.sourceChain
-  }
   if (store.state.sourceAddress) {
     onSourceAddressChange()
   }
 })
 
-watch(
-  () => store.state.sourceChain,
-  async () => {
-    fillInState()
-    await onSourceAddressChange()
-  }
-)
-watch(
-  () => store.state.sourceAddress,
-  async () => {
-    fillInState()
-    await onSourceAddressChange()
-  }
-)
-
-watch(
-  () => store.state.sourceChainConfiguration,
-  () => {
-    fillInState()
-    if (store.state.sourceChainConfiguration?.type == 'algo') {
-      //console.log('setActiveNetwork', store.state.sourceChainConfiguration.name)
-      switch (store.state.sourceChainConfiguration.name) {
-        case 'Algorand':
-          network.setActiveNetwork(NetworkId.MAINNET)
-          break
-        case 'Testnet':
-          network.setActiveNetwork(NetworkId.TESTNET)
-          break
-        case 'AramidChain':
-          network.setActiveNetwork('aramidmain')
-          break
-        case 'Voi':
-          network.setActiveNetwork('voimain')
-          break
-      }
-    }
-  }
-)
-
-watch(
-  () => store.state.connectedSourceChain,
-  async () => {
-    fillInState()
-    await onSourceAddressChange()
-  }
-)
+// one watcher, so that changing several of these at once (e.g. a wallet sync) makes one balance request
+// (the source token is re-resolved only for a new chain, by the sourceChainConfiguration watcher below:
+// wallet sync changes the address on its own and must not reset the token the user picked)
+watch([() => store.state.sourceChain, () => store.state.sourceAddress, () => store.state.connectedSourceChain], async () => {
+  updateConnected()
+  await onSourceAddressChange()
+})
+// separate: fillInState() would reset the selected source token
 watch(
   () => store.state.sourceToken,
   async () => {
     await onSourceAddressChange()
   }
 )
+
+watch(
+  () => store.state.sourceChainConfiguration,
+  async () => {
+    fillInState()
+    // the balance request started for the new chain used the previous token configuration
+    await onSourceAddressChange()
+  }
+)
+
 const buttonClick = async () => {
   if (store.state.sourceChainConfiguration?.type == 'algo') {
     if (state.connected) {
-      // disconnect
-      switch (store.state.sourceAlgoConnectorType) {
-        case AlgoConnectorType.QRCode:
-          store.state.connectedSourceChain = undefined
-          store.state.sourceAddress = ''
-          break
-        case AlgoConnectorType.UseWallet:
-          store.state.connectedSourceChain = undefined
-          store.state.sourceAddress = ''
-          try {
-            activeWallet.value?.disconnect()
-          } catch (e: any) {
-            console.error(e)
-            toast.add({
-              severity: 'error',
-              detail: e.message ?? e,
-              life: 3000
-            })
-          }
-          break
-      }
+      await disconnect()
     } else {
       store.state.dialogSelectSourceWalletIsOpen = true
     }
@@ -223,8 +146,7 @@ const buttonClick = async () => {
       const { disconnect } = useDisconnect()
       disconnect()
 
-      store.state.connectedSourceChain = undefined
-      store.state.sourceAddress = ''
+      slot.disconnect()
     } else {
       const modal = getAppKit()
       const account = useAppKitAccount()

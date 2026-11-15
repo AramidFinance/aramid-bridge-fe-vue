@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { showError } from '@/scripts/common/showError'
 import SelectArc200BridgeWalletAlgoDialog from './dialogs/SelectArc200BridgeWalletAlgoDialog.vue'
 import SimpleLabel from './ui/SimpleLabel.vue'
 
@@ -10,7 +11,8 @@ import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
-import { NetworkId, useNetwork, useWallet } from '@txnlab/use-wallet-vue'
+import { useWalletSync } from '@/scripts/algo/useWalletSync'
+import { arc200BridgeWalletSlot } from '@/scripts/algo/walletSlots'
 import { useAppKitAccount, useAppKitNetwork, useDisconnect } from '@reown/appkit/vue'
 import { useToast } from 'primevue/usetoast'
 import { onMounted, reactive, watch } from 'vue'
@@ -19,13 +21,11 @@ import RoundButton from './ui/RoundButton.vue'
 import WalletAddress from './ui/WalletAddress.vue'
 
 const { t } = useI18n()
-const wallet = useWallet()
-const { activeWallet, activeAccount } = wallet
-
-const network = useNetwork()
-
 const toast = useToast()
 const store = useAppStore()
+
+const slot = arc200BridgeWalletSlot(store)
+const { disconnect } = useWalletSync(slot)
 
 interface IState {
   connected: boolean
@@ -41,25 +41,13 @@ const fillInState = () => {
   try {
     state.connected = !!store.state.connectedArc200BridgeChain && !!store.state.arc200BridgeAddress
   } catch (e: any) {
-    console.error(e)
-    toast.add({
-      severity: 'error',
-      detail: e.message ?? e,
-      life: 3000
-    })
+    showError(toast, e)
   }
 }
 
 onMounted(async () => {
   state.publicConfiguration = await getPublicConfiguration(false)
   fillInState()
-  //console.log('WalletSource.activeAccount.value', activeWallet.value, activeAccount.value)
-
-  if (store.state.arc200BridgeChainConfiguration?.type == 'algo' && activeWallet.value && activeAccount.value?.address) {
-    store.state.arc200BridgeAddress = activeAccount.value?.address
-    store.state.arc200BridgeAlgoConnectorType = AlgoConnectorType.UseWallet
-    store.state.connectedArc200BridgeChain = store.state.arc200BridgeChain
-  }
 })
 
 watch(
@@ -79,23 +67,6 @@ watch(
   () => store.state.arc200BridgeChainConfiguration,
   () => {
     fillInState()
-    if (store.state.arc200BridgeChainConfiguration?.type == 'algo') {
-      //console.log('setActiveNetwork', store.state.arc200BridgeChainConfiguration.name)
-      switch (store.state.arc200BridgeChainConfiguration.name) {
-        case 'Algorand':
-          network.setActiveNetwork(NetworkId.MAINNET)
-          break
-        case 'Testnet':
-          network.setActiveNetwork(NetworkId.TESTNET)
-          break
-        case 'AramidChain':
-          network.setActiveNetwork('aramidmain')
-          break
-        case 'Voi':
-          network.setActiveNetwork('voimain')
-          break
-      }
-    }
   }
 )
 
@@ -108,27 +79,7 @@ watch(
 const buttonClick = async () => {
   if (store.state.arc200BridgeChainConfiguration?.type == 'algo') {
     if (state.connected) {
-      // disconnect
-      switch (store.state.arc200BridgeAlgoConnectorType) {
-        case AlgoConnectorType.QRCode:
-          store.state.connectedArc200BridgeChain = undefined
-          store.state.arc200BridgeAddress = ''
-          break
-        case AlgoConnectorType.UseWallet:
-          store.state.connectedArc200BridgeChain = undefined
-          store.state.arc200BridgeAddress = ''
-          try {
-            activeWallet.value?.disconnect()
-          } catch (e: any) {
-            console.error(e)
-            toast.add({
-              severity: 'error',
-              detail: e.message ?? e,
-              life: 3000
-            })
-          }
-          break
-      }
+      await disconnect()
     } else {
       store.state.dialogSelectArc200BridgeWalletIsOpen = true
     }
@@ -140,8 +91,7 @@ const buttonClick = async () => {
       const { disconnect } = useDisconnect()
       disconnect()
 
-      store.state.connectedArc200BridgeChain = undefined
-      store.state.arc200BridgeAddress = ''
+      slot.disconnect()
     } else {
       const modal = getAppKit()
       const account = useAppKitAccount()

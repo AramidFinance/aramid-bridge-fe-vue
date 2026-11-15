@@ -13,11 +13,13 @@ import { useAppStore } from '@/stores/app'
 import { populateAppCallResources } from '@algorandfoundation/algokit-utils'
 import { AlgoAmount } from '@algorandfoundation/algokit-utils/types/amount'
 import { TransactionComposer } from '@algorandfoundation/algokit-utils/types/composer'
+import { getUseWalletNetworkId, useWalletNetwork, WalletNotUsableError } from '@/scripts/algo/useWalletSync'
+import { isDefinitelyRejected } from '@/scripts/algo/sendOutcome'
+import { showError } from '@/scripts/common/showError'
 import { useWallet } from '@txnlab/use-wallet-vue'
 import algosdk, { Address } from 'algosdk'
 import { type Arc200ExchangeInfo, getArc200ASAClient } from 'arc200-client'
 import { useWallet as useAvmWallet } from 'avm-wallet-vue'
-import { BigNumber } from 'bignumber.js'
 import { useToast } from 'primevue/usetoast'
 import QRCodeVue3 from 'qrcode-vue3'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
@@ -39,8 +41,14 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const { t } = useI18n()
-const { activeWallet, signTransactions: useWalletSignTransactions } = useWallet()
+const useWalletState = useWallet()
+const { activeWallet } = useWalletState
+const { assertSigner, signAs, switchToChain } = useWalletNetwork(useWalletState)
 useAvmWallet()
+
+const routeToBridgeScreen = () => {
+  router.push({ name: 'bridge-sc-dc-st-dt-sa-da-a-n' })
+}
 
 const routeToReviewScreen = () => {
   console.log('routeToReviewScreen')
@@ -107,9 +115,11 @@ onMounted(async () => {
   if (!store.state.publicConfiguration || !store.state.sourceAmount) {
     // route back to bridge screen
     routeToReviewScreen()
+    return
   }
   if (store.state.sourceChainConfiguration?.type == 'algo' && !store.state.sourceTxNote) {
     routeToReviewScreen()
+    return
   }
 
   // // Add check for destination wallet connection when bridging to Voi with unitAppId
@@ -139,41 +149,77 @@ onMounted(async () => {
 const dummyTransactionSigner = async (_txnGroup: algosdk.Transaction[], _indexesToSign: number[]): Promise<Uint8Array[]> => {
   return [] as Uint8Array[]
 }
+/**
+ * Outcome of the automatic use-wallet signing when it did not produce a bridge transaction:
+ * - retry: failed before anything was sent, signing again here can help
+ * - reconnect: the origin wallet/data is not usable here, the user has to reconnect on the bridge screen
+ */
+const useWalletSignOutcome = ref<'retry' | 'reconnect' | undefined>()
+// thrown when the page was left while signing was being prepared: stop without signing or reporting
+class SignAbortedError extends Error {}
+let disposed = false
 const signWithUseWallet = async () => {
+  useWalletSignOutcome.value = undefined
+  let submittedTxId: string | undefined
   try {
-    if (!store.state.sourceChain) return
-    if (!store.state.sourceToken) return
-    if (!store.state.sourceAddress) return
-    if (!store.state.sourceTxNote) return
-    if (!activeWallet) throw Error(t('sign.useWalletNotInitialized'))
+    if (!store.state.sourceChain || !store.state.sourceToken || !store.state.sourceAddress || !store.state.sourceTxNote) {
+      throw new WalletNotUsableError(t('sign.useWalletNotInitialized'))
+    }
+    // the use-wallet manager is shared with other pages, which may have switched its network; skip the
+    // switch when the page was left meanwhile, and treat a failing switch like an unusable wallet
+    let onSourceNetwork: boolean
+    try {
+      onSourceNetwork = await switchToChain(store.state.sourceChain, () => !disposed)
+    } catch (e: any) {
+      throw new WalletNotUsableError(e?.message ?? String(e))
+    }
+    if (disposed) throw new SignAbortedError()
+    if (!onSourceNetwork) throw new WalletNotUsableError(t('sign.useWalletNotInitialized'))
+    // the transactions below are built for this chain and sender
+    const sourceChain = store.state.sourceChain
+    const sender = store.state.sourceAddress
+    assertSigner(sourceChain, sender)
+    // everything the transactions are built from, captured together before any await
+    const config = store.state.sourceTokenConfiguration
+    const note = store.state.sourceTxNote
+    const bridgeAmount = BigInt(store.state.sourceAmount)
+    const bridgeToken = Number(store.state.sourceToken)
+    const bridgeReceiver = store.state.sourceBridgeAddress
 
-    const algodClient = await getAlgodClientByChainId(store.state.sourceChain)
+    const algodClient = await getAlgodClientByChainId(sourceChain)
     if (!algodClient) throw Error(t('sign.algodClientNotInitialized'))
     const params = await algodClient.getTransactionParams().do()
 
-    let signed: any
+    let toSign: algosdk.Transaction[]
+    // the transfer to the bridge address that carries the bridge note
+    const makeBridgeTx = () =>
+      bridgeToken > 0
+        ? algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+            amount: bridgeAmount,
+            sender,
+            receiver: bridgeReceiver,
+            suggestedParams: params,
+            note: new Uint8Array(Buffer.from(note)),
+            assetIndex: bridgeToken
+          })
+        : algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+            amount: bridgeAmount,
+            sender,
+            receiver: bridgeReceiver,
+            suggestedParams: params,
+            note: new Uint8Array(Buffer.from(note))
+          })
 
     // smart asset (arc200)
-    const config = store.state.sourceTokenConfiguration
     if (config && config.arc200TokenId) {
       const arc200TokenId = config.arc200TokenId
-      const chainId = config.chainId
-
-      const sourceAddress = store.state?.sourceAddress || ''
-      const tokenId = store.state.sourceToken
-      const sourceAmount = BigInt(store.state.sourceAmount)
-      const asaOptin = await getAlgoAcountTokenOptin(chainId, sourceAddress, Number(tokenId))
+      const asaOptin = await getAlgoAcountTokenOptin(sourceChain, sender, bridgeToken)
 
       // For ARC200 we need both algod and indexer clients, but we'll use the first available
       // since arc200 library expects specific client instances
-      const indexerClient = await getIndexerClientByChainId(chainId)
-      const algodClient = await getAlgodClientByChainId(chainId)
-
-      if (!indexerClient || !algodClient) {
-        console.error('Failed to get algod or indexer client for ARC200')
-        return new BigNumber('0')
-      }
-      const algoClient = await getAlgoClient(store.state.sourceChain)
+      const indexerClient = await getIndexerClientByChainId(sourceChain)
+      if (!indexerClient) throw Error(t('sign.algodClientNotInitialized'))
+      const algoClient = await getAlgoClient(sourceChain)
 
       const clientArc200UserSender = getArc200ASAClient({
         algorand: algoClient,
@@ -181,7 +227,7 @@ const signWithUseWallet = async () => {
         appName: 'asa2arc200Bridge',
         approvalSourceMap: undefined,
         clearSourceMap: undefined,
-        defaultSender: sourceAddress,
+        defaultSender: sender,
         defaultSigner: undefined
       })
       const clientArc200AsaUserSender = getArc200ASAClient({
@@ -190,11 +236,11 @@ const signWithUseWallet = async () => {
         appName: 'asa2arc200Bridge',
         approvalSourceMap: undefined,
         clearSourceMap: undefined,
-        defaultSender: sourceAddress,
+        defaultSender: sender,
         defaultSigner: undefined
       })
 
-      const exchangeInfo: Arc200ExchangeInfo | undefined = await getExchangeInfo('source')
+      const exchangeInfo: Arc200ExchangeInfo | undefined = await getExchangeInfo({ chainId: sourceChain, arc200TokenId })
 
       // withdraw asa from the arc200 contract and send it to the bridge address
       // if user is not opted in to the asa, opt in him
@@ -205,13 +251,13 @@ const signWithUseWallet = async () => {
         txToSign.push(
           algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
             amount: 0n,
-            sender: sourceAddress,
-            receiver: sourceAddress,
+            sender: sender,
+            receiver: sender,
             suggestedParams: params,
-            assetIndex: Number(tokenId)
+            assetIndex: bridgeToken
           })
         )
-        console.log('Added optin txn for ASA', tokenId)
+        console.log('Added optin txn for ASA', bridgeToken)
       }
 
       // if exchangeInfo is defined, we use exchange method to withdraw ASA otherwise we use wnnt200
@@ -220,51 +266,35 @@ const signWithUseWallet = async () => {
       const approveTxs = await clientArc200UserSender.createTransaction.arc200Approve({
         args: {
           spender: exchangeInfo?.sink ?? algosdk.getApplicationAddress(Number(arc200TokenId)).toString(),
-          value: sourceAmount
+          value: bridgeAmount
         }
       })
       // there must be only one txn
       approveTxs.transactions.forEach((tx) => txToSign.push(tx))
-      console.log('Added approve txn for ARC200', arc200TokenId, sourceAmount)
+      console.log('Added approve txn for ARC200', arc200TokenId, bridgeAmount)
       if (exchangeInfo?.sink) {
         const exchangeTxs = await clientArc200AsaUserSender.createTransaction.arc200SwapBack({
           args: {
-            amount: sourceAmount
+            amount: bridgeAmount
           },
           staticFee: AlgoAmount.MicroAlgos(2000)
         })
         exchangeTxs.transactions.forEach((tx) => txToSign.push(tx))
-        console.log('Added exchange arc200SwapBack txn for ARC200', arc200TokenId, sourceAmount)
+        console.log('Added exchange arc200SwapBack txn for ARC200', arc200TokenId, bridgeAmount)
       } else {
         const wnnt200Txs = await clientArc200AsaUserSender.createTransaction.withdraw({
           args: {
-            amount: sourceAmount
+            amount: bridgeAmount
           },
           staticFee: AlgoAmount.MicroAlgos(2000)
         })
         wnnt200Txs.transactions.forEach((tx) => txToSign.push(tx))
-        console.log('Added wnnt200 withdraw txn for ARC200', arc200TokenId, sourceAmount)
+        console.log('Added wnnt200 withdraw txn for ARC200', arc200TokenId, bridgeAmount)
       }
 
       // finally send to bridge address
 
-      const tx =
-        Number(store.state.sourceToken) > 0
-          ? algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-              amount: BigInt(store.state.sourceAmount),
-              sender: store.state.sourceAddress,
-              receiver: store.state.sourceBridgeAddress,
-              suggestedParams: params,
-              note: new Uint8Array(Buffer.from(store.state.sourceTxNote)),
-              assetIndex: Number(store.state.sourceToken)
-            })
-          : algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-              amount: BigInt(store.state.sourceAmount),
-              sender: store.state.sourceAddress,
-              receiver: store.state.sourceBridgeAddress,
-              suggestedParams: params,
-              note: new Uint8Array(Buffer.from(store.state.sourceTxNote))
-            })
+      const tx = makeBridgeTx()
       txToSign.push(tx)
       console.log('Added bridge txn', tx, store.state.sourceTxNote)
 
@@ -282,50 +312,47 @@ const signWithUseWallet = async () => {
       const toSignFinal = group.map((txnWithSigner) => {
         return txnWithSigner.txn
       })
-      console.log('signing txns', toSignFinal)
-      signed = await useWalletSignTransactions(toSignFinal)
+      toSign = toSignFinal
     }
     // algo or asa
     else {
-      const tx =
-        Number(store.state.sourceToken) > 0
-          ? algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-              amount: BigInt(store.state.sourceAmount),
-              sender: store.state.sourceAddress,
-              receiver: store.state.sourceBridgeAddress,
-              suggestedParams: params,
-              note: new Uint8Array(Buffer.from(store.state.sourceTxNote)),
-              assetIndex: Number(store.state.sourceToken)
-            })
-          : algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-              amount: BigInt(store.state.sourceAmount),
-              sender: store.state.sourceAddress,
-              receiver: store.state.sourceBridgeAddress,
-              suggestedParams: params,
-              note: new Uint8Array(Buffer.from(store.state.sourceTxNote))
-            })
+      const tx = makeBridgeTx()
 
-      signed = await useWalletSignTransactions([tx])
+      toSign = [tx]
     }
-    if (signed && signed.length > 0) {
-      // res.txId is the txId of the first transaction in the signed array
-      // algosdk.decodeSignedTransaction(signed.pop()).txn.txID() is the txId of the last transaction in the signed array
-      console.log('Signed txns', signed)
-      await algodClient.sendRawTransaction(signed).do()
-      const tx = algosdk.decodeSignedTransaction(signed.pop()).txn.txID()
-      store.state.bridgeTx = tx
-    }
+    console.log('signing txns', toSign)
+    if (disposed) throw new SignAbortedError()
+    const signed = await signAs(sourceChain, sender, toSign)
+    console.log('Signed txns', signed)
+    // one signature per transaction (an empty result, or a wallet leaving out transactions, is an error)
+    if (signed.length !== toSign.length || !signed.every((txn): txn is Uint8Array => !!txn && ArrayBuffer.isView(txn) && txn.byteLength > 0)) throw Error(t('sign.useWalletNotAllSigned'))
+    // the bridge transaction is the last one of the group
+    submittedTxId = algosdk.decodeSignedTransaction(signed[signed.length - 1]).txn.txID()
+    await algodClient.sendRawTransaction(signed).do()
+    store.state.bridgeTx = submittedTxId
   } catch (e: any) {
-    console.error(e)
-    toast.add({
-      severity: 'error',
-      detail: e.message ?? e,
-      life: 3000
-    })
+    if (e instanceof SignAbortedError) return
+    if (submittedTxId && !isDefinitelyRejected(e)) {
+      console.error(e)
+      // the transaction may still have been accepted: track it like a sent one instead of offering a
+      // retry that could send the funds twice; the page keeps checking for its processing
+      store.state.bridgeTx = submittedTxId
+      toast.add({
+        severity: 'warn',
+        detail: t('sign.useWalletSubmitUncertain'),
+        life: 10000
+      })
+      return
+    }
+    if (e instanceof WalletNotUsableError) useWalletSignOutcome.value = 'reconnect'
+    showError(toast, e)
+  } finally {
+    if (!disposed && !store.state.bridgeTx && !useWalletSignOutcome.value) useWalletSignOutcome.value = 'retry'
   }
 }
 
 onBeforeUnmount(() => {
+  disposed = true
   if (timerInterval.value) {
     clearInterval(timerInterval.value)
   }
@@ -343,10 +370,13 @@ const claimTxPending = ref(false)
 const claimButtonClick = async () => {
   console.log('claimButtonClick')
   try {
+    const network = getUseWalletNetworkId(store.state.destinationChain)
+    // the claim button is shown for Voi destinations only, which always have a use-wallet network
+    if (!network) return
     router.push({
       name: 'arc200-claim-t',
       params: {
-        network: 'voimain',
+        network,
         tokenId: store.state.destinationToken,
         amount: store.state.destinationAmount,
         direction: 'ASAToARC200'
@@ -356,12 +386,7 @@ const claimButtonClick = async () => {
     // Reset state and redirect
     //await resetButtonClick()
   } catch (e: any) {
-    console.error(e)
-    toast.add({
-      severity: 'error',
-      detail: e.message ?? e,
-      life: 3000
-    })
+    showError(toast, e)
   } finally {
     claimTxPending.value = false
   }
@@ -415,7 +440,9 @@ const claimButtonClick = async () => {
         </div>
       </div>
       <div v-if="store.state.sourceAlgoConnectorType == AlgoConnectorType.UseWallet" class="text-center font-bold m-4">
-        <p>
+        <MainActionButton v-if="useWalletSignOutcome === 'retry'" @click="signWithUseWallet">{{ t('common.tryAgain') }}</MainActionButton>
+        <MainActionButton v-else-if="useWalletSignOutcome === 'reconnect'" @click="routeToBridgeScreen">{{ t('common.back') }}</MainActionButton>
+        <p v-else>
           <img :src="loader" alt="Loading" height="18" width="18" class="inline-block" />
           {{ t('sign.signInWallet', { wallet: activeWallet?.metadata?.name || '' }) }}
         </p>
