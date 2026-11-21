@@ -193,7 +193,7 @@ describe('AppToast', () => {
     const [first, second] = [...document.querySelectorAll<HTMLElement>('.toast__close')]
     first.focus() // browsers focus a clicked button...
     vi.spyOn(Element.prototype, 'matches').mockReturnValue(false) // ...but not :focus-visible
-    first.click()
+    first.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 })) // a real mouse click
     await nextTick()
     expect(document.activeElement).not.toBe(second)
     // the remaining toast is not paused by stolen focus
