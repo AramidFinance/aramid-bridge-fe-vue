@@ -9,12 +9,12 @@ import ShortTx from '../ShortTx.vue'
 
 const TX = 'TXABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRSTU'
 
-const render = (chain: string | number = 416001) => {
+const render = (chain = 416001) => {
   const pinia = createPinia()
   setActivePinia(pinia)
   const store = useAppStore()
   const wrapper = mount(ShortTx, {
-    props: { txId: TX, chain: Number(chain) },
+    props: { txId: TX, chain: chain },
     global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', messages: { en: {} }, missingWarn: false, fallbackWarn: false })], directives: { tooltip } }
   })
   return { wrapper, store }
@@ -61,8 +61,9 @@ describe('ShortTx', () => {
     expect(el.open).toBe(false)
     el.open = true
     await details.trigger('toggle')
-    document.body.click()
+    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }))
     expect(el.open).toBe(false)
+    wrapper.unmount()
   })
 
   it('uses Voi Biatec Scan on Voi', async () => {

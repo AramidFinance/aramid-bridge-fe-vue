@@ -240,6 +240,7 @@
     "claimAssets": "Nárokovat aktiva",
     "bridgeAgain": "Přenést znovu",
     "bridgeSuccessShort": "Přenos úspěšný.",
+    "otherExplorers": "Další prohlížeče",
     "txnIdPrefix": "ID transakce:",
     "pleaseWait": "Prosím vyčkejte, než zpracujeme vaši transakci.",
     "useWalletNotInitialized": "Konektor UseWallet není správně inicializován.",

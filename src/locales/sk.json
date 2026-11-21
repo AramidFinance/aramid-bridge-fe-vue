@@ -240,6 +240,7 @@
     "claimAssets": "Nárokovať aktíva",
     "bridgeAgain": "Preniesť znova",
     "bridgeSuccessShort": "Prenos úspešný.",
+    "otherExplorers": "Ďalšie prehliadače",
     "txnIdPrefix": "ID transakcie:",
     "pleaseWait": "Počas spracovania transakcie prosím čakajte.",
     "useWalletNotInitialized": "Konektor UseWallet nie je správne inicializovaný.",

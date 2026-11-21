@@ -1,11 +1,13 @@
+import { CHAIN_ID_ALGORAND, CHAIN_ID_VOI } from './chainIds'
+
 export interface TxExplorer {
   name: string
   url: string
 }
 
 const BIATEC: Record<string, { name: string; base: string }> = {
-  '416001': { name: 'Biatec Scan', base: 'https://algorand.scan.biatec.io' },
-  '416101': { name: 'Biatec Scan', base: 'https://voi.scan.biatec.io' }
+  [CHAIN_ID_ALGORAND]: { name: 'Biatec Scan', base: 'https://algorand.scan.biatec.io' },
+  [CHAIN_ID_VOI]: { name: 'Biatec Scan', base: 'https://voi.scan.biatec.io' }
 }
 
 const hostOf = (base: string): string => {

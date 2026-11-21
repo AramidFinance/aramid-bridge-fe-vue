@@ -240,6 +240,7 @@
     "claimAssets": "Odbierz aktywa",
     "bridgeAgain": "Przenieś ponownie",
     "bridgeSuccessShort": "Przeniesienie udane.",
+    "otherExplorers": "Inne eksploratory",
     "txnIdPrefix": "Identyfikator transakcji:",
     "pleaseWait": "Poczekaj, aż przetworzymy Twoją transakcję.",
     "useWalletNotInitialized": "Konektor UseWallet nie został poprawnie zainicjalizowany.",
