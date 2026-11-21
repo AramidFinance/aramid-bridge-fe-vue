@@ -46,6 +46,6 @@ describe('ShortTx', () => {
     await nextTick()
     const links = wrapper.findAll('a')
     expect(links[0].attributes('href')).toBe(`https://algorand.scan.biatec.io/transaction/${TX}`)
-    expect(wrapper.findAll('li a').map((a) => a.attributes('href'))).toEqual([`https://algorand.scan.biatec.io/transaction/${TX}`, `https://allo.info/tx/${TX}`])
+    expect(wrapper.findAll('li a').map((a) => a.attributes('href'))).toEqual([`https://allo.info/tx/${TX}`])
   })
 })

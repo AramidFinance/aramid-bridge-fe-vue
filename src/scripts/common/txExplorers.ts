@@ -8,29 +8,27 @@ const BIATEC: Record<string, { name: string; base: string }> = {
   '416101': { name: 'Biatec Scan', base: 'https://voi.scan.biatec.io' }
 }
 
-const explorerName = (base: string): string => {
+const hostOf = (base: string): string => {
   try {
-    return new URL(base).hostname.replace(/^(www|app|explorer)\./, '')
+    return new URL(base).hostname.toLowerCase()
   } catch {
     return base
   }
 }
 
-/** Explorer links for a tx; Biatec Scan comes first (default) on Algorand and Voi, configured explorers follow. */
+const explorerName = (base: string): string => hostOf(base).replace(/^(www|app|explorer)\./, '')
+
+/** Explorer links for a tx; Biatec Scan comes first (default) on Algorand and Voi mainnet, configured explorers follow. */
 export const getTxExplorers = (chainId: number | string | undefined, configured: string[] | undefined, txId: string): TxExplorer[] => {
   const result: TxExplorer[] = []
   const biatec = chainId === undefined ? undefined : BIATEC[chainId.toString()]
   const id = encodeURIComponent(txId)
   if (biatec) result.push({ name: biatec.name, url: `${biatec.base}/transaction/${id}` })
-  for (const base of configured ?? []) {
-    if (!base) continue
-    if (biatec && base.startsWith(biatec.base)) continue
-    result.push({ name: explorerName(base), url: `${base}${id}` })
+  for (const raw of configured ?? []) {
+    if (!raw) continue
+    if (biatec && hostOf(raw) === hostOf(biatec.base)) continue
+    const base = raw.endsWith('/') ? raw : `${raw}/`
+    result.push({ name: explorerName(raw), url: `${base}${id}` })
   }
   return result
-}
-
-export const getAddressUrl = (chainId: number | string | undefined, address: string): string | undefined => {
-  const biatec = chainId === undefined ? undefined : BIATEC[chainId.toString()]
-  return biatec ? `${biatec.base}/address/${encodeURIComponent(address)}` : undefined
 }
