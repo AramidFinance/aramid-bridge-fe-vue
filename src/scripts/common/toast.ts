@@ -30,9 +30,12 @@ export const isAssertive = (severity: Severity): boolean => severity === 'error'
 export const toText = (value: unknown): string | undefined => {
   if (value === undefined || value === null || value === '') return undefined
   if (typeof value === 'string') return value
-  if (typeof value === 'object' && typeof (value as { message?: unknown }).message === 'string') return (value as { message: string }).message
+  const message = typeof value === 'object' ? (value as { message?: unknown }).message : undefined
+  if (typeof message === 'string' && message) return message
+  // an Error with an empty message reads as "Error" rather than vanishing
+  if (value instanceof Error) return String(value)
   try {
-    return JSON.stringify(value)
+    return JSON.stringify(value) ?? String(value)
   } catch {
     return String(value)
   }

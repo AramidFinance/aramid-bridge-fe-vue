@@ -37,6 +37,8 @@ interface TooltipState {
   tapping: boolean
   /** This touch closed the open tooltip (document listener runs first), so its tap must not reopen it. */
   tapClosed: boolean
+  /** A tap just opened the tooltip: the click the browser sends after it must not close it again. */
+  tapOpened: boolean
   lastPointerDown: number
   /** Target rect at the last placement, and the observer that re-places the tooltip when the page changes. */
   lastRect?: string
@@ -285,6 +287,7 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
       swallowClick: false,
       tapping: false,
       tapClosed: false,
+      tapOpened: false,
       lastPointerDown: -Infinity,
       onKeydown: (event) => {
         if (event.key !== 'Escape') return
@@ -384,7 +387,13 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
       if (state.tapping) {
         state.tapping = false
         if (state.tapClosed) state.tapClosed = false
-        else openPress(false)
+        else {
+          openPress(false)
+          // the tap's own click follows right away; it is not a request to close (unlike the long-press path,
+          // nothing is swallowed: the click still reaches any other listeners)
+          state.tapOpened = true
+          setTimeout(() => (state.tapOpened = false), 400)
+        }
       }
       // the click that may follow this release comes right away; after that, clicks are real again
       if (state.swallowClick) setTimeout(() => (state.swallowClick = false), 400)
@@ -403,6 +412,10 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
     // Any click (mouse, or Enter/Space on the focused element) usually opens something the tooltip would cover,
     // so it closes; input hints stay.
     const onClick = () => {
+      if (state.tapOpened) {
+        state.tapOpened = false
+        return
+      }
       closePress()
       if (state.focusOnly) return
       state.dismissed = true

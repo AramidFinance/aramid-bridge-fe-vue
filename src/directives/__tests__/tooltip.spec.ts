@@ -170,9 +170,11 @@ describe('v-tooltip', () => {
     vi.useFakeTimers()
     const wrapper = mountWith(`<div tabindex="0" v-tooltip="'Amount you receive'">12.5</div>`)
     const el = wrapper.get('div').element
+    // a real tap: the browser sends a click right after pointerup
     const tap = () => {
       pointer(el, 'pointerdown', 'touch')
       pointer(el, 'pointerup', 'touch')
+      el.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     }
     tap()
     expect(tip()?.textContent).toBe('Amount you receive')

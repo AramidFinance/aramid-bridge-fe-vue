@@ -65,7 +65,9 @@ describe('toast store', () => {
   it('turns non-string details (e.g. a thrown object) into readable text', () => {
     addToast({ detail: { code: 4001 } as never })
     addToast({ detail: new Error('rejected') as never })
-    expect(toastMessages.map((m) => m.detail)).toEqual(['{"code":4001}', 'rejected'])
+    addToast({ detail: new Error('') as never })
+    addToast({ detail: (() => 1) as never })
+    expect(toastMessages.map((m) => m.detail)).toEqual(['{"code":4001}', 'rejected', 'Error', '() => 1'])
   })
 
   it('a polite announcement does not clear an assertive one still being read', () => {
