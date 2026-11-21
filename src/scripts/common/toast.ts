@@ -93,6 +93,9 @@ export const removeAllToasts = (): void => {
 export const liveRegions = reactive({ polite: '', assertive: '' })
 const pendingAnnouncements = { polite: [] as string[], assertive: [] as string[] }
 let announceTimer: ReturnType<typeof setTimeout> | undefined
+/** Announced text is removed again after a while, so stale messages do not linger for virtual-cursor browsing. */
+const CLEAR_AFTER_MS = 7000
+const clearTimers: Partial<Record<'polite' | 'assertive', ReturnType<typeof setTimeout>>> = {}
 
 /** Queues `text` for the polite (or, when `urgent`, assertive) live region; bursts are batched into one announcement. */
 export const announce = (text: string, urgent = false): void => {
@@ -101,6 +104,7 @@ export const announce = (text: string, urgent = false): void => {
   // clear this region first so repeating the same message is announced again; the other region is left alone,
   // so an error still being read is not cut off by an unrelated polite message
   if (!pendingAnnouncements[region].length) liveRegions[region] = ''
+  clearTimeout(clearTimers[region])
   pendingAnnouncements[region].push(text)
   if (announceTimer !== undefined) return // already scheduled: it will include this
   announceTimer = setTimeout(() => {
@@ -109,6 +113,7 @@ export const announce = (text: string, urgent = false): void => {
       if (!pendingAnnouncements[name].length) continue
       liveRegions[name] = pendingAnnouncements[name].join('. ')
       pendingAnnouncements[name] = []
+      clearTimers[name] = setTimeout(() => (liveRegions[name] = ''), CLEAR_AFTER_MS)
     }
   }, 50)
 }
@@ -116,6 +121,8 @@ export const announce = (text: string, urgent = false): void => {
 /** Drops pending announcements and empties the regions (tests, teardown). */
 export const resetAnnouncements = (): void => {
   clearTimeout(announceTimer)
+  clearTimeout(clearTimers.polite)
+  clearTimeout(clearTimers.assertive)
   announceTimer = undefined
   pendingAnnouncements.polite = []
   pendingAnnouncements.assertive = []

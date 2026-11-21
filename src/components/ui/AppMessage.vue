@@ -1,26 +1,31 @@
-<script lang="ts">
-/** A message that flickers in and out (e.g. a threshold crossed while typing) is not re-announced every time. */
-const REPEAT_WINDOW_MS = 10_000
-let lastAnnounced = { text: '', at: -Infinity }
-</script>
-
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, onUpdated, ref } from 'vue'
 import { announce, type Severity } from '@/scripts/common/toast'
 import SeverityIcon from './SeverityIcon.vue'
+
+/** A message must stay this long before it is announced, so one flickering in and out while typing stays quiet. */
+const SETTLE_MS = 1000
 
 const props = withDefaults(defineProps<{ severity?: Severity }>(), { severity: 'info' })
 const root = ref<HTMLElement>()
 
 // Errors use role=alert, which screen readers announce on insertion. Other messages are announced politely through
-// the persistent live region: a role=status element inserted with its text already in place is usually not read.
-onMounted(() => {
+// the persistent live region (a role=status element inserted with its text already in place is usually not read):
+// once they have settled, and again whenever their text changes.
+let announced = ''
+let settleTimer: ReturnType<typeof setTimeout> | undefined
+const scheduleAnnouncement = () => {
   if (props.severity === 'error') return
-  const text = root.value?.textContent?.trim() ?? ''
-  if (text === lastAnnounced.text && Date.now() - lastAnnounced.at < REPEAT_WINDOW_MS) return
-  lastAnnounced = { text, at: Date.now() }
-  announce(text)
-})
+  clearTimeout(settleTimer)
+  settleTimer = setTimeout(() => {
+    const text = root.value?.textContent?.trim() ?? ''
+    if (text && text !== announced) announce(text)
+    announced = text
+  }, SETTLE_MS)
+}
+onMounted(scheduleAnnouncement)
+onUpdated(scheduleAnnouncement)
+onBeforeUnmount(() => clearTimeout(settleTimer))
 </script>
 
 <template>

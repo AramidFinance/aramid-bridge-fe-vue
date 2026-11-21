@@ -11,8 +11,6 @@ const VIEWPORT_MARGIN = 8
 export const LONG_PRESS_MS = 500
 /** A touch-opened tooltip closes on the next touch anywhere, or after this long. */
 const TOUCH_TOOLTIP_MS = 5000
-/** Focus arriving this soon after a pointerdown on the target came from that click/tap, not the keyboard. */
-const POINTER_FOCUS_MS = 1000
 
 const OPPOSITE: Record<TooltipPlacement, TooltipPlacement> = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' }
 
@@ -39,7 +37,11 @@ interface TooltipState {
   tapClosed: boolean
   /** A tap just opened the tooltip: the click the browser sends after it must not close it again. */
   tapOpened: boolean
-  lastPointerDown: number
+  /** A pointer press is in progress or just ended: the focus it causes is pointer focus, not keyboard focus. */
+  pointerFocusPending: boolean
+  pointerFocusTimer?: ReturnType<typeof setTimeout>
+  /** Ancestors that clip their content (overflow other than visible), collected when the tooltip opens. */
+  clippers: HTMLElement[]
   /** Target rect at the last placement, and the observer that re-places the tooltip when the page changes. */
   lastRect?: string
   observer?: MutationObserver
@@ -119,8 +121,18 @@ const position = (el: HTMLElement, state: TooltipState): void => {
   if (!tip) return
   const target = el.getBoundingClientRect()
   state.lastRect = rectKey(target)
-  // target not rendered (display: none gives an empty rect) or scrolled out of view: hide until it is back
-  const hidden = (target.width === 0 && target.height === 0) || target.bottom < 0 || target.top > window.innerHeight || target.right < 0 || target.left > window.innerWidth
+  // target not rendered (display: none gives an empty rect), scrolled out of the window, or scrolled out of a
+  // scrolling container (e.g. the asset list in a dialog): hide until it is back
+  const hidden =
+    (target.width === 0 && target.height === 0) ||
+    target.bottom < 0 ||
+    target.top > window.innerHeight ||
+    target.right < 0 ||
+    target.left > window.innerWidth ||
+    state.clippers.some((clipper) => {
+      const box = clipper.getBoundingClientRect()
+      return target.bottom <= box.top || target.top >= box.bottom || target.right <= box.left || target.left >= box.right
+    })
   tip.style.visibility = hidden ? 'hidden' : ''
   if (hidden) return
 
@@ -174,6 +186,15 @@ const track = (el: HTMLElement, state: TooltipState): void => {
   state.observer.observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true })
 }
 
+const clippingAncestors = (el: HTMLElement): HTMLElement[] => {
+  const result: HTMLElement[] = []
+  for (let node = el.parentElement; node && node !== document.body && node !== document.documentElement; node = node.parentElement) {
+    const { overflowX, overflowY } = getComputedStyle(node)
+    if (overflowX !== 'visible' || overflowY !== 'visible') result.push(node)
+  }
+  return result
+}
+
 const addDescribedBy = (el: HTMLElement, id: string): void => {
   const ids = (el.getAttribute('aria-describedby') ?? '').split(/\s+/).filter(Boolean)
   if (!ids.includes(id)) el.setAttribute('aria-describedby', [...ids, id].join(' '))
@@ -220,6 +241,7 @@ const show = (el: HTMLElement, state: TooltipState): void => {
     tip.append(text, arrow)
     document.body.appendChild(tip)
     state.tip = tip
+    state.clippers = clippingAncestors(el)
     open.add(el)
 
     document.addEventListener('keydown', state.onKeydown)
@@ -283,12 +305,13 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
       hovered: false,
       focused: false,
       dismissed: false,
+      clippers: [],
       pressed: false,
       swallowClick: false,
       tapping: false,
       tapClosed: false,
       tapOpened: false,
-      lastPointerDown: -Infinity,
+      pointerFocusPending: false,
       onKeydown: (event) => {
         if (event.key !== 'Escape') return
         // Escape closes enclosing tooltips too, rather than letting them take over
@@ -301,6 +324,7 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
       },
       onReposition: () => position(el, state),
       cleanup: () => {
+        clearTimeout(state.pointerFocusTimer)
         cancelPress()
         closePress()
         el.removeEventListener('pointerenter', onPointerEnter)
@@ -366,7 +390,8 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
       sync(el, state)
     }
     const onPointerDown = (event: Event) => {
-      state.lastPointerDown = Date.now()
+      clearTimeout(state.pointerFocusTimer)
+      state.pointerFocusPending = true
       state.swallowClick = false
       // clicking usually opens something (a dialog, a menu) the tooltip would cover; input hints stay
       if (state.focusOnly) return
@@ -384,6 +409,9 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
     }
     const onPointerUp = () => {
       cancelPress()
+      // touch focuses on the compatibility mousedown after pointerup; give it a moment, then the press is over
+      clearTimeout(state.pointerFocusTimer)
+      state.pointerFocusTimer = setTimeout(() => (state.pointerFocusPending = false), 600)
       if (state.tapping) {
         state.tapping = false
         if (state.tapClosed) state.tapClosed = false
@@ -412,6 +440,9 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
     // Any click (mouse, or Enter/Space on the focused element) usually opens something the tooltip would cover,
     // so it closes; input hints stay.
     const onClick = () => {
+      // the press is complete: focus arriving after this (e.g. returned by a closing dialog) is not from it
+      clearTimeout(state.pointerFocusTimer)
+      state.pointerFocusPending = false
       if (state.tapOpened) {
         state.tapOpened = false
         return
@@ -423,7 +454,8 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
     }
     const onFocusIn = (event: FocusEvent) => {
       // focus from a click/tap is not a request for the tooltip (text inputs match :focus-visible even when clicked)
-      const fromPointer = Date.now() - state.lastPointerDown < POINTER_FOCUS_MS
+      const fromPointer = state.pointerFocusPending
+      state.pointerFocusPending = false
       if (!state.focusOnly && (fromPointer || !isKeyboardFocus(event.target))) return
       state.focused = true
       state.dismissed = false

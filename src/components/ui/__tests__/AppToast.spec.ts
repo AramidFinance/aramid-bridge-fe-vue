@@ -253,6 +253,21 @@ describe('AppToast', () => {
     expect(toastMessages).toHaveLength(0)
   })
 
+  it('hands focus off when a toast expires with (mouse) focus inside it', async () => {
+    const anchor = document.createElement('span')
+    anchor.id = 'app-focus-anchor'
+    anchor.tabIndex = -1
+    document.body.append(anchor)
+    mountToast()
+    addToast({ detail: 'expiring', life: 1000 })
+    await nextTick()
+    vi.spyOn(Element.prototype, 'matches').mockReturnValue(false) // mouse focus: does not pause
+    $('.toast__close')!.focus()
+    vi.advanceTimersByTime(1000)
+    expect(toastMessages).toHaveLength(0)
+    expect(document.activeElement).toBe(anchor)
+  })
+
   it('keeps sticky toasts until closed', async () => {
     mountToast()
     addToast({ detail: 'sticky' })

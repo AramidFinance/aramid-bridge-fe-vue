@@ -430,6 +430,34 @@ describe('v-tooltip', () => {
     wrapper.unmount()
   })
 
+  it('hides while the target is scrolled out of a scrolling container', () => {
+    const wrapper = mountWith(`<div class="list" style="overflow-y: auto"><button v-tooltip="'Copy'">c</button></div>`)
+    const list = wrapper.get('.list').element as HTMLElement
+    const button = wrapper.get('button').element
+    list.getBoundingClientRect = () => rect(100, 0, 300, 200)
+    let top = 150
+    button.getBoundingClientRect = () => rect(top, 10, 20, 20)
+
+    pointer(button, 'pointerenter')
+    expect(tip()?.style.visibility).toBe('')
+    top = 20 // scrolled above the list's visible area, but still inside the window
+    list.dispatchEvent(new Event('scroll'))
+    expect(tip()?.style.visibility).toBe('hidden')
+    wrapper.unmount()
+  })
+
+  it('treats keyboard focus after a completed click as keyboard focus (e.g. returned by a closing dialog)', () => {
+    const wrapper = mountWith(`<button v-tooltip="'Wallet'">w</button>`)
+    const button = wrapper.get('button').element
+    vi.spyOn(Element.prototype, 'matches').mockReturnValue(true) // :focus-visible
+    pointer(button, 'pointerdown')
+    button.click()
+    expect(tip()).toBeNull()
+    button.focus() // focus returned programmatically/by keyboard right after
+    expect(tip()?.textContent).toBe('Wallet')
+    wrapper.unmount()
+  })
+
   it('follows the target on scroll, hides while it is off screen, and is removed on unmount', () => {
     const wrapper = mountWith(`<span v-tooltip.bottom="'Follow'">x</span>`)
     const span = wrapper.get('span').element

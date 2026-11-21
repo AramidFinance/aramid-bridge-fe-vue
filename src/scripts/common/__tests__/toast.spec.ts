@@ -82,6 +82,15 @@ describe('toast store', () => {
     expect(liveRegions.assertive).toBe('Transaction failed')
   })
 
+  it('clears announced text after a while so stale messages do not linger', () => {
+    vi.useFakeTimers()
+    announce('Transaction failed', true)
+    vi.advanceTimersByTime(50)
+    expect(liveRegions.assertive).toBe('Transaction failed')
+    vi.advanceTimersByTime(7000)
+    expect(liveRegions.assertive).toBe('')
+  })
+
   it('exposes the same store through useToast()', () => {
     const toast = useToast()
     const id = toast.add({ severity: 'success', detail: 'done' })

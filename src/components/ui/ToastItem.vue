@@ -30,10 +30,11 @@ const isKeyboardFocused = (el: Element | null): boolean => {
   }
 }
 
-const close = () => {
+/** `fromTimer`: the toast expired with focus inside it - focus must go somewhere, however it got there. */
+const close = (fromTimer = false) => {
   const li = root.value
   // only keyboard users need focus carried along; a mouse click merely focused the button as a side effect
-  if (li?.contains(document.activeElement) && isKeyboardFocused(document.activeElement)) {
+  if (li?.contains(document.activeElement) && (fromTimer || isKeyboardFocused(document.activeElement))) {
     // keep keyboard users in place: move to a neighbouring toast, else back where they came from
     // toasts still playing their leave animation are on their way out: skip them
     const others = [...(li.parentElement?.children ?? [])].filter((item) => item === li || !item.classList.contains('toast-leave-active'))
@@ -53,7 +54,7 @@ const close = () => {
 const start = () => {
   if (!props.message.life || timer !== undefined) return
   startedAt = Date.now()
-  timer = setTimeout(close, remaining)
+  timer = setTimeout(() => close(true), remaining)
 }
 
 const stop = () => {
@@ -130,7 +131,7 @@ onBeforeUnmount(() => {
       <p v-if="message.summary" class="toast__summary">{{ message.summary }}</p>
       <p v-if="message.detail" class="toast__detail" :class="{ 'toast__detail--solo': !message.summary }">{{ message.detail }}</p>
     </div>
-    <button type="button" class="toast__close" :aria-label="$t('common.close')" @click="close">
+    <button type="button" class="toast__close" :aria-label="$t('common.close')" @click="close()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false">
         <path d="M18 6 6 18" />
         <path d="m6 6 12 12" />
