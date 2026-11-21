@@ -18,12 +18,10 @@ console.log('state.explorer', props, state.explorer)
 </script>
 <template>
   <span v-if="state.explorer">
-    <a :href="`${state.explorer}${props.txId}`" target="_blank" rel="noreferrer">
-      <span :v-tooltip="props.txId">{{ shortenAddress(props.txId ?? '', props.length ?? 4) }}</span>
-    </a>
+    <a v-tooltip.top="props.txId" :href="`${state.explorer}${props.txId}`" target="_blank" rel="noreferrer">{{ shortenAddress(props.txId ?? '', props.length ?? 4) }}</a>
   </span>
   <span v-else>
-    <span :v-tooltip="props.txId">{{ shortenAddress(props.txId ?? '', props.length ?? 4) }}</span>
+    <span v-tooltip.top="props.txId">{{ shortenAddress(props.txId ?? '', props.length ?? 4) }}</span>
   </span>
   <CopyIcon :text="props.txId"></CopyIcon>
 </template>

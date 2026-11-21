@@ -15,12 +15,12 @@ import algosdk from 'algosdk'
 import base64url from 'base64url'
 import BigNumber from 'bignumber.js'
 import { ethers } from 'ethers'
-import Message from 'primevue/message'
-import { useToast } from 'primevue/usetoast'
+import { useToast } from '@/scripts/common/toast'
 import { onMounted, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import AmountDestination from './AmountDestination.vue'
+import AppMessage from './ui/AppMessage.vue'
 import AmountSource from './AmountSource.vue'
 import AssetSelectionDestination from './AssetSelectionDestination.vue'
 import AssetSelectionSource from './AssetSelectionSource.vue'
@@ -369,10 +369,10 @@ watch(
       <SimpleLabel>{{ t('transaction.memo') }}</SimpleLabel>
       <input :maxlength="50" class="bg-white-rgba rounded-[10px] focus:outline-none w-full mt-1 3xl:mt-3 4xl:mt-6 p-1 3xl:p-3 4xl:p-6 text-base w-full" type="text" v-model="store.state.memo" />
     </div>
-    <Message severity="error" v-if="state.error" class="mt-4 w-full">{{ state.error }}</Message>
-    <Message severity="warn" v-if="store.state.escrowBalanceIsSufficient && !store.state.escrowBalanceIsSufficient10x" class="mt-4 w-full">
+    <AppMessage severity="error" v-if="state.error" class="mt-4 w-full">{{ state.error }}</AppMessage>
+    <AppMessage severity="warn" v-if="store.state.escrowBalanceIsSufficient && !store.state.escrowBalanceIsSufficient10x" class="mt-4 w-full">
       {{ t('bridge.lowBalanceWarning') }}
-    </Message>
+    </AppMessage>
     <MainActionButton @click="reviewButtonClick">{{ t('bridge.reviewTransaction') }}</MainActionButton>
   </MainBox>
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useToast } from 'primevue/usetoast'
+import { useToast } from '@/scripts/common/toast'
 
 const toast = useToast()
 const props = defineProps({ text: String, title: String })
@@ -31,16 +31,13 @@ const title = () => {
 </script>
 
 <template>
-  <img
+  <button
+    type="button"
     @click="copy"
     v-tooltip.top="title()"
-    class="cursor-pointer m-auto inline-block"
-    alt="CopyIcon"
-    loading="lazy"
-    width="20"
-    height="20"
-    decoding="async"
-    src="../../assets/images/CopySimple.svg"
-    style="color: transparent"
-  />
+    :aria-label="title() || $t('common.copy')"
+    class="inline-flex items-center justify-center align-middle m-auto p-1 rounded-md cursor-pointer bg-transparent border-0 transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#FB7EFF]"
+  >
+    <img alt="" aria-hidden="true" width="20" height="20" decoding="async" src="../../assets/images/CopySimple.svg" />
+  </button>
 </template>

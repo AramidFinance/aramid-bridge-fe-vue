@@ -6,7 +6,7 @@ import { resetDestinationTokenIfNotMatched } from '@/scripts/events/resetDestina
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
-import { useToast } from 'primevue/usetoast'
+import { useToast } from '@/scripts/common/toast'
 import { onMounted, reactive, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import SelectArc200BridgeAssetDialog from './dialogs/SelectArc200BridgeAssetDialog.vue'

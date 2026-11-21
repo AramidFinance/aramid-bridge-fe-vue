@@ -6,7 +6,7 @@ import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/Public
 import { useAppStore } from '@/stores/app'
 import algosdk from 'algosdk'
 import { useWallet, type Wallet } from 'avm-wallet-vue'
-import { useToast } from 'primevue/usetoast'
+import { useToast } from '@/scripts/common/toast'
 import { onMounted, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import DialogButton from '../ui/DialogButton.vue'

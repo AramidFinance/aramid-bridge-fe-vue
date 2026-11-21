@@ -1,0 +1,221 @@
+<script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { removeToast, type ToastMessage } from '@/scripts/common/toast'
+import SeverityIcon from './SeverityIcon.vue'
+
+const props = defineProps<{ message: ToastMessage }>()
+
+const hovered = ref(false)
+const focused = ref(false)
+const paused = computed(() => hovered.value || focused.value)
+
+let timer: ReturnType<typeof setTimeout> | undefined
+let remaining = props.message.life ?? 0
+let startedAt = 0
+
+const close = () => removeToast(props.message.id)
+
+const start = () => {
+  if (!props.message.life || timer !== undefined) return
+  startedAt = Date.now()
+  timer = setTimeout(close, remaining)
+}
+
+const stop = () => {
+  if (timer === undefined) return
+  clearTimeout(timer)
+  timer = undefined
+  remaining = Math.max(0, remaining - (Date.now() - startedAt))
+}
+
+const setHovered = (value: boolean) => {
+  hovered.value = value
+  if (paused.value) stop()
+  else start()
+}
+
+const setFocused = (value: boolean) => {
+  focused.value = value
+  if (paused.value) stop()
+  else start()
+}
+
+const onFocusOut = (event: FocusEvent) => {
+  // focus moving between elements inside the toast keeps it paused
+  if (!(event.currentTarget as HTMLElement).contains(event.relatedTarget as Node | null)) setFocused(false)
+}
+
+onMounted(start)
+onBeforeUnmount(stop)
+
+// errors and warnings interrupt the screen reader; success/info wait for a pause
+const role = computed(() => (props.message.severity === 'error' || props.message.severity === 'warn' ? 'alert' : 'status'))
+</script>
+
+<template>
+  <li
+    class="toast"
+    :class="`toast--${message.severity}`"
+    :role="role"
+    aria-atomic="true"
+    @mouseenter="setHovered(true)"
+    @mouseleave="setHovered(false)"
+    @focusin="setFocused(true)"
+    @focusout="onFocusOut"
+  >
+    <span class="toast__icon">
+      <SeverityIcon :severity="message.severity" />
+    </span>
+    <div class="toast__body">
+      <p v-if="message.summary" class="toast__summary">{{ message.summary }}</p>
+      <p v-if="message.detail" class="toast__detail" :class="{ 'toast__detail--solo': !message.summary }">{{ message.detail }}</p>
+    </div>
+    <button type="button" class="toast__close" :aria-label="$t('common.close')" @click="close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false">
+        <path d="M18 6 6 18" />
+        <path d="m6 6 12 12" />
+      </svg>
+    </button>
+    <span v-if="message.life" class="toast__progress" :style="{ animationDuration: `${message.life}ms`, animationPlayState: paused ? 'paused' : 'running' }" aria-hidden="true" />
+  </li>
+</template>
+
+<style scoped>
+.toast {
+  --accent: #fb7eff;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.875rem 0.875rem 1rem 1rem;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid rgba(246, 246, 246, 0.1);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, transparent), transparent 55%), rgba(22, 10, 42, 0.92);
+  box-shadow:
+    0 16px 40px -12px rgba(0, 0, 0, 0.6),
+    0 0 24px -8px color-mix(in srgb, var(--accent) 45%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  color: #f6f6f6;
+  font-family: Satoshi, ui-sans-serif, system-ui, sans-serif;
+  pointer-events: auto;
+}
+
+.toast--success {
+  --accent: #19ff89;
+}
+.toast--info {
+  --accent: #95d5fd;
+}
+.toast--warn {
+  --accent: #ff9519;
+}
+.toast--error {
+  --accent: #ff4219;
+}
+
+.toast__icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.toast__icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.toast__body {
+  flex: 1;
+  min-width: 0;
+  padding-top: 0.125rem;
+}
+
+.toast__summary {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.toast__detail {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: rgba(246, 246, 246, 0.75);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.toast__detail--solo {
+  margin-top: 0.4rem;
+  color: rgba(246, 246, 246, 0.9);
+}
+
+.toast__close {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin: -0.125rem -0.125rem 0 0;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: rgba(246, 246, 246, 0.55);
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+.toast__close svg {
+  width: 1rem;
+  height: 1rem;
+}
+.toast__close:hover {
+  background: rgba(246, 246, 246, 0.1);
+  color: #f6f6f6;
+}
+.toast__close:focus-visible {
+  outline: 2px solid #fb7eff;
+  outline-offset: 1px;
+  color: #f6f6f6;
+}
+
+.toast__progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 100%;
+  transform-origin: left center;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 40%, transparent), var(--accent));
+  animation-name: toast-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes toast-progress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast__progress {
+    display: none;
+  }
+}
+</style>

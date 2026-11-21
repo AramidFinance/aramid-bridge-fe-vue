@@ -8,7 +8,7 @@ import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/Public
 import { useAppStore } from '@/stores/app'
 import { fromBaseUnits, maxSendable, rescaleBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
 import { showError } from '@/scripts/common/showError'
-import { useToast } from 'primevue/usetoast'
+import { useToast } from '@/scripts/common/toast'
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'

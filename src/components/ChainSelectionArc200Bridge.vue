@@ -8,7 +8,7 @@ import { fillArc200BridgeChainConfiguration } from '@/scripts/events/fillArc200B
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import { useAppStore } from '@/stores/app'
-import { useToast } from 'primevue/usetoast'
+import { useToast } from '@/scripts/common/toast'
 import { onMounted, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'

@@ -12,14 +12,11 @@ import './assets/main.css'
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 
-import PrimeVue from 'primevue/config'
 import App from './App.vue'
 import i18n from './i18n'
 import router from './router'
 
-import Aura from '@/presets/lara' //import preset
-import ToastService from 'primevue/toastservice'
-import Tooltip from 'primevue/tooltip'
+import tooltip from '@/directives/tooltip'
 import './assets/base.css'
 
 // Guards against a corrupted persisted WalletConnect session (leftover from a stale/mismatched
@@ -52,12 +49,7 @@ app.use(createPinia())
 app.use(router)
 app.use(i18n)
 
-app.use(PrimeVue, {
-  unstyled: true,
-  pt: Aura
-})
-app.directive('tooltip', Tooltip)
-app.use(ToastService)
+app.directive('tooltip', tooltip)
 
 const walletConnectProjectId = '54958e07dbb79eedf5cd5564bf16d817'
 const dappMetadata = {

@@ -11,7 +11,7 @@ import { fillInStateFromClaimData } from '@/scripts/events/fillInStateFromClaimD
 import { useAppStore } from '@/stores/app'
 import { useAppKitNetwork, useAppKitProvider } from '@reown/appkit/vue'
 import type { Eip1193Provider } from 'ethers'
-import { useToast } from 'primevue/usetoast'
+import { useToast } from '@/scripts/common/toast'
 import { onMounted, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
