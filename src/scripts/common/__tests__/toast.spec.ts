@@ -62,10 +62,12 @@ describe('toast store', () => {
     expect(toastMessages[0].detail).toBe('failure 0')
   })
 
-  it('a warning gives way rather than evicting an error; an error can evict a warning', () => {
+  it('a warning is always shown, evicting the oldest error if needed; an error can evict a warning', () => {
     for (let i = 0; i < MAX_TOASTS; i++) addToast({ severity: 'error', detail: `failure ${i}` })
-    addToast({ severity: 'warn', detail: 'low balance' })
-    expect(toastMessages.map((m) => m.severity)).toEqual(Array(MAX_TOASTS).fill('error'))
+    addToast({ severity: 'warn', detail: 'tx may be in flight' })
+    expect(toastMessages).toHaveLength(MAX_TOASTS)
+    expect(toastMessages[MAX_TOASTS - 1].detail).toBe('tx may be in flight')
+    expect(toastMessages[0].detail).toBe('failure 1')
 
     removeAllToasts()
     for (let i = 0; i < MAX_TOASTS; i++) addToast({ severity: 'warn', detail: `warning ${i}` })

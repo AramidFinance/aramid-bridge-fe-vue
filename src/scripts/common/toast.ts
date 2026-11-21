@@ -105,14 +105,14 @@ export const addToast = (options: ToastOptions): number => {
   // callers pass `e.message ?? e`, which is '' for an Error without a message: never show (or announce) a blank error
   if (message.severity === 'error' && !message.summary && !message.detail) message.detail = i18n.global.t('error.unknown')
   state.messages.push(message)
-  // announced at insertion, so even a toast trimmed in the same burst is read out
-  announce([message.summary, message.detail].filter(Boolean).join(': '), isAssertive(message.severity))
   // Over the limit: drop the oldest info/success toasts first, then warnings, then errors - but never one that ranks
   // above the incoming toast (it gives way itself; it was announced above), never the new toast's peers that are
   // being read, and never the new toast otherwise. If nothing can go, the list may briefly exceed the limit.
   for (let rankToDrop = 0; rankToDrop <= 2 && state.messages.length > MAX_TOASTS; rankToDrop++) {
     const droppable = (existing: ToastMessage) => rank(existing.severity) === rankToDrop && !paused.has(existing.id)
-    if (rankToDrop > rank(message.severity)) {
+    // only info/success give way to higher-ranked toasts; a warning or error is always shown (it may say funds
+    // are already in flight), evicting older toasts of any rank instead
+    if (rank(message.severity) === 0 && rankToDrop > 0) {
       // only higher-ranked toasts are left: give way, unless they are all being read (then briefly exceed the limit)
       if (state.messages.slice(0, -1).some((existing) => !paused.has(existing.id))) state.messages.pop()
       break
@@ -122,6 +122,8 @@ export const addToast = (options: ToastOptions): number => {
       else i++
     }
   }
+  // announced only if it is actually shown (a toast that gave way is neither drawn nor read)
+  if (state.messages.includes(message)) announce([message.summary, message.detail].filter(Boolean).join(': '), isAssertive(message.severity))
   return id
 }
 
