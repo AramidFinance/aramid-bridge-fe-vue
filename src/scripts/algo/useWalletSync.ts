@@ -164,7 +164,17 @@ export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWalle
     return signTransactions(txns)
   }
 
-  return { activeNetwork, isActiveWalletUsable, switchToChain, connectAndBind, assertSigner, signAs }
+  /**
+   * Whether signing with the active wallet opens a popup (Biatec Direct), which the browser only allows
+   * from a click: call signAs() synchronously from a click handler then, with no await before it.
+   */
+  const signingNeedsClick = (): boolean => {
+    const active = activeWallet.value
+    if (!active) return false
+    return (manager.getWallet(active.walletKey) as unknown as AdapterWithSession | undefined)?.activeMethod === 'direct'
+  }
+
+  return { activeNetwork, isActiveWalletUsable, switchToChain, connectAndBind, assertSigner, signAs, signingNeedsClick }
 }
 
 /** An app-level wallet slot (source / ARC200 bridge) in the app store. */

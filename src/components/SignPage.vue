@@ -22,7 +22,8 @@ import { type Arc200ExchangeInfo, getArc200ASAClient } from 'arc200-client'
 import { useWallet as useAvmWallet } from 'avm-wallet-vue'
 import { useToast } from '@/scripts/common/toast'
 import QRCodeVue3 from 'qrcode-vue3'
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { PopupBlockedError } from 'biatec-wallet-use-wallet-client'
+import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import getAlgoClient from '../scripts/algo/getAlgoClient'
@@ -43,7 +44,7 @@ const toast = useToast()
 const { t } = useI18n()
 const useWalletState = useWallet()
 const { activeWallet } = useWalletState
-const { assertSigner, signAs, switchToChain } = useWalletNetwork(useWalletState)
+const { assertSigner, signAs, signingNeedsClick, switchToChain } = useWalletNetwork(useWalletState)
 useAvmWallet()
 
 const routeToBridgeScreen = () => {
@@ -151,175 +152,45 @@ const dummyTransactionSigner = async (_txnGroup: algosdk.Transaction[], _indexes
 }
 /**
  * Outcome of the automatic use-wallet signing when it did not produce a bridge transaction:
+ * - sign: the transactions are built, but the wallet signs in a popup (Biatec Direct), which the
+ *   browser only opens from a click: the user has to click Sign
  * - retry: failed before anything was sent, signing again here can help
  * - reconnect: the origin wallet/data is not usable here, the user has to reconnect on the bridge screen
  */
-const useWalletSignOutcome = ref<'retry' | 'reconnect' | undefined>()
+const useWalletSignOutcome = ref<'sign' | 'retry' | 'reconnect' | undefined>()
 // thrown when the page was left while signing was being prepared: stop without signing or reporting
 class SignAbortedError extends Error {}
 let disposed = false
-const signWithUseWallet = async () => {
+
+/** The bridge transactions built for the source chain and sender, ready to be signed. */
+type PreparedSign = {
+  sourceChain: number
+  sender: string
+  algodClient: NonNullable<Awaited<ReturnType<typeof getAlgodClientByChainId>>>
+  toSign: algosdk.Transaction[]
+}
+// built transactions waiting for the user's click (popup wallets only)
+const preparedSign = shallowRef<PreparedSign>()
+
+/**
+ * Signs and sends the bridge transactions. Without `prepared` it builds them first and, for a wallet
+ * that signs in a popup, stops there and waits for the Sign click. With `prepared` (from that click)
+ * nothing is awaited before the wallet is asked to sign, so the popup opens within the click.
+ */
+const signWithUseWallet = async (prepared?: PreparedSign) => {
   useWalletSignOutcome.value = undefined
+  preparedSign.value = undefined
   let submittedTxId: string | undefined
   try {
-    if (!store.state.sourceChain || !store.state.sourceToken || !store.state.sourceAddress || !store.state.sourceTxNote) {
-      throw new WalletNotUsableError(t('sign.useWalletNotInitialized'))
-    }
-    // the use-wallet manager is shared with other pages, which may have switched its network; skip the
-    // switch when the page was left meanwhile, and treat a failing switch like an unusable wallet
-    let onSourceNetwork: boolean
-    try {
-      onSourceNetwork = await switchToChain(store.state.sourceChain, () => !disposed)
-    } catch (e: any) {
-      throw new WalletNotUsableError(e?.message ?? String(e))
-    }
-    if (disposed) throw new SignAbortedError()
-    if (!onSourceNetwork) throw new WalletNotUsableError(t('sign.useWalletNotInitialized'))
-    // the transactions below are built for this chain and sender
-    const sourceChain = store.state.sourceChain
-    const sender = store.state.sourceAddress
-    assertSigner(sourceChain, sender)
-    // everything the transactions are built from, captured together before any await
-    const config = store.state.sourceTokenConfiguration
-    const note = store.state.sourceTxNote
-    const bridgeAmount = BigInt(store.state.sourceAmount)
-    const bridgeToken = Number(store.state.sourceToken)
-    const bridgeReceiver = store.state.sourceBridgeAddress
-
-    const algodClient = await getAlgodClientByChainId(sourceChain)
-    if (!algodClient) throw Error(t('sign.algodClientNotInitialized'))
-    const params = await algodClient.getTransactionParams().do()
-
-    let toSign: algosdk.Transaction[]
-    // the transfer to the bridge address that carries the bridge note
-    const makeBridgeTx = () =>
-      bridgeToken > 0
-        ? algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-            amount: bridgeAmount,
-            sender,
-            receiver: bridgeReceiver,
-            suggestedParams: params,
-            note: new Uint8Array(Buffer.from(note)),
-            assetIndex: bridgeToken
-          })
-        : algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-            amount: bridgeAmount,
-            sender,
-            receiver: bridgeReceiver,
-            suggestedParams: params,
-            note: new Uint8Array(Buffer.from(note))
-          })
-
-    // smart asset (arc200)
-    if (config && config.arc200TokenId) {
-      const arc200TokenId = config.arc200TokenId
-      const asaOptin = await getAlgoAcountTokenOptin(sourceChain, sender, bridgeToken)
-
-      // For ARC200 we need both algod and indexer clients, but we'll use the first available
-      // since arc200 library expects specific client instances
-      const indexerClient = await getIndexerClientByChainId(sourceChain)
-      if (!indexerClient) throw Error(t('sign.algodClientNotInitialized'))
-      const algoClient = await getAlgoClient(sourceChain)
-
-      const clientArc200UserSender = getArc200ASAClient({
-        algorand: algoClient,
-        appId: BigInt(arc200TokenId),
-        appName: 'asa2arc200Bridge',
-        approvalSourceMap: undefined,
-        clearSourceMap: undefined,
-        defaultSender: sender,
-        defaultSigner: undefined
-      })
-      const clientArc200AsaUserSender = getArc200ASAClient({
-        algorand: algoClient,
-        appId: BigInt(arc200TokenId),
-        appName: 'asa2arc200Bridge',
-        approvalSourceMap: undefined,
-        clearSourceMap: undefined,
-        defaultSender: sender,
-        defaultSigner: undefined
-      })
-
-      const exchangeInfo: Arc200ExchangeInfo | undefined = await getExchangeInfo({ chainId: sourceChain, arc200TokenId })
-
-      // withdraw asa from the arc200 contract and send it to the bridge address
-      // if user is not opted in to the asa, opt in him
-
-      const txToSign: algosdk.Transaction[] = []
-
-      if (!asaOptin) {
-        txToSign.push(
-          algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-            amount: 0n,
-            sender: sender,
-            receiver: sender,
-            suggestedParams: params,
-            assetIndex: bridgeToken
-          })
-        )
-        console.log('Added optin txn for ASA', bridgeToken)
+    if (!prepared) {
+      prepared = await prepareUseWalletSign()
+      if (signingNeedsClick()) {
+        preparedSign.value = prepared
+        useWalletSignOutcome.value = 'sign'
+        return
       }
-
-      // if exchangeInfo is defined, we use exchange method to withdraw ASA otherwise we use wnnt200
-      // for both we need to add approve txn first
-
-      const approveTxs = await clientArc200UserSender.createTransaction.arc200Approve({
-        args: {
-          spender: exchangeInfo?.sink ?? algosdk.getApplicationAddress(Number(arc200TokenId)).toString(),
-          value: bridgeAmount
-        }
-      })
-      // there must be only one txn
-      approveTxs.transactions.forEach((tx) => txToSign.push(tx))
-      console.log('Added approve txn for ARC200', arc200TokenId, bridgeAmount)
-      if (exchangeInfo?.sink) {
-        const exchangeTxs = await clientArc200AsaUserSender.createTransaction.arc200SwapBack({
-          args: {
-            amount: bridgeAmount
-          },
-          staticFee: AlgoAmount.MicroAlgos(2000)
-        })
-        exchangeTxs.transactions.forEach((tx) => txToSign.push(tx))
-        console.log('Added exchange arc200SwapBack txn for ARC200', arc200TokenId, bridgeAmount)
-      } else {
-        const wnnt200Txs = await clientArc200AsaUserSender.createTransaction.withdraw({
-          args: {
-            amount: bridgeAmount
-          },
-          staticFee: AlgoAmount.MicroAlgos(2000)
-        })
-        wnnt200Txs.transactions.forEach((tx) => txToSign.push(tx))
-        console.log('Added wnnt200 withdraw txn for ARC200', arc200TokenId, bridgeAmount)
-      }
-
-      // finally send to bridge address
-
-      const tx = makeBridgeTx()
-      txToSign.push(tx)
-      console.log('Added bridge txn', tx, store.state.sourceTxNote)
-
-      // fill in the resources
-      const composer = new TransactionComposer({
-        algod: algodClient,
-        getSigner: (_address: string | Address) => dummyTransactionSigner
-      })
-      txToSign.forEach((txn) => {
-        composer.addTransaction(txn)
-      })
-      const { atc } = await composer.build()
-      const populatedAtc = await populateAppCallResources(atc, algodClient)
-      const group = populatedAtc.buildGroup()
-      const toSignFinal = group.map((txnWithSigner) => {
-        return txnWithSigner.txn
-      })
-      toSign = toSignFinal
     }
-    // algo or asa
-    else {
-      const tx = makeBridgeTx()
-
-      toSign = [tx]
-    }
+    const { sourceChain, sender, algodClient, toSign } = prepared
     console.log('signing txns', toSign)
     if (disposed) throw new SignAbortedError()
     const signed = await signAs(sourceChain, sender, toSign)
@@ -345,10 +216,184 @@ const signWithUseWallet = async () => {
       return
     }
     if (e instanceof WalletNotUsableError) useWalletSignOutcome.value = 'reconnect'
+    // the browser blocked the signing popup: the built transactions are still good, let the user click again
+    else if (e instanceof PopupBlockedError && prepared && !disposed) {
+      preparedSign.value = prepared
+      useWalletSignOutcome.value = 'sign'
+    }
     showError(toast, e)
   } finally {
     if (!disposed && !store.state.bridgeTx && !useWalletSignOutcome.value) useWalletSignOutcome.value = 'retry'
   }
+}
+
+/** The Sign click for popup wallets: must call signWithUseWallet synchronously (no await before it). */
+const signPreparedClick = () => {
+  const prepared = preparedSign.value
+  if (prepared) signWithUseWallet(prepared)
+}
+
+/** Builds the bridge transactions for the source chain and sender. */
+const prepareUseWalletSign = async (): Promise<PreparedSign> => {
+  if (!store.state.sourceChain || !store.state.sourceToken || !store.state.sourceAddress || !store.state.sourceTxNote) {
+    throw new WalletNotUsableError(t('sign.useWalletNotInitialized'))
+  }
+  // the use-wallet manager is shared with other pages, which may have switched its network; skip the
+  // switch when the page was left meanwhile, and treat a failing switch like an unusable wallet
+  let onSourceNetwork: boolean
+  try {
+    onSourceNetwork = await switchToChain(store.state.sourceChain, () => !disposed)
+  } catch (e: any) {
+    throw new WalletNotUsableError(e?.message ?? String(e))
+  }
+  if (disposed) throw new SignAbortedError()
+  if (!onSourceNetwork) throw new WalletNotUsableError(t('sign.useWalletNotInitialized'))
+  // the transactions below are built for this chain and sender
+  const sourceChain = store.state.sourceChain
+  const sender = store.state.sourceAddress
+  assertSigner(sourceChain, sender)
+  // everything the transactions are built from, captured together before any await
+  const config = store.state.sourceTokenConfiguration
+  const note = store.state.sourceTxNote
+  const bridgeAmount = BigInt(store.state.sourceAmount)
+  const bridgeToken = Number(store.state.sourceToken)
+  const bridgeReceiver = store.state.sourceBridgeAddress
+
+  const algodClient = await getAlgodClientByChainId(sourceChain)
+  if (!algodClient) throw Error(t('sign.algodClientNotInitialized'))
+  const params = await algodClient.getTransactionParams().do()
+
+  let toSign: algosdk.Transaction[]
+  // the transfer to the bridge address that carries the bridge note
+  const makeBridgeTx = () =>
+    bridgeToken > 0
+      ? algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+          amount: bridgeAmount,
+          sender,
+          receiver: bridgeReceiver,
+          suggestedParams: params,
+          note: new Uint8Array(Buffer.from(note)),
+          assetIndex: bridgeToken
+        })
+      : algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+          amount: bridgeAmount,
+          sender,
+          receiver: bridgeReceiver,
+          suggestedParams: params,
+          note: new Uint8Array(Buffer.from(note))
+        })
+
+  // smart asset (arc200)
+  if (config && config.arc200TokenId) {
+    const arc200TokenId = config.arc200TokenId
+    const asaOptin = await getAlgoAcountTokenOptin(sourceChain, sender, bridgeToken)
+
+    // For ARC200 we need both algod and indexer clients, but we'll use the first available
+    // since arc200 library expects specific client instances
+    const indexerClient = await getIndexerClientByChainId(sourceChain)
+    if (!indexerClient) throw Error(t('sign.algodClientNotInitialized'))
+    const algoClient = await getAlgoClient(sourceChain)
+
+    const clientArc200UserSender = getArc200ASAClient({
+      algorand: algoClient,
+      appId: BigInt(arc200TokenId),
+      appName: 'asa2arc200Bridge',
+      approvalSourceMap: undefined,
+      clearSourceMap: undefined,
+      defaultSender: sender,
+      defaultSigner: undefined
+    })
+    const clientArc200AsaUserSender = getArc200ASAClient({
+      algorand: algoClient,
+      appId: BigInt(arc200TokenId),
+      appName: 'asa2arc200Bridge',
+      approvalSourceMap: undefined,
+      clearSourceMap: undefined,
+      defaultSender: sender,
+      defaultSigner: undefined
+    })
+
+    const exchangeInfo: Arc200ExchangeInfo | undefined = await getExchangeInfo({ chainId: sourceChain, arc200TokenId })
+
+    // withdraw asa from the arc200 contract and send it to the bridge address
+    // if user is not opted in to the asa, opt in him
+
+    const txToSign: algosdk.Transaction[] = []
+
+    if (!asaOptin) {
+      txToSign.push(
+        algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+          amount: 0n,
+          sender: sender,
+          receiver: sender,
+          suggestedParams: params,
+          assetIndex: bridgeToken
+        })
+      )
+      console.log('Added optin txn for ASA', bridgeToken)
+    }
+
+    // if exchangeInfo is defined, we use exchange method to withdraw ASA otherwise we use wnnt200
+    // for both we need to add approve txn first
+
+    const approveTxs = await clientArc200UserSender.createTransaction.arc200Approve({
+      args: {
+        spender: exchangeInfo?.sink ?? algosdk.getApplicationAddress(Number(arc200TokenId)).toString(),
+        value: bridgeAmount
+      }
+    })
+    // there must be only one txn
+    approveTxs.transactions.forEach((tx) => txToSign.push(tx))
+    console.log('Added approve txn for ARC200', arc200TokenId, bridgeAmount)
+    if (exchangeInfo?.sink) {
+      const exchangeTxs = await clientArc200AsaUserSender.createTransaction.arc200SwapBack({
+        args: {
+          amount: bridgeAmount
+        },
+        staticFee: AlgoAmount.MicroAlgos(2000)
+      })
+      exchangeTxs.transactions.forEach((tx) => txToSign.push(tx))
+      console.log('Added exchange arc200SwapBack txn for ARC200', arc200TokenId, bridgeAmount)
+    } else {
+      const wnnt200Txs = await clientArc200AsaUserSender.createTransaction.withdraw({
+        args: {
+          amount: bridgeAmount
+        },
+        staticFee: AlgoAmount.MicroAlgos(2000)
+      })
+      wnnt200Txs.transactions.forEach((tx) => txToSign.push(tx))
+      console.log('Added wnnt200 withdraw txn for ARC200', arc200TokenId, bridgeAmount)
+    }
+
+    // finally send to bridge address
+
+    const tx = makeBridgeTx()
+    txToSign.push(tx)
+    console.log('Added bridge txn', tx, store.state.sourceTxNote)
+
+    // fill in the resources
+    const composer = new TransactionComposer({
+      algod: algodClient,
+      getSigner: (_address: string | Address) => dummyTransactionSigner
+    })
+    txToSign.forEach((txn) => {
+      composer.addTransaction(txn)
+    })
+    const { atc } = await composer.build()
+    const populatedAtc = await populateAppCallResources(atc, algodClient)
+    const group = populatedAtc.buildGroup()
+    const toSignFinal = group.map((txnWithSigner) => {
+      return txnWithSigner.txn
+    })
+    toSign = toSignFinal
+  }
+  // algo or asa
+  else {
+    const tx = makeBridgeTx()
+
+    toSign = [tx]
+  }
+  return { sourceChain, sender, algodClient, toSign }
 }
 
 onBeforeUnmount(() => {
@@ -440,7 +485,8 @@ const claimButtonClick = async () => {
         </div>
       </div>
       <div v-if="store.state.sourceAlgoConnectorType == AlgoConnectorType.UseWallet" class="text-center font-bold m-4">
-        <MainActionButton v-if="useWalletSignOutcome === 'retry'" @click="signWithUseWallet">{{ t('common.tryAgain') }}</MainActionButton>
+        <MainActionButton v-if="useWalletSignOutcome === 'sign'" @click="signPreparedClick">{{ t('bridge.signTransaction') }}</MainActionButton>
+        <MainActionButton v-else-if="useWalletSignOutcome === 'retry'" @click="signWithUseWallet()">{{ t('common.tryAgain') }}</MainActionButton>
         <MainActionButton v-else-if="useWalletSignOutcome === 'reconnect'" @click="routeToBridgeScreen">{{ t('common.back') }}</MainActionButton>
         <p v-else>
           <img :src="loader" alt="Loading" height="18" width="18" class="inline-block" />

@@ -79,12 +79,11 @@ app.use(WalletManagerPlugin, {
     exodus(),
     lute(),
     kibisis(),
+    // Direct, Liquid Auth and WalletConnect. Direct opens a popup per signature, which needs a click:
+    // SignPage builds the transactions on mount and signs them from a Sign button for Direct sessions.
     biatec({
       projectId: walletConnectProjectId,
-      metadata: dappMetadata,
-      // Direct opens a popup per signature, which needs a click; this app signs automatically
-      // (SignPage on mount), so offer Liquid Auth and WalletConnect only.
-      direct: false
+      metadata: dappMetadata
     }),
     walletConnect({
       projectId: walletConnectProjectId,
