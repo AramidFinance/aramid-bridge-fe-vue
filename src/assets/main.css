@@ -182,3 +182,31 @@ wcm-modal,
     animation: none;
   }
 }
+
+/*
+ * Large-screen scaling: on wide (e.g. 4K) viewports the layout would otherwise
+ * stay ~1000px wide with tiny text. Zoom the whole app instead; sizes that use
+ * viewport units must divide by --ui-zoom (zoom does not adjust vw/vh).
+ */
+:root {
+  --ui-zoom: 1;
+}
+@media (min-width: 1700px) {
+  :root {
+    --ui-zoom: 1.3;
+  }
+}
+@media (min-width: 2150px) {
+  :root {
+    --ui-zoom: 1.7;
+  }
+}
+@media (min-width: 3000px) {
+  :root {
+    --ui-zoom: 2.3;
+  }
+}
+#app2 {
+  zoom: var(--ui-zoom);
+  min-height: calc(100vh / var(--ui-zoom));
+}
