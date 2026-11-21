@@ -284,7 +284,7 @@ const bridginigButtonClick = async () => {
       throw new Error('No bridge direction selected')
     }
 
-    state.bridginig = false
+    if (attempt === currentAttempt) state.bridginig = false
   } catch (e: any) {
     if (e instanceof BridgingAbortedError) return
     if (attempt === currentAttempt) state.bridginig = false
@@ -320,13 +320,16 @@ const cancelBridging = () => {
 
 /** Signs the group with the bound account, sends it and shows the bridge transaction (the last one). */
 const signAndSend = async (order: BridgeOrder, algodClient: algosdk.Algodv2, txns: algosdk.Transaction[]) => {
-  // nothing is awaited between the Sign click and the wallet being asked, so the popup is allowed
+  // after the Sign click only microtasks run before the wallet is asked, which stays within the click's
+  // user activation, so the popup is allowed
   if (order.attempt !== currentAttempt) throw new BridgingAbortedError()
   if (signingNeedsClick()) {
     await waitForSignClick()
     if (order.attempt !== currentAttempt) throw new BridgingAbortedError()
   }
   const signed = await signBound(order.sender, order.chainId, txns)
+  // cancelled (or left) while the wallet was signing: do not send it
+  if (order.attempt !== currentAttempt) throw new BridgingAbortedError()
   // Filter out any null values to satisfy the type requirement
   const filteredSigned = signed.filter((s: Uint8Array | null): s is Uint8Array => s !== null)
   if (filteredSigned.length === 0) {
