@@ -337,13 +337,17 @@ const signAndSend = async (order: BridgeOrder, algodClient: algosdk.Algodv2, txn
     await waitForSignClick()
     if (order.attempt !== currentAttempt) throw new BridgingAbortedError()
   }
+  // signing and sending cannot be cancelled: the Cancel button is hidden until both are done
   state.signing = true
-  let signed: (Uint8Array | null)[]
   try {
-    signed = await signBound(order.sender, order.chainId, txns)
+    await signAndSendGroup(order, algodClient, txns)
   } finally {
     state.signing = false
   }
+}
+
+const signAndSendGroup = async (order: BridgeOrder, algodClient: algosdk.Algodv2, txns: algosdk.Transaction[]) => {
+  const signed = await signBound(order.sender, order.chainId, txns)
   // cancelled (or left) while the wallet was signing: do not send it
   if (order.attempt !== currentAttempt) throw new BridgingAbortedError()
   if (signed.length === 0 || signed.every((s) => !s)) throw Error(t('sign.noTransactionsSigned'))

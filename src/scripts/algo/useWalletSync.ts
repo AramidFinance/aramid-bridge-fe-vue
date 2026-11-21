@@ -158,6 +158,8 @@ export const useWalletNetwork = (wallet: ReturnType<typeof useWallet> = useWalle
   /**
    * The only signing path for bound accounts: checks that the manager is on the chain the transactions
    * were built for with their sender, then signs them.
+   * Keep it synchronous up to signTransactions (no await before it): Biatec Direct opens a popup that
+   * only works within the click that led here.
    */
   const signAs = async (chainId: number, sender: string, txns: algosdk.Transaction[]): Promise<(Uint8Array | null)[]> => {
     assertSigner(chainId, sender)
