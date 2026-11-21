@@ -31,4 +31,13 @@ describe('RoundButton', () => {
     await wrapper.trigger('keyup', { key: ' ' })
     expect(onClick).toHaveBeenCalledTimes(1)
   })
+
+  it('ignores a Space release whose press started elsewhere', async () => {
+    const { wrapper, onClick } = mountButton()
+    await wrapper.trigger('keyup', { key: ' ' })
+    await wrapper.trigger('keydown', { key: ' ' })
+    await wrapper.trigger('blur')
+    await wrapper.trigger('keyup', { key: ' ' })
+    expect(onClick).not.toHaveBeenCalled()
+  })
 })

@@ -19,7 +19,10 @@ describe('WalletAddress', () => {
     expect(span.attributes('tabindex')).toBeUndefined()
   })
 
-  it('adds no tab stop inside an interactive parent', () => {
-    expect(render({ address: ADDRESS, focusable: false }).get('span').attributes('tabindex')).toBeUndefined()
+  it('adds no tab stop or own tooltip inside an interactive parent (whose tooltip carries the address)', () => {
+    const span = render({ address: ADDRESS, focusable: false }).get('span')
+    expect(span.attributes('tabindex')).toBeUndefined()
+    span.element.dispatchEvent(Object.assign(new Event('pointerenter'), { pointerType: 'mouse' }))
+    expect(document.querySelector('[role="tooltip"]')).toBeNull()
   })
 })
