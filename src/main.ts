@@ -74,17 +74,17 @@ const networks = new NetworkConfigBuilder()
 
 app.use(WalletManagerPlugin, {
   wallets: [
-    defly(),
-    pera(),
-    exodus(),
-    lute(),
-    kibisis(),
     // Direct, Liquid Auth and WalletConnect. Direct opens a popup per signature, which needs a click:
     // SignPage builds the transactions on mount and signs them from a Sign button for Direct sessions.
     biatec({
       projectId: walletConnectProjectId,
       metadata: dappMetadata
     }),
+    defly(),
+    pera(),
+    exodus(),
+    lute(),
+    kibisis(),
     walletConnect({
       projectId: walletConnectProjectId,
       metadata: dappMetadata
@@ -99,11 +99,6 @@ const avmNetworks = new AVMNetworkConfigBuilder().mainnet({ algod: algodMainnet 
 
 app.use(AVMWalletManagerPlugin, {
   wallets: [
-    AVMWalletId.DEFLY,
-    AVMWalletId.PERA,
-    AVMWalletId.LUTE,
-    AVMWalletId.EXODUS,
-    AVMWalletId.KIBISIS,
     {
       id: AVMWalletId.BIATEC,
       options: {
@@ -111,6 +106,11 @@ app.use(AVMWalletManagerPlugin, {
         metadata: dappMetadata
       }
     },
+    AVMWalletId.DEFLY,
+    AVMWalletId.PERA,
+    AVMWalletId.LUTE,
+    AVMWalletId.EXODUS,
+    AVMWalletId.KIBISIS,
     {
       id: AVMWalletId.WALLETCONNECT,
       options: {
