@@ -133,13 +133,14 @@ const setMax = () => {
         class="bg-transparent placeholder-current text-2xl font-bold rounded-[2px] focus:outline-none text-center md:text-right w-full border-b-2 border-indigo-500/50"
         v-model="state.sourceAmount"
       />
-      <div
+      <button
         v-if="store.state.sourceAddress"
+        type="button"
         @click="setMax"
-        class="mt-2 ml-2 text-xl bg-clip-text bg-gradient-to-r text-transparent from-white to-[#E469FF] ease-in-out duration-100 font-bold cursor-pointer select-none text-center md:text-right"
+        class="mt-2 ml-2 text-xl bg-clip-text bg-gradient-to-r text-transparent from-white to-[#E469FF] ease-in-out duration-100 font-bold cursor-pointer select-none rounded-md focus-visible:outline-2 focus-visible:outline-[#FB7EFF] text-center md:text-right"
       >
         Max
-      </div>
+      </button>
     </div>
 
     <div

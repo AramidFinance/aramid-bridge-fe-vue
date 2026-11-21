@@ -1,31 +1,19 @@
 <script setup lang="ts">
-import { watch } from 'vue'
-import { announce, isAssertive, liveRegions, toastMessages } from '@/scripts/common/toast'
+import { liveRegions, toastMessages } from '@/scripts/common/toast'
 import ToastItem from './ToastItem.vue'
-
-// toasts already on screen when this mounts are not "new" later on
-let seen = new Set<number>(toastMessages.map((message) => message.id))
-
-watch(
-  () => toastMessages.map((message) => message.id),
-  (ids) => {
-    for (const message of toastMessages) {
-      if (!seen.has(message.id)) announce([message.summary, message.detail].filter(Boolean).join(': '), isAssertive(message.severity))
-    }
-    seen = new Set(ids)
-  }
-)
 </script>
 
 <template>
   <Teleport to="body">
-    <section class="toast-region" :aria-label="$t('common.notifications')">
+    <!-- labelled (a landmark) only while there are notifications, so screen readers do not list an empty region -->
+    <section class="toast-region" :aria-label="toastMessages.length ? $t('common.notifications') : undefined">
       <TransitionGroup tag="ol" name="toast" class="toast-list">
         <ToastItem v-for="message in toastMessages" :key="message.id" :message="message" />
       </TransitionGroup>
-      <div class="toast-sr-only" role="status" aria-live="polite" aria-atomic="true">{{ liveRegions.polite }}</div>
-      <div class="toast-sr-only" role="alert" aria-live="assertive" aria-atomic="true">{{ liveRegions.assertive }}</div>
     </section>
+    <!-- persistent live regions (see announce() in the toast store) -->
+    <div class="toast-sr-only" role="status" aria-live="polite" aria-atomic="true">{{ liveRegions.polite }}</div>
+    <div class="toast-sr-only" role="alert" aria-live="assertive" aria-atomic="true">{{ liveRegions.assertive }}</div>
   </Teleport>
 </template>
 

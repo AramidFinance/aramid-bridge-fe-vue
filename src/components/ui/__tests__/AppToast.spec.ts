@@ -201,12 +201,26 @@ describe('AppToast', () => {
     expect(toastMessages).toHaveLength(0)
   })
 
-  it('does not re-announce toasts that were on screen before it mounted', async () => {
+  it('announces each toast once, when it is added (even one trimmed in the same burst)', async () => {
     addToast({ severity: 'error', detail: 'old' })
+    vi.advanceTimersByTime(50)
     mountToast()
+    expect($('[aria-live="assertive"]')!.textContent).toBe('old')
     addToast({ severity: 'error', detail: 'new' })
     await flushAnnouncement()
     expect($('[aria-live="assertive"]')!.textContent).toBe('new')
+
+    for (let i = 0; i < MAX_TOASTS + 2; i++) addToast({ detail: `burst ${i}` })
+    await flushAnnouncement()
+    expect($('[aria-live="polite"]')!.textContent).toContain('burst 0')
+  })
+
+  it('is a labelled landmark only while there are notifications', async () => {
+    mountToast()
+    expect($('.toast-region')!.hasAttribute('aria-label')).toBe(false)
+    addToast({ detail: 'hi' })
+    await nextTick()
+    expect($('.toast-region')!.getAttribute('aria-label')).toBe('common.notifications')
   })
 
   it('announces toasts that arrive in quick succession together', async () => {

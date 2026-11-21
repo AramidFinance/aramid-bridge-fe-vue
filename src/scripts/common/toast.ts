@@ -52,39 +52,6 @@ const paused = new Set<number>()
 /** Read-only list of the toasts currently on screen (rendered by `AppToast`). */
 export const toastMessages = readonly(state).messages
 
-export const addToast = (options: ToastOptions): number => {
-  const id = nextId++
-  const life = options.life !== undefined && options.life > 0 ? options.life : undefined
-  state.messages.push({ id, severity: options.severity ?? 'info', summary: toText(options.summary), detail: toText(options.detail), life })
-  // Over the limit: drop the oldest info/success toasts first, then warnings/errors. Never the new toast or one
-  // being read; if nothing else can go, the list may briefly exceed the limit.
-  for (const urgentPass of [false, true]) {
-    for (let i = 0; state.messages.length > MAX_TOASTS && i < state.messages.length - 1;) {
-      const message = state.messages[i]
-      if (paused.has(message.id) || isUrgent(message.severity) !== urgentPass) i++
-      else state.messages.splice(i, 1)
-    }
-  }
-  return id
-}
-
-/** Marks a toast as being read (hovered/focused) so the MAX_TOASTS trim skips it. */
-export const setToastPaused = (id: number, value: boolean): void => {
-  if (value) paused.add(id)
-  else paused.delete(id)
-}
-
-export const removeToast = (id: number): void => {
-  const index = state.messages.findIndex((message) => message.id === id)
-  if (index !== -1) state.messages.splice(index, 1)
-  paused.delete(id)
-}
-
-export const removeAllToasts = (): void => {
-  state.messages.splice(0, state.messages.length)
-  paused.clear()
-}
-
 /**
  * Screen-reader announcements. Screen readers only announce changes to live regions that already exist, so
  * AppToast renders these two persistent visually-hidden regions and anything that appears dynamically (new toasts,
@@ -128,6 +95,42 @@ export const resetAnnouncements = (): void => {
   pendingAnnouncements.assertive = []
   liveRegions.polite = ''
   liveRegions.assertive = ''
+}
+
+export const addToast = (options: ToastOptions): number => {
+  const id = nextId++
+  const life = options.life !== undefined && options.life > 0 ? options.life : undefined
+  const message: ToastMessage = { id, severity: options.severity ?? 'info', summary: toText(options.summary), detail: toText(options.detail), life }
+  state.messages.push(message)
+  // announced at insertion, so even a toast trimmed in the same burst is read out
+  announce([message.summary, message.detail].filter(Boolean).join(': '), isAssertive(message.severity))
+  // Over the limit: drop the oldest info/success toasts first, then warnings/errors. Never the new toast or one
+  // being read; if nothing else can go, the list may briefly exceed the limit.
+  for (const urgentPass of [false, true]) {
+    for (let i = 0; state.messages.length > MAX_TOASTS && i < state.messages.length - 1;) {
+      const message = state.messages[i]
+      if (paused.has(message.id) || isUrgent(message.severity) !== urgentPass) i++
+      else state.messages.splice(i, 1)
+    }
+  }
+  return id
+}
+
+/** Marks a toast as being read (hovered/focused) so the MAX_TOASTS trim skips it. */
+export const setToastPaused = (id: number, value: boolean): void => {
+  if (value) paused.add(id)
+  else paused.delete(id)
+}
+
+export const removeToast = (id: number): void => {
+  const index = state.messages.findIndex((message) => message.id === id)
+  if (index !== -1) state.messages.splice(index, 1)
+  paused.delete(id)
+}
+
+export const removeAllToasts = (): void => {
+  state.messages.splice(0, state.messages.length)
+  paused.clear()
 }
 
 export interface ToastApi {

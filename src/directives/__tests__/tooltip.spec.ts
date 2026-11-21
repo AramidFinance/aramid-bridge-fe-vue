@@ -215,6 +215,20 @@ describe('v-tooltip', () => {
     expect(tip()).toBeNull()
   })
 
+  it('swallows the post-long-press click even when it lands on the element itself (before its own handler)', () => {
+    vi.useFakeTimers()
+    const activate = vi.fn()
+    const wrapper = mountWith(`<div role="button" tabindex="0" v-tooltip="'Wallet'" @click="activate">w</div>`, () => ({ activate }))
+    const pill = wrapper.get('div').element
+    pointer(pill, 'pointerdown', 'touch')
+    vi.advanceTimersByTime(LONG_PRESS_MS)
+    pointer(pill, 'pointerup', 'touch')
+    pill.click()
+    expect(activate).not.toHaveBeenCalled()
+    expect(tip()).not.toBeNull()
+    wrapper.unmount()
+  })
+
   it('suppresses the native context menu only while a press is pending or open', () => {
     vi.useFakeTimers()
     const wrapper = mountWith(`<button v-tooltip="'Hint'">x</button>`)

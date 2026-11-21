@@ -332,7 +332,7 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
         el.removeEventListener('pointerdown', onPointerDown)
         el.removeEventListener('pointerup', onPointerUp)
         el.removeEventListener('pointercancel', onPointerCancel)
-        el.removeEventListener('click', onClickCapture, true)
+        document.removeEventListener('click', onClickCapture, true)
         el.removeEventListener('click', onClick)
         el.removeEventListener('contextmenu', onContextMenu)
         el.removeEventListener('focusin', onFocusIn)
@@ -371,6 +371,8 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
       if (!state.text) return // emptied while the finger was down
       state.pressed = true
       state.swallowClick = swallowClick
+      // document capture runs before every listener on the target, including the element's own @click
+      if (swallowClick) document.addEventListener('click', onClickCapture, true)
       state.dismissed = false
       sync(el, state)
       // the next touch anywhere (or a timeout) closes it, as there is no "leave" on touch
@@ -424,12 +426,17 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
         }
       }
       // the click that may follow this release comes right away; after that, clicks are real again
-      if (state.swallowClick) setTimeout(() => (state.swallowClick = false), 400)
+      if (state.swallowClick)
+        setTimeout(() => {
+          state.swallowClick = false
+          document.removeEventListener('click', onClickCapture, true)
+        }, 400)
     }
-    // Capture phase on the target runs before the element's own click handlers (and those of its children).
-    const onClickCapture = (event: Event) => {
-      if (!state.swallowClick) return
+    function onClickCapture(event: Event) {
+      document.removeEventListener('click', onClickCapture, true)
+      const swallow = state.swallowClick && event.target instanceof Node && el.contains(event.target)
       state.swallowClick = false
+      if (!swallow) return
       event.preventDefault()
       event.stopImmediatePropagation()
     }
@@ -473,7 +480,6 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
     el.addEventListener('pointerdown', onPointerDown)
     el.addEventListener('pointerup', onPointerUp)
     el.addEventListener('pointercancel', onPointerCancel)
-    el.addEventListener('click', onClickCapture, true)
     el.addEventListener('click', onClick)
     el.addEventListener('contextmenu', onContextMenu)
     applyTouchCallout(el, state)
