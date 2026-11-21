@@ -356,8 +356,9 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
       if (state.focusOnly) return
       state.dismissed = true
       sync(el, state)
-      // nothing to show: leave the native long-press (context menu, link callout) alone
-      if (isTouch(event) && state.text) {
+      // only controls get press-and-hold; with nothing to show, or on links/text/inputs, the native long-press
+      // (context menu, link callout, text selection) is left alone
+      if (isTouch(event) && state.text && isControl(el)) {
         cancelPress()
         state.pressTimer = setTimeout(openPress, LONG_PRESS_MS)
       }
@@ -418,6 +419,8 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
   updated(el, binding) {
     const state = states.get(el)
     if (!state) return
+    // Vue rewrites className when a :class binding changes, dropping our class: re-apply on every update
+    applyTouchCallout(el, state)
     const text = textOf(binding)
     const placement = placementOf(binding)
     const focusOnly = !!binding.modifiers.focus

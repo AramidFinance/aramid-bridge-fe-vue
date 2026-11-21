@@ -155,6 +155,29 @@ describe('v-tooltip', () => {
     wrapper.unmount()
   })
 
+  it('keeps the native long-press on links and text: no press-and-hold tooltip there', () => {
+    vi.useFakeTimers()
+    const wrapper = mountWith(`<div><a href="#" v-tooltip="'Full tx id'">tx</a><span v-tooltip="'ADDR'">A..R</span></div>`)
+    for (const selector of ['a', 'span']) {
+      const el = wrapper.get(selector).element
+      pointer(el, 'pointerdown', 'touch')
+      vi.advanceTimersByTime(LONG_PRESS_MS)
+      expect(tip()).toBeNull()
+      pointer(el, 'pointerup', 'touch')
+    }
+    wrapper.unmount()
+  })
+
+  it('re-applies the hold class after Vue rewrites the class attribute', async () => {
+    const active = ref(false)
+    const wrapper = mountWith(`<button :class="{ active }" v-tooltip="'Hint'">x</button>`, () => ({ active }))
+    expect(wrapper.get('button').classes()).toContain('aramid-tooltip-hold')
+    active.value = true
+    await nextTick()
+    expect(wrapper.get('button').classes()).toEqual(expect.arrayContaining(['active', 'aramid-tooltip-hold']))
+    wrapper.unmount()
+  })
+
   it('does not rebuild the tooltip while unmounting with a press-opened tooltip', () => {
     vi.useFakeTimers()
     const show = ref(true)

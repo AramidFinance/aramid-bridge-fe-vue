@@ -9,6 +9,7 @@
     "warning": "Advertencia",
     "copy": "Copiar",
     "copied": "Copiado",
+    "copyFailed": "No se puede copiar al portapapeles",
     "balance": "Saldo",
     "token": "Token",
     "amount": "Cantidad",

@@ -9,6 +9,7 @@
     "warning": "警告",
     "copy": "复制",
     "copied": "已复制",
+    "copyFailed": "无法复制到剪贴板",
     "balance": "余额",
     "token": "代币",
     "amount": "数量",

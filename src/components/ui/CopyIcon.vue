@@ -13,13 +13,13 @@ const copy = async () => {
     const note = props.text && props.text?.length > 50 ? `${props.text?.substring(0, 50)}...` : props.text
     toast.add({
       severity: 'info',
-      detail: `Copied to clipboard: ${note}`,
+      detail: `${t('common.copied')}: ${note}`,
       life: 3000
     })
   } catch ($e) {
     toast.add({
       severity: 'error',
-      detail: 'Cannot copy',
+      detail: t('common.copyFailed'),
       life: 3000
     })
   }

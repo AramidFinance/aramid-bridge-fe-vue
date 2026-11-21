@@ -9,6 +9,7 @@
     "warning": "Warnung",
     "copy": "Kopieren",
     "copied": "Kopiert",
+    "copyFailed": "Kopieren in die Zwischenablage nicht möglich",
     "balance": "Guthaben",
     "token": "Token",
     "amount": "Betrag",

@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { highlightAramidText } from '@/scripts/common/highlightAramidText'
 import { sanitizeTokenName } from '@/scripts/common/sanitizeTokenName'
+import { createButtonKeyHandlers } from '@/scripts/common/buttonKeys'
 import { computed } from 'vue'
 import CopyIcon from './CopyIcon.vue'
 
 const props = defineProps({ img: String, text: String, id: String, arc200TokenId: String })
 const emit = defineEmits<{ click: [event: MouseEvent] }>()
+// the row selects the asset: a button for keyboard users too
+const keys = createButtonKeyHandlers()
 
 // copying the asset id is not choosing the asset (the click still propagates, so outside-click handlers see it)
 const onRowClick = (event: MouseEvent) => {
@@ -26,8 +29,13 @@ const highlightedTokenName = computed(() => {
 </script>
 <template>
   <div
+    role="button"
+    tabindex="0"
     @click="onRowClick"
-    class="bg-gradient-[90deg] cursor-pointer from-network-btn-tl to-network-btn-br border border-[#47556980] rounded-[16px] 3xl:rounded-[22px] 4xl:rounded-[31px] m-1 ease-in-out duration-100 hover:bg-white-rgba-0.3 flex flex-row py-1 px-2.5 3xl:text-xl 4xl:text-3xl"
+    @keydown="keys.onKeydown"
+    @keyup="keys.onKeyup"
+    @blur="keys.onBlur"
+    class="focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FB7EFF] bg-gradient-[90deg] cursor-pointer from-network-btn-tl to-network-btn-br border border-[#47556980] rounded-[16px] 3xl:rounded-[22px] 4xl:rounded-[31px] m-1 ease-in-out duration-100 hover:bg-white-rgba-0.3 flex flex-row py-1 px-2.5 3xl:text-xl 4xl:text-3xl"
   >
     <div class="self-center 3xl:hidden 4xl:hidden pt-1">
       <img alt="" loading="lazy" width="30" height="30" decoding="async" data-nimg="1" :src="getImageUrl(props.img)" style="color: transparent" />
@@ -44,7 +52,7 @@ const highlightedTokenName = computed(() => {
       <div class="hidden md:inline-block text-left text-sm">({{ props.id }}{{ props.arc200TokenId ? ` <> ${props.arc200TokenId}` : '' }})</div>
     </div>
     <div class="">
-      <CopyIcon :text="props.id" :title="`Copy asset ID: ${props.id}`"></CopyIcon>
+      <CopyIcon :text="props.id"></CopyIcon>
     </div>
   </div>
 </template>

@@ -241,6 +241,18 @@ describe('AppToast', () => {
     expect(toastMessages).toHaveLength(0)
   })
 
+  it('resumes when focus moves to nothing (click on page background), unlike a window blur', async () => {
+    mountToast()
+    addToast({ detail: 'timed', life: 1000 })
+    await nextTick()
+    const close = $('.toast__close')!
+    close.focus()
+    close.blur() // focus goes to <body>: no relatedTarget, but the window still has focus
+    await Promise.resolve()
+    vi.advanceTimersByTime(1000)
+    expect(toastMessages).toHaveLength(0)
+  })
+
   it('keeps sticky toasts until closed', async () => {
     mountToast()
     addToast({ detail: 'sticky' })

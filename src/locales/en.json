@@ -9,6 +9,7 @@
     "warning": "Warning",
     "copy": "Copy",
     "copied": "Copied",
+    "copyFailed": "Cannot copy to clipboard",
     "balance": "Balance",
     "token": "Token",
     "amount": "Amount",

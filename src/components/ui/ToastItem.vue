@@ -97,9 +97,18 @@ const onFocusIn = (event: FocusEvent) => {
 const onFocusOut = (event: FocusEvent) => {
   // leaving the toast region for the page: the remembered origin is no longer where the user is
   if (event.relatedTarget instanceof HTMLElement && !event.relatedTarget.closest('.toast-region')) returnFocus = undefined
-  // focus moving between elements inside the toast keeps it paused, and so does the window losing focus
-  // (alt-tab: no relatedTarget) - the toast must still be there when the user comes back
-  if (!event.relatedTarget || root.value?.contains(event.relatedTarget as Node)) return
+  // focus moving between elements inside the toast keeps it paused
+  if (root.value?.contains(event.relatedTarget as Node | null)) return
+  if (!event.relatedTarget) {
+    // no relatedTarget: either the window lost focus (alt-tab: keep it paused so it is still there on return) or
+    // focus went to nothing (click on page background, Tab into the browser UI); tell them apart once settled
+    queueMicrotask(() => {
+      if (!document.hasFocus() || root.value?.contains(document.activeElement)) return
+      focused.value = false
+      update()
+    })
+    return
+  }
   focused.value = false
   update()
 }

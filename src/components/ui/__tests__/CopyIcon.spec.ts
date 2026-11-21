@@ -52,6 +52,14 @@ describe('CopyIcon', () => {
 })
 
 describe('AssetButton', () => {
+  it('is a keyboard-operable button row', async () => {
+    const wrapper = mount(AssetButton, { props: { text: 'Token', id: '123', img: 'algo' }, global })
+    expect(wrapper.attributes('role')).toBe('button')
+    expect(wrapper.attributes('tabindex')).toBe('0')
+    await wrapper.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('click')).toHaveLength(1)
+  })
+
   it('selects the asset on a row click, but not when its copy button is used', async () => {
     stubClipboard()
     const wrapper = mount(AssetButton, { props: { text: 'Token', id: '123', img: 'algo' }, global })

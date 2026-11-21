@@ -9,6 +9,7 @@
     "warning": "Ostrzeżenie",
     "copy": "Kopiuj",
     "copied": "Skopiowano",
+    "copyFailed": "Nie można skopiować do schowka",
     "balance": "Saldo",
     "token": "Token",
     "amount": "Kwota",

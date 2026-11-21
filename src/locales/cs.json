@@ -9,6 +9,7 @@
     "warning": "Varování",
     "copy": "Kopírovat",
     "copied": "Zkopírováno",
+    "copyFailed": "Nelze zkopírovat do schránky",
     "balance": "Zůstatek",
     "token": "Token",
     "amount": "Částka",
