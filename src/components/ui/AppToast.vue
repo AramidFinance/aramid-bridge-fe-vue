@@ -8,7 +8,8 @@ import ToastItem from './ToastItem.vue'
 const politeText = ref('')
 const assertiveText = ref('')
 let announceTimer: ReturnType<typeof setTimeout> | undefined
-let seen = new Set<number>()
+// toasts already on screen when this mounts are not "new" later on
+let seen = new Set<number>(toastMessages.map((message) => message.id))
 // toasts arriving in quick succession are batched into one announcement rather than cancelling each other
 const pending = { polite: [] as string[], assertive: [] as string[] }
 

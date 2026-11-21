@@ -153,6 +153,14 @@ describe('AppToast', () => {
     expect(toastMessages).toHaveLength(0)
   })
 
+  it('does not re-announce toasts that were on screen before it mounted', async () => {
+    addToast({ severity: 'error', detail: 'old' })
+    mountToast()
+    addToast({ severity: 'error', detail: 'new' })
+    await flushAnnouncement()
+    expect($('[aria-live="assertive"]')!.textContent).toBe('new')
+  })
+
   it('announces toasts that arrive in quick succession together', async () => {
     mountToast()
     addToast({ severity: 'error', detail: 'Chain failed' })

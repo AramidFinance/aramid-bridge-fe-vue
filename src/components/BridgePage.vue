@@ -40,7 +40,9 @@ const router = useRouter()
 const toast = useToast()
 const state = reactive({
   mounted: false,
-  error: ''
+  error: '',
+  /** Bumped on every failed validation so the inline error re-mounts: re-announced and re-animated even if unchanged. */
+  errorAttempt: 0
 })
 const fillInRoute = () => {
   if (!state.mounted) return
@@ -211,6 +213,7 @@ const doValidation = (): boolean => {
     console.error(e)
     // shown inline (AppMessage, role=alert) right above the button; a toast as well would announce it twice
     state.error = e.message ?? e
+    state.errorAttempt++
     return false
   }
 }
@@ -365,7 +368,7 @@ watch(
       <SimpleLabel>{{ t('transaction.memo') }}</SimpleLabel>
       <input :maxlength="50" class="bg-white-rgba rounded-[10px] focus:outline-none w-full mt-1 3xl:mt-3 4xl:mt-6 p-1 3xl:p-3 4xl:p-6 text-base w-full" type="text" v-model="store.state.memo" />
     </div>
-    <AppMessage severity="error" v-if="state.error" class="mt-4 w-full">{{ state.error }}</AppMessage>
+    <AppMessage severity="error" v-if="state.error" :key="state.errorAttempt" class="mt-4 w-full">{{ state.error }}</AppMessage>
     <AppMessage severity="warn" v-if="store.state.escrowBalanceIsSufficient && !store.state.escrowBalanceIsSufficient10x" class="mt-4 w-full">
       {{ t('bridge.lowBalanceWarning') }}
     </AppMessage>

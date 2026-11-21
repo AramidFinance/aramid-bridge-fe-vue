@@ -59,7 +59,11 @@ const stop = () => {
   remaining = Math.max(0, remaining - (Date.now() - startedAt))
 }
 
+let unmounted = false
+
 const update = () => {
+  // the <li> keeps its listeners while it plays the leave animation; it must not re-pause a removed toast
+  if (unmounted) return
   setToastPaused(props.message.id, paused.value)
   if (paused.value) stop()
   else start()
@@ -93,6 +97,7 @@ const onFocusOut = (event: FocusEvent) => {
 
 onMounted(start)
 onBeforeUnmount(() => {
+  unmounted = true
   stop()
   setToastPaused(props.message.id, false)
 })

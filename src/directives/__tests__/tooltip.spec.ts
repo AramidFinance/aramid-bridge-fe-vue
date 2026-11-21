@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, nextTick, ref } from 'vue'
-import tooltip from '../tooltip'
+import tooltip, { LONG_PRESS_MS } from '../tooltip'
 
 const tip = () => document.querySelector<HTMLElement>('[role="tooltip"]')
 
@@ -9,7 +9,7 @@ const rect = (top: number, left: number, width: number, height: number): DOMRect
   ({ top, left, width, height, bottom: top + height, right: left + width, x: left, y: top, toJSON: () => ({}) }) as DOMRect
 
 const pointer = (el: Element, type: string, pointerType = 'mouse') => {
-  const event = new Event(type, { bubbles: type === 'pointerdown' })
+  const event = new Event(type, { bubbles: ['pointerdown', 'pointerup', 'pointercancel'].includes(type) })
   Object.defineProperty(event, 'pointerType', { value: pointerType })
   el.dispatchEvent(event)
 }
@@ -17,6 +17,7 @@ const pointer = (el: Element, type: string, pointerType = 'mouse') => {
 const mountWith = (template: string, setup: () => Record<string, unknown> = () => ({})) => mount(defineComponent({ template, setup }), { attachTo: document.body, global: { directives: { tooltip } } })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.restoreAllMocks()
   document.body.innerHTML = ''
 })
@@ -62,6 +63,58 @@ describe('v-tooltip', () => {
     pointer(button, 'pointerleave')
     pointer(button, 'pointerenter')
     expect(tip()).not.toBeNull()
+    wrapper.unmount()
+  })
+
+  it('on touch, a tap does not open it but press-and-hold does; the next touch closes it', () => {
+    vi.useFakeTimers()
+    const wrapper = mountWith(`<button v-tooltip="'Origin wallet'">x</button>`)
+    const button = wrapper.get('button').element
+
+    pointer(button, 'pointerdown', 'touch')
+    vi.advanceTimersByTime(100)
+    pointer(button, 'pointerup', 'touch')
+    vi.advanceTimersByTime(LONG_PRESS_MS)
+    expect(tip()).toBeNull()
+
+    pointer(button, 'pointerdown', 'touch')
+    vi.advanceTimersByTime(LONG_PRESS_MS)
+    expect(tip()?.textContent).toBe('Origin wallet')
+    pointer(button, 'pointerup', 'touch')
+    expect(tip()).not.toBeNull()
+
+    pointer(document.body, 'pointerdown', 'touch')
+    expect(tip()).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('closes a press-opened tooltip on click (whatever it opens stays uncovered) and after a timeout', () => {
+    vi.useFakeTimers()
+    const wrapper = mountWith(`<button v-tooltip="'Hint'">x</button>`)
+    const button = wrapper.get('button').element
+
+    pointer(button, 'pointerdown', 'touch')
+    vi.advanceTimersByTime(LONG_PRESS_MS)
+    button.click()
+    expect(tip()).toBeNull()
+
+    pointer(button, 'pointerdown', 'touch')
+    vi.advanceTimersByTime(LONG_PRESS_MS)
+    expect(tip()).not.toBeNull()
+    vi.advanceTimersByTime(5000)
+    expect(tip()).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('does not reopen when a click focuses a text field (which matches :focus-visible)', () => {
+    const wrapper = mountWith(`<input v-tooltip="'Hint'" />`)
+    const input = wrapper.get('input').element
+    pointer(input, 'pointerenter')
+    expect(tip()).not.toBeNull()
+    pointer(input, 'pointerdown')
+    vi.spyOn(Element.prototype, 'matches').mockReturnValue(true)
+    input.focus()
+    expect(tip()).toBeNull()
     wrapper.unmount()
   })
 

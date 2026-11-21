@@ -7,6 +7,12 @@ type TooltipValue = string | null | undefined
 /** Gap between the target and the tooltip, and minimum distance kept from the viewport edge (px). */
 const OFFSET = 10
 const VIEWPORT_MARGIN = 8
+/** Touch: press and hold this long to open a tooltip (a plain tap activates the element instead). */
+export const LONG_PRESS_MS = 500
+/** A touch-opened tooltip closes on the next touch anywhere, or after this long. */
+const TOUCH_TOOLTIP_MS = 5000
+/** Focus arriving this soon after a pointerdown on the target came from that click/tap, not the keyboard. */
+const POINTER_FOCUS_MS = 1000
 
 const OPPOSITE: Record<TooltipPlacement, TooltipPlacement> = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' }
 
@@ -21,6 +27,11 @@ interface TooltipState {
   focused: boolean
   /** Closed by a click or Escape; stays closed until the pointer re-enters or keyboard focus returns. */
   dismissed: boolean
+  /** Opened by a touch long-press. */
+  pressed: boolean
+  pressTimer?: ReturnType<typeof setTimeout>
+  pressCloseTimer?: ReturnType<typeof setTimeout>
+  lastPointerDown: number
   /** Target rect at the last placement, and the observer that re-places the tooltip when the page changes. */
   lastRect?: string
   observer?: MutationObserver
@@ -216,7 +227,7 @@ const show = (el: HTMLElement, state: TooltipState): void => {
 function sync(el: HTMLElement, state: TooltipState): void {
   // the innermost target wins: never show while a nested target's tooltip is open
   const nestedOpen = [...open].some((target) => target !== el && el.contains(target))
-  const wanted = !!state.text && !state.dismissed && !nestedOpen && (state.focused || (state.hovered && !state.focusOnly))
+  const wanted = !!state.text && !state.dismissed && !nestedOpen && (state.focused || state.pressed || (state.hovered && !state.focusOnly))
   if (!wanted) {
     hide(el, state)
     return
@@ -230,9 +241,9 @@ function sync(el: HTMLElement, state: TooltipState): void {
 }
 
 /**
- * `v-tooltip="text"` shows `text` on mouse hover and keyboard focus.
+ * `v-tooltip="text"` shows `text` on mouse hover, keyboard focus, and touch press-and-hold.
  * Modifiers: `.top` (default) / `.bottom` / `.left` / `.right` choose the preferred side;
- * `.focus` shows it only while the element has focus, from mouse or keyboard (e.g. hints for inputs).
+ * `.focus` shows it only while the element has focus, from mouse, touch or keyboard (e.g. hints for inputs).
  * Clicking the element or pressing Escape closes it.
  */
 export const tooltip: Directive<HTMLElement, TooltipValue> = {
@@ -245,6 +256,8 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
       hovered: false,
       focused: false,
       dismissed: false,
+      pressed: false,
+      lastPointerDown: -Infinity,
       onKeydown: (event) => {
         if (event.key !== 'Escape') return
         // Escape closes enclosing tooltips too, rather than letting them take over
@@ -257,9 +270,14 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
       },
       onReposition: () => position(el, state),
       cleanup: () => {
+        cancelPress()
+        closePress()
         el.removeEventListener('pointerenter', onPointerEnter)
         el.removeEventListener('pointerleave', onPointerLeave)
         el.removeEventListener('pointerdown', onPointerDown)
+        el.removeEventListener('pointerup', cancelPress)
+        el.removeEventListener('pointercancel', cancelPress)
+        el.removeEventListener('click', onClick)
         el.removeEventListener('focusin', onFocusIn)
         el.removeEventListener('focusout', onFocusOut)
       }
@@ -267,6 +285,32 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
 
     // touch "hover" is just the tap that activates the element; it must not open the tooltip over what the tap opens
     const isTouch = (event: Event) => (event as PointerEvent).pointerType === 'touch'
+
+    /** A pending long-press that has not fired yet is abandoned (finger lifted, or the browser took over to scroll). */
+    function cancelPress() {
+      clearTimeout(state.pressTimer)
+      state.pressTimer = undefined
+    }
+    function closePress() {
+      clearTimeout(state.pressCloseTimer)
+      state.pressCloseTimer = undefined
+      document.removeEventListener('pointerdown', closePressOnTouch, true)
+      if (!state.pressed) return
+      state.pressed = false
+      sync(el, state)
+    }
+    function closePressOnTouch() {
+      closePress()
+    }
+    const openPress = () => {
+      state.pressTimer = undefined
+      state.pressed = true
+      state.dismissed = false
+      sync(el, state)
+      // the next touch anywhere (or a timeout) closes it, as there is no "leave" on touch
+      document.addEventListener('pointerdown', closePressOnTouch, true)
+      state.pressCloseTimer = setTimeout(closePress, TOUCH_TOOLTIP_MS)
+    }
 
     const onPointerEnter = (event: Event) => {
       if (isTouch(event)) return
@@ -279,15 +323,23 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
       state.hovered = false
       sync(el, state)
     }
-    const onPointerDown = () => {
+    const onPointerDown = (event: Event) => {
+      state.lastPointerDown = Date.now()
       // clicking usually opens something (a dialog, a menu) the tooltip would cover; input hints stay
       if (state.focusOnly) return
       state.dismissed = true
       sync(el, state)
+      if (isTouch(event)) {
+        cancelPress()
+        state.pressTimer = setTimeout(openPress, LONG_PRESS_MS)
+      }
     }
+    // some browsers still click after a long-press; whatever the click opens must not sit under the tooltip
+    const onClick = () => closePress()
     const onFocusIn = (event: FocusEvent) => {
-      // a mouse click focusing a button is not a request for its tooltip
-      if (!state.focusOnly && !isKeyboardFocus(event.target)) return
+      // focus from a click/tap is not a request for the tooltip (text inputs match :focus-visible even when clicked)
+      const fromPointer = Date.now() - state.lastPointerDown < POINTER_FOCUS_MS
+      if (!state.focusOnly && (fromPointer || !isKeyboardFocus(event.target))) return
       state.focused = true
       state.dismissed = false
       sync(el, state)
@@ -302,6 +354,9 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
     el.addEventListener('pointerenter', onPointerEnter)
     el.addEventListener('pointerleave', onPointerLeave)
     el.addEventListener('pointerdown', onPointerDown)
+    el.addEventListener('pointerup', cancelPress)
+    el.addEventListener('pointercancel', cancelPress)
+    el.addEventListener('click', onClick)
     el.addEventListener('focusin', onFocusIn)
     el.addEventListener('focusout', onFocusOut)
     states.set(el, state)

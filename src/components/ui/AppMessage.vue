@@ -30,6 +30,24 @@ const role = computed(() => (isUrgent(props.severity) ? 'alert' : 'status'))
   box-shadow: inset 3px 0 0 var(--accent);
   color: #f6f6f6;
   text-align: left;
+  animation: message-in 220ms ease-out;
+}
+
+@keyframes message-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message {
+    animation: none;
+  }
 }
 
 .message--success {
