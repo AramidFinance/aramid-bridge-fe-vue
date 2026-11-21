@@ -100,8 +100,9 @@ const navigate = async (to: RouteLocationRaw, replace = false) => {
 let routeRun = 0
 let unmounted = false
 onBeforeUnmount(() => {
-  settleSignClick(new Error(t('common.cancel')))
   unmounted = true
+  currentAttempt++
+  settleSignClick(new BridgingAbortedError())
 })
 const applyRoute = async () => {
   const run = ++routeRun
@@ -224,6 +225,8 @@ interface BridgeOrder {
   tokenId: string
   arc200TokenId: NonNullable<TokenItem['arc200TokenId']>
   amount: string
+  /** The bridging attempt (Bridge click) that built this order. */
+  attempt: number
 }
 
 const boundChain = (chain: number | undefined): number => {
@@ -233,6 +236,7 @@ const boundChain = (chain: number | undefined): number => {
 const signBound = (sender: string, chain: number | undefined, txns: algosdk.Transaction[]) => signAs(boundChain(chain), sender, txns)
 
 const bridginigButtonClick = async () => {
+  const attempt = ++currentAttempt
   try {
     state.bridginig = true
     if (!store.state.arc200BridgeChain) throw new Error('No destination chain set')
@@ -267,7 +271,8 @@ const bridginigButtonClick = async () => {
       sender: store.state.arc200BridgeAddress as string,
       tokenId,
       arc200TokenId,
-      amount: store.state.arc200BridgeAmount
+      amount: store.state.arc200BridgeAmount,
+      attempt
     }
     if (!isPositiveBaseUnits(order.amount)) throw Error(t('bridge.amountZero'))
 
@@ -281,15 +286,21 @@ const bridginigButtonClick = async () => {
 
     state.bridginig = false
   } catch (e: any) {
-    state.bridginig = false
+    if (e instanceof BridgingAbortedError) return
+    if (attempt === currentAttempt) state.bridginig = false
     showError(toast, e, 10000)
   }
 }
 
+// thrown when the user cancelled bridging or left the page: stop without signing or reporting
+class BridgingAbortedError extends Error {}
+// the latest Bridge click; a flow of an older attempt (cancelled meanwhile) must not sign
+let currentAttempt = 0
 // a popup wallet (Biatec Direct) can only open its popup from a click: the built group waits for it here
 let pendingSignClick: { resolve: () => void; reject: (e: Error) => void } | undefined
 const waitForSignClick = () =>
   new Promise<void>((resolve, reject) => {
+    settleSignClick(new BridgingAbortedError())
     pendingSignClick = { resolve, reject }
     state.awaitingSignClick = true
   })
@@ -302,14 +313,19 @@ const settleSignClick = (error?: Error) => {
 }
 const signClick = () => settleSignClick()
 const cancelBridging = () => {
-  settleSignClick(new Error(t('common.cancel')))
+  currentAttempt++
+  settleSignClick(new BridgingAbortedError())
   state.bridginig = false
 }
 
 /** Signs the group with the bound account, sends it and shows the bridge transaction (the last one). */
 const signAndSend = async (order: BridgeOrder, algodClient: algosdk.Algodv2, txns: algosdk.Transaction[]) => {
   // nothing is awaited between the Sign click and the wallet being asked, so the popup is allowed
-  if (signingNeedsClick()) await waitForSignClick()
+  if (order.attempt !== currentAttempt) throw new BridgingAbortedError()
+  if (signingNeedsClick()) {
+    await waitForSignClick()
+    if (order.attempt !== currentAttempt) throw new BridgingAbortedError()
+  }
   const signed = await signBound(order.sender, order.chainId, txns)
   // Filter out any null values to satisfy the type requirement
   const filteredSigned = signed.filter((s: Uint8Array | null): s is Uint8Array => s !== null)
@@ -455,9 +471,10 @@ const bridgeArc200ToAsa = async (order: BridgeOrder) => {
 
     await signAndSend(order, algodClient, toSignFinal)
   } catch (e: any) {
+    if (e instanceof BridgingAbortedError) return
     showError(toast, e)
   } finally {
-    state.bridginig = false
+    if (order.attempt === currentAttempt) state.bridginig = false
   }
 }
 
@@ -627,9 +644,10 @@ const bridgeAsaToArc200 = async (order: BridgeOrder) => {
     console.log('toSignFinal', toSignFinal)
     await signAndSend(order, algodClient, toSignFinal)
   } catch (e: any) {
+    if (e instanceof BridgingAbortedError) return
     showError(toast, e)
   } finally {
-    state.bridginig = false
+    if (order.attempt === currentAttempt) state.bridginig = false
   }
 }
 
