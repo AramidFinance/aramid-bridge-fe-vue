@@ -65,6 +65,8 @@ const state = reactive({
   resultTx: '',
   bridginig: false,
   awaitingSignClick: false,
+  // the wallet is asked to sign: that request cannot be cancelled from here
+  signing: false,
   claimErrorMessage: '',
   mounted: false
 })
@@ -335,7 +337,13 @@ const signAndSend = async (order: BridgeOrder, algodClient: algosdk.Algodv2, txn
     await waitForSignClick()
     if (order.attempt !== currentAttempt) throw new BridgingAbortedError()
   }
-  const signed = await signBound(order.sender, order.chainId, txns)
+  state.signing = true
+  let signed: (Uint8Array | null)[]
+  try {
+    signed = await signBound(order.sender, order.chainId, txns)
+  } finally {
+    state.signing = false
+  }
   // cancelled (or left) while the wallet was signing: do not send it
   if (order.attempt !== currentAttempt) throw new BridgingAbortedError()
   if (signed.length === 0 || signed.every((s) => !s)) throw Error(t('sign.noTransactionsSigned'))
@@ -698,7 +706,7 @@ const resetButtonClick = async () => {
         <div v-if="state.bridginig">
           <p v-if="!state.awaitingSignClick">{{ t('wallet.checkWallet') }}</p>
           <MainActionButton v-else @click="signClick">{{ t('bridge.signTransaction') }}</MainActionButton>
-          <MainActionButton @click="cancelBridging">{{ t('common.cancel') }}</MainActionButton>
+          <MainActionButton v-if="!state.signing" @click="cancelBridging">{{ t('common.cancel') }}</MainActionButton>
         </div>
         <div class="w-full" v-else>
           <MainActionButton v-if="activeNetwork == getUseWalletNetworkId(store.state.arc200BridgeChain)" @click="bridginigButtonClick">Bridge</MainActionButton>
