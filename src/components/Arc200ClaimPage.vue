@@ -103,6 +103,7 @@ onBeforeUnmount(() => {
   unmounted = true
   currentAttempt++
   settleSignClick(new BridgingAbortedError())
+  state.bridginig = false
 })
 const applyRoute = async () => {
   const run = ++routeRun
@@ -337,8 +338,8 @@ const signAndSend = async (order: BridgeOrder, algodClient: algosdk.Algodv2, txn
   }
   // a wallet leaving out transactions would send an incomplete group
   if (filteredSigned.length !== txns.length) throw Error(t('sign.useWalletNotAllSigned'))
+  // once sent the result is always shown, even when cancelled meanwhile: the user must not send it twice
   await algodClient.sendRawTransaction(filteredSigned).do()
-  if (order.attempt !== currentAttempt) throw new BridgingAbortedError()
   // the group's own txid is its first transaction (e.g. an opt-in): show the swap/withdraw/deposit one
   state.resultTx = algosdk.decodeSignedTransaction(filteredSigned[filteredSigned.length - 1]).txn.txID()
   console.log('Claim tx sent with txid', state.resultTx)
