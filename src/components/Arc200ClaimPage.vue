@@ -214,7 +214,6 @@ const fillInRoute = (replace = false) => {
   navigate({ name: 'arc200-claim-t', params }, replace || amountOnly)
 }
 
-// one watcher: a change of several of these in one flush is one navigation
 // the group waiting for the Sign click was built from the inputs at the Bridge click: changing them cancels it
 watch(
   [() => store.state.arc200BridgeToken, () => store.state.arc200BridgeAmount, () => store.state.arc200BridgeDirection, () => store.state.arc200BridgeChain, () => store.state.arc200BridgeAddress],
@@ -222,6 +221,7 @@ watch(
     if (state.awaitingSignClick) cancelBridging()
   }
 )
+// one watcher: a change of several of these in one flush is one navigation
 watch([() => store.state.arc200BridgeToken, () => store.state.arc200BridgeAmount, () => store.state.arc200BridgeDirection], () => fillInRoute())
 
 // the use-wallet manager is shared with other pages: sign only with the account this page is bound to,
@@ -347,8 +347,8 @@ const signAndSend = async (order: BridgeOrder, algodClient: algosdk.Algodv2, txn
   // the group's own txid is its first transaction (e.g. an opt-in): show the swap/withdraw/deposit one
   const resultTx = algosdk.decodeSignedTransaction(filteredSigned[filteredSigned.length - 1]).txn.txID()
   console.log('Claim tx sent with txid', resultTx)
-  // a newer attempt may be running: do not replace its page, but still tell the user this one was sent
-  if (order.attempt !== currentAttempt) {
+  // only a newer attempt that is running owns the page (cancel alone does not): then just tell the user this one was sent
+  if (order.attempt !== currentAttempt && state.bridginig) {
     toast.add({ severity: 'warn', detail: `${t('sign.claimSuccess')} ${resultTx}`, life: 15000 })
     return
   }
