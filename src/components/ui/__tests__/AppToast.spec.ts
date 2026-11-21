@@ -282,6 +282,20 @@ describe('AppToast', () => {
     expect(document.activeElement).toBe(anchor)
   })
 
+  it('hands focus off when a focused toast is removed by something other than its close button', async () => {
+    const anchor = document.createElement('span')
+    anchor.id = 'app-focus-anchor'
+    anchor.tabIndex = -1
+    document.body.append(anchor)
+    mountToast()
+    addToast({ detail: 'only' })
+    await nextTick()
+    $('.toast__close')!.focus()
+    removeAllToasts()
+    await nextTick()
+    expect(document.activeElement).toBe(anchor)
+  })
+
   it('keeps sticky toasts until closed', async () => {
     mountToast()
     addToast({ detail: 'sticky' })

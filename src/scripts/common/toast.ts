@@ -107,9 +107,15 @@ export const addToast = (options: ToastOptions): number => {
   // Over the limit: drop the oldest info/success toasts first, then warnings/errors. Never the new toast or one
   // being read; if nothing else can go, the list may briefly exceed the limit.
   for (const urgentPass of [false, true]) {
+    // an incoming info/success toast never evicts a warning or error: it gives way itself (it was announced above)
+    const wouldEvictUrgent = state.messages.slice(0, -1).some((existing) => isUrgent(existing.severity) && !paused.has(existing.id))
+    if (urgentPass && state.messages.length > MAX_TOASTS && !isUrgent(message.severity) && wouldEvictUrgent) {
+      state.messages.pop()
+      break
+    }
     for (let i = 0; state.messages.length > MAX_TOASTS && i < state.messages.length - 1;) {
-      const message = state.messages[i]
-      if (paused.has(message.id) || isUrgent(message.severity) !== urgentPass) i++
+      const existing = state.messages[i]
+      if (paused.has(existing.id) || isUrgent(existing.severity) !== urgentPass) i++
       else state.messages.splice(i, 1)
     }
   }

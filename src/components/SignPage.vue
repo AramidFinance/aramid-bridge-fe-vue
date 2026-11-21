@@ -456,7 +456,7 @@ const claimButtonClick = async () => {
     <div v-else-if="store.state.claimTx && store.state.destinationChainConfiguration?.type == 'algo'">
       <div v-if="store.state.destinationChainConfiguration?.name === 'Voi' && store.state.destinationTokenConfiguration?.arc200TokenId">
         <p>Crosschain bridging was successful. If you are owner of the destination address, you can now claim the ARC200 token.</p>
-        <MainActionButton @click="claimButtonClick" :tooltip="t('sign.claimTooltip')"> {{ t('sign.claimAssets') }} </MainActionButton>
+        <MainActionButton @click="claimButtonClick" v-tooltip.top="t('sign.claimTooltip')"> {{ t('sign.claimAssets') }} </MainActionButton>
       </div>
       <div v-else-if="store.state.destinationChainConfiguration?.name === 'Voi'">
         <p>{{ t('sign.bridgeSuccess') }}</p>

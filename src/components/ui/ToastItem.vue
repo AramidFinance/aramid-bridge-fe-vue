@@ -30,24 +30,32 @@ const isKeyboardFocused = (el: Element | null): boolean => {
   }
 }
 
+/** Moves focus out of this toast: to a neighbouring toast, else back where it came from, else the app anchor. */
+const handOffFocus = () => {
+  const li = root.value
+  if (!li) return
+  // toasts still playing their leave animation are on their way out: skip them
+  const others = [...(li.parentElement?.children ?? [])].filter((item) => item === li || !item.classList.contains('toast-leave-active'))
+  const index = others.indexOf(li)
+  const sibling = (others[index + 1] ?? others[index - 1])?.querySelector<HTMLElement>('.toast__close')
+  // last resort: a labelled anchor at the top of the app, so focus does not fall to <body>
+  const appRoot = document.getElementById('app-focus-anchor')
+  const target = sibling ?? (returnFocus?.isConnected ? returnFocus : appRoot)
+  if (!sibling) returnFocus = undefined
+  target?.focus({ preventScroll: true })
+  // the remembered element may have become unfocusable (hidden, disabled): fall back to the app root
+  if (target && document.activeElement !== target) appRoot?.focus({ preventScroll: true })
+}
+
+/** close() already decided what happens to focus (so unmounting must not second-guess it). */
+let focusDecided = false
+
 /** `fromTimer`: the toast expired with focus inside it - focus must go somewhere, however it got there. */
 const close = (fromTimer = false) => {
-  const li = root.value
   // only keyboard users need focus carried along; a mouse click merely focused the button as a side effect
-  if (li?.contains(document.activeElement) && (fromTimer || isKeyboardFocused(document.activeElement))) {
-    // keep keyboard users in place: move to a neighbouring toast, else back where they came from
-    // toasts still playing their leave animation are on their way out: skip them
-    const others = [...(li.parentElement?.children ?? [])].filter((item) => item === li || !item.classList.contains('toast-leave-active'))
-    const index = others.indexOf(li)
-    const sibling = (others[index + 1] ?? others[index - 1])?.querySelector<HTMLElement>('.toast__close')
-    // last resort: a labelled anchor at the top of the app, so focus does not fall to <body>
-    const appRoot = document.getElementById('app-focus-anchor')
-    const target = sibling ?? (returnFocus?.isConnected ? returnFocus : appRoot)
-    if (!sibling) returnFocus = undefined
-    target?.focus({ preventScroll: true })
-    // the remembered element may have become unfocusable (hidden, disabled): fall back to the app root
-    if (target && document.activeElement !== target) appRoot?.focus({ preventScroll: true })
-  }
+  // (moving it elsewhere, e.g. back to an input, would pop that input's hint or the mobile keyboard)
+  if (root.value?.contains(document.activeElement) && (fromTimer || isKeyboardFocused(document.activeElement))) handOffFocus()
+  focusDecided = true
   dismiss()
 }
 
@@ -116,6 +124,8 @@ const onFocusOut = (event: FocusEvent) => {
 
 onMounted(start)
 onBeforeUnmount(() => {
+  // removed some other way (trimmed, removed programmatically) with focus still inside: do not drop it to <body>
+  if (!focusDecided && root.value?.contains(document.activeElement)) handOffFocus()
   unmounted = true
   stop()
   setToastPaused(props.message.id, false)

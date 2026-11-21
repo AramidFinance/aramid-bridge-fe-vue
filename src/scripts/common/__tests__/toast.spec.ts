@@ -54,6 +54,14 @@ describe('toast store', () => {
     expect(toastMessages[MAX_TOASTS].detail).toBe('newest')
   })
 
+  it('an incoming info toast gives way rather than evicting an error', () => {
+    for (let i = 0; i < MAX_TOASTS; i++) addToast({ severity: 'error', detail: `failure ${i}` })
+    addToast({ severity: 'info', detail: 'Copied' })
+    expect(toastMessages).toHaveLength(MAX_TOASTS)
+    expect(toastMessages.every((m) => m.severity === 'error')).toBe(true)
+    expect(toastMessages[0].detail).toBe('failure 0')
+  })
+
   it('trims info/success before warnings and errors', () => {
     addToast({ severity: 'error', detail: 'why the tx failed', life: 10000 })
     for (let i = 0; i < MAX_TOASTS; i++) addToast({ severity: 'info', detail: `copied ${i}`, life: 3000 })

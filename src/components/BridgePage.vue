@@ -345,7 +345,22 @@ watch(
 )
 // the inline validation error describes the inputs as they were: drop it as soon as any of them changes
 watch(
-  () => [store.state.sourceAmount, store.state.sourceAddress, store.state.sourceChain, store.state.sourceToken, store.state.destinationChain, store.state.destinationToken],
+  () => [
+    store.state.sourceAmount,
+    store.state.sourceAddress,
+    store.state.sourceChain,
+    store.state.sourceToken,
+    store.state.destinationChain,
+    store.state.destinationToken,
+    store.state.memo,
+    store.state.sourceAlgoConnectorType,
+    store.state.sourceAddressBalance,
+    store.state.destinationBridgeBalance,
+    store.state.escrowBalanceIsSufficient,
+    store.state.loadingSourceAddressBalance,
+    store.state.loadingDestinationAddressBalance,
+    store.state.loadingDestinationEscrowAddressBalance
+  ],
   () => {
     state.error = ''
   }
