@@ -11,6 +11,8 @@ on:
 jobs:
   promote:
     name: Retag and deploy to main
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
 
     steps:
