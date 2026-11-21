@@ -70,7 +70,7 @@ importers:
         version: 1.1.11
       avm-wallet-vue:
         specifier: ^4.3.2
-        version: 4.3.2(@agoralabs-sh/avm-web-provider@1.7.0)(@blockshake/defly-connect@1.2.1(algosdk@3.9.0))(@perawallet/connect@1.10.1(algosdk@3.9.0))(@walletconnect/modal@2.7.0(@types/react@19.2.17)(react@18.3.1))(@walletconnect/sign-client@2.26.0(typescript@6.0.3)(zod@3.25.76))(algosdk@3.9.0)(lute-connect@2.0.1)(vue@3.5.46(typescript@6.0.3))
+        version: 4.3.2(@agoralabs-sh/avm-web-provider@1.7.0)(@blockshake/defly-connect@1.2.1(algosdk@3.9.0))(@perawallet/connect@1.10.1(algosdk@3.9.0))(@walletconnect/modal@2.7.0(@types/react@19.2.17)(react@18.3.1))(@walletconnect/sign-client@2.26.0(typescript@6.0.3)(zod@3.25.76))(algosdk@3.9.0)(lute-connect@1.7.0)(vue@3.5.46(typescript@6.0.3))
       axios:
         specifier: ^1.21.1
         version: 1.21.1(debug@4.4.3)
@@ -93,8 +93,8 @@ importers:
         specifier: ^6.17.0
         version: 6.17.0
       lute-connect:
-        specifier: ^2.0.1
-        version: 2.0.1
+        specifier: ^1.7.0
+        version: 1.7.0
       moment:
         specifier: ^2.31.0
         version: 2.31.0
@@ -3489,8 +3489,8 @@ packages:
     resolution: {integrity: sha512-U4N8FgzmWxc8k1VH8Kr6lQg18U7Fjvby6wXHVRX/ZZ7IwWbRMgrRbP0Wrb5q5NVinryp4SQampHKdvtecItxUg==}
     engines: {node: 20 || >=22}
 
-  lute-connect@2.0.1:
-    resolution: {integrity: sha512-gyQj9SbRjQnZ0mOp9UusrTX6kSePR5PwiEGeQ7VpmDcSaY4WbQPBEoQfRoyyzA054Ly2ypBE3vpdNG3Dvh5CYw==}
+  lute-connect@1.7.0:
+    resolution: {integrity: sha512-/eXb2/c/xltKyVEVWchd1QZB6F0fvgXwVIqXDQWeJ9unPo0kMMbtuLkeb1v4Kr1lffxX8uGnb+8kAMYjczUASg==}
     deprecated: This package is deprecated. Please use @galaxypay/lute-connect instead.
 
   magic-string-ast@1.0.3:
@@ -7941,23 +7941,23 @@ snapshots:
     dependencies:
       possible-typed-array-names: 1.1.0
 
-  avm-wallet-vue@4.3.2(@agoralabs-sh/avm-web-provider@1.7.0)(@blockshake/defly-connect@1.2.1(algosdk@3.9.0))(@perawallet/connect@1.10.1(algosdk@3.9.0))(@walletconnect/modal@2.7.0(@types/react@19.2.17)(react@18.3.1))(@walletconnect/sign-client@2.26.0(typescript@6.0.3)(zod@3.25.76))(algosdk@3.9.0)(lute-connect@2.0.1)(vue@3.5.46(typescript@6.0.3)):
+  avm-wallet-vue@4.3.2(@agoralabs-sh/avm-web-provider@1.7.0)(@blockshake/defly-connect@1.2.1(algosdk@3.9.0))(@perawallet/connect@1.10.1(algosdk@3.9.0))(@walletconnect/modal@2.7.0(@types/react@19.2.17)(react@18.3.1))(@walletconnect/sign-client@2.26.0(typescript@6.0.3)(zod@3.25.76))(algosdk@3.9.0)(lute-connect@1.7.0)(vue@3.5.46(typescript@6.0.3)):
     dependencies:
       '@tanstack/vue-store': 0.7.3(vue@3.5.46(typescript@6.0.3))
       algosdk: 3.9.0
-      avm-wallet: 4.3.2(@agoralabs-sh/avm-web-provider@1.7.0)(@blockshake/defly-connect@1.2.1(algosdk@3.9.0))(@perawallet/connect@1.10.1(algosdk@3.9.0))(@walletconnect/modal@2.7.0(@types/react@19.2.17)(react@18.3.1))(@walletconnect/sign-client@2.26.0(typescript@6.0.3)(zod@3.25.76))(algosdk@3.9.0)(lute-connect@2.0.1)
+      avm-wallet: 4.3.2(@agoralabs-sh/avm-web-provider@1.7.0)(@blockshake/defly-connect@1.2.1(algosdk@3.9.0))(@perawallet/connect@1.10.1(algosdk@3.9.0))(@walletconnect/modal@2.7.0(@types/react@19.2.17)(react@18.3.1))(@walletconnect/sign-client@2.26.0(typescript@6.0.3)(zod@3.25.76))(algosdk@3.9.0)(lute-connect@1.7.0)
       vue: 3.5.46(typescript@6.0.3)
     optionalDependencies:
       '@blockshake/defly-connect': 1.2.1(algosdk@3.9.0)
       '@perawallet/connect': 1.10.1(algosdk@3.9.0)
       '@walletconnect/modal': 2.7.0(@types/react@19.2.17)(react@18.3.1)
       '@walletconnect/sign-client': 2.26.0(typescript@6.0.3)(zod@3.25.76)
-      lute-connect: 2.0.1
+      lute-connect: 1.7.0
     transitivePeerDependencies:
       - '@agoralabs-sh/avm-web-provider'
       - '@vue/composition-api'
 
-  avm-wallet@4.3.2(@agoralabs-sh/avm-web-provider@1.7.0)(@blockshake/defly-connect@1.2.1(algosdk@3.9.0))(@perawallet/connect@1.10.1(algosdk@3.9.0))(@walletconnect/modal@2.7.0(@types/react@19.2.17)(react@18.3.1))(@walletconnect/sign-client@2.26.0(typescript@6.0.3)(zod@3.25.76))(algosdk@3.9.0)(lute-connect@2.0.1):
+  avm-wallet@4.3.2(@agoralabs-sh/avm-web-provider@1.7.0)(@blockshake/defly-connect@1.2.1(algosdk@3.9.0))(@perawallet/connect@1.10.1(algosdk@3.9.0))(@walletconnect/modal@2.7.0(@types/react@19.2.17)(react@18.3.1))(@walletconnect/sign-client@2.26.0(typescript@6.0.3)(zod@3.25.76))(algosdk@3.9.0)(lute-connect@1.7.0):
     dependencies:
       '@tanstack/store': 0.7.2
       algosdk: 3.9.0
@@ -7967,7 +7967,7 @@ snapshots:
       '@perawallet/connect': 1.10.1(algosdk@3.9.0)
       '@walletconnect/modal': 2.7.0(@types/react@19.2.17)(react@18.3.1)
       '@walletconnect/sign-client': 2.26.0(typescript@6.0.3)(zod@3.25.76)
-      lute-connect: 2.0.1
+      lute-connect: 1.7.0
 
   aws-sign2@0.7.0: {}
 
@@ -9189,7 +9189,7 @@ snapshots:
 
   lru-cache@11.5.3: {}
 
-  lute-connect@2.0.1: {}
+  lute-connect@1.7.0: {}
 
   magic-string-ast@1.0.3:
     dependencies:
