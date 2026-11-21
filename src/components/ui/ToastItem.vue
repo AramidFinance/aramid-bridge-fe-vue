@@ -53,7 +53,7 @@ const close = () => {
 const start = () => {
   if (!props.message.life || timer !== undefined) return
   startedAt = Date.now()
-  timer = setTimeout(dismiss, remaining)
+  timer = setTimeout(close, remaining)
 }
 
 const stop = () => {
@@ -97,8 +97,9 @@ const onFocusIn = (event: FocusEvent) => {
 const onFocusOut = (event: FocusEvent) => {
   // leaving the toast region for the page: the remembered origin is no longer where the user is
   if (event.relatedTarget instanceof HTMLElement && !event.relatedTarget.closest('.toast-region')) returnFocus = undefined
-  // focus moving between elements inside the toast keeps it paused
-  if (root.value?.contains(event.relatedTarget as Node | null)) return
+  // focus moving between elements inside the toast keeps it paused, and so does the window losing focus
+  // (alt-tab: no relatedTarget) - the toast must still be there when the user comes back
+  if (!event.relatedTarget || root.value?.contains(event.relatedTarget as Node)) return
   focused.value = false
   update()
 }

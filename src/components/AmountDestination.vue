@@ -113,7 +113,7 @@ watch(
     <div
       v-tooltip.top="'This is the amount of assets that will be transferred to the destination address.'"
       tabindex="0"
-      class="flex items-center bg-transparent h-[40px] text-2xl font-bold rounded-[2px] focus:outline-none text-center md:text-right justify-center md:justify-end mt-5 md:mt-0"
+      class="flex items-center bg-transparent h-[40px] text-2xl font-bold rounded-[2px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FB7EFF] text-center md:text-right justify-center md:justify-end mt-5 md:mt-0"
       v-if="store.state.destinationTokenConfiguration"
     >
       {{ viewAmount(store.state.destinationAmount, store.state.destinationTokenConfiguration?.decimals) }}

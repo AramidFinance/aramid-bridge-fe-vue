@@ -15,7 +15,7 @@ const state = reactive({
   })
 })
 // the full id only needs revealing (keyboard stop) when it was actually shortened
-const truncated = computed(() => !!props.txId && shortenAddress(props.txId, props.length ?? 4) !== props.txId)
+const truncated = computed(() => !!props.txId && shortenAddress(props.txId, props.length ?? 4).length < props.txId.length)
 </script>
 <template>
   <span v-if="state.explorer">

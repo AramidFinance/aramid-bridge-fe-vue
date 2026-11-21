@@ -225,10 +225,18 @@ describe('AppToast', () => {
     await nextTick()
     const close = $('button[aria-label="common.close"]')!
 
+    const outside = document.createElement('button')
+    document.body.append(outside)
+
     close.focus()
     vi.advanceTimersByTime(5000)
     expect(toastMessages).toHaveLength(1)
-    close.blur()
+    // the window losing focus (alt-tab: no relatedTarget) keeps it paused
+    close.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }))
+    vi.advanceTimersByTime(5000)
+    expect(toastMessages).toHaveLength(1)
+    // moving focus to the page resumes the timer
+    outside.focus()
     vi.advanceTimersByTime(1000)
     expect(toastMessages).toHaveLength(0)
   })

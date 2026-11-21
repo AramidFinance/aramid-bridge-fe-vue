@@ -137,16 +137,35 @@ describe('v-tooltip', () => {
     wrapper.unmount()
   })
 
-  it('suppresses the iOS callout only where a long-press opens a tooltip', async () => {
+  it('suppresses native long-press affordances only on buttons whose long-press opens a tooltip', async () => {
     const text = ref('Hint')
-    const wrapper = mountWith(`<div><a class="a" v-tooltip="text">x</a><input class="i" v-tooltip.focus="'Amount'" /></div>`, () => ({ text }))
+    const wrapper = mountWith(
+      `<div><button class="b" v-tooltip="text">x</button><div class="rb" role="button" v-tooltip="'Wallet'">w</div><a class="a" href="#" v-tooltip="'Tx'">tx</a><span class="s" v-tooltip="'ADDR'">AD..DR</span><input class="i" v-tooltip.focus="'Amount'" /></div>`,
+      () => ({ text })
+    )
     const hold = (selector: string) => wrapper.get(selector).classes().includes('aramid-tooltip-hold')
-    expect(hold('.a')).toBe(true)
+    expect(hold('.b')).toBe(true)
+    expect(hold('.rb')).toBe(true)
+    expect(hold('.a')).toBe(false) // links keep their native menu
+    expect(hold('.s')).toBe(false) // text stays selectable
     expect(hold('.i')).toBe(false) // input hints are focus-only: keep the text-edit menu
     text.value = ''
     await nextTick()
-    expect(hold('.a')).toBe(false)
+    expect(hold('.b')).toBe(false)
     wrapper.unmount()
+  })
+
+  it('does not rebuild the tooltip while unmounting with a press-opened tooltip', () => {
+    vi.useFakeTimers()
+    const show = ref(true)
+    const wrapper = mountWith(`<div><button v-if="show" v-tooltip="'Hint'">x</button></div>`, () => ({ show }))
+    const button = wrapper.get('button').element
+    pointer(button, 'pointerenter') // hybrid device: hovered too
+    pointer(button, 'pointerdown', 'touch')
+    vi.advanceTimersByTime(LONG_PRESS_MS)
+    expect(tip()).not.toBeNull()
+    wrapper.unmount()
+    expect(tip()).toBeNull()
   })
 
   it('suppresses the native context menu only while a press is pending or open', () => {

@@ -230,14 +230,22 @@ const show = (el: HTMLElement, state: TooltipState): void => {
 }
 
 /**
- * iOS shows its link/image callout on long-press regardless of `contextmenu`; suppress it only where a long-press
- * opens a tooltip (has text, not a `.focus` input hint), so inputs and plain links keep their native menus.
+ * Buttons (native or role=button) have no useful native long-press: no text to select, no link menu. Only there are
+ * the context menu, the iOS callout and touch text selection suppressed in favour of the press-and-hold tooltip;
+ * links, text and inputs keep their native long-press behaviour.
  */
+const isControl = (el: HTMLElement): boolean => el.matches('button, [role="button"]')
+
 const applyTouchCallout = (el: HTMLElement, state: TooltipState): void => {
-  el.classList.toggle('aramid-tooltip-hold', !!state.text && !state.focusOnly)
+  el.classList.toggle('aramid-tooltip-hold', !!state.text && !state.focusOnly && isControl(el))
 }
 
 function sync(el: HTMLElement, state: TooltipState): void {
+  // unmounting (or unmounted): never rebuild the tooltip
+  if (!targets.has(el)) {
+    hide(el, state)
+    return
+  }
   // the innermost target wins: never show while a nested target's tooltip is open
   const nestedOpen = [...open].some((target) => target !== el && el.contains(target))
   const wanted = !!state.text && !state.dismissed && !nestedOpen && (state.focused || state.pressed || (state.hovered && !state.focusOnly))
@@ -368,7 +376,7 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
     }
     // Long-pressing an image or link would also open the native context menu / callout over the tooltip.
     const onContextMenu = (event: Event) => {
-      if (state.pressTimer !== undefined || state.pressed) event.preventDefault()
+      if ((state.pressTimer !== undefined || state.pressed) && isControl(el)) event.preventDefault()
     }
     // Any click (mouse, or Enter/Space on the focused element) usually opens something the tooltip would cover,
     // so it closes; input hints stay.
@@ -426,8 +434,8 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
     if (!state) return
     targets.delete(el)
     el.classList.remove('aramid-tooltip-hold')
-    hide(el, state)
     state.cleanup()
+    hide(el, state)
     states.delete(el)
   }
 }

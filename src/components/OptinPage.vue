@@ -131,7 +131,7 @@ const optinUsingUseWallet = async () => {
 
     <p>{{ t('optin.chainRequirement', { chain: store.state.destinationChainConfiguration?.name }) }}</p>
 
-    <p v-if="store.state.destinationToken"><CopyIcon :text="store.state.destinationToken" :title="store.state.destinationToken"></CopyIcon> {{ store.state.destinationToken }}</p>
+    <p v-if="store.state.destinationToken"><CopyIcon :text="store.state.destinationToken"></CopyIcon> {{ store.state.destinationToken }}</p>
 
     <div v-if="activeAccount?.address == store.state.destinationAddress">
       <p v-if="state.signInWallet"><img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> {{ t('sign.signInWallet', { wallet: walletName || '' }) }}</p>
