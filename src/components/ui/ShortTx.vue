@@ -21,7 +21,7 @@ console.log('state.explorer', props, state.explorer)
     <a v-tooltip.top="props.txId" :href="`${state.explorer}${props.txId}`" target="_blank" rel="noreferrer">{{ shortenAddress(props.txId ?? '', props.length ?? 4) }}</a>
   </span>
   <span v-else>
-    <span v-tooltip.top="props.txId">{{ shortenAddress(props.txId ?? '', props.length ?? 4) }}</span>
+    <span v-tooltip.top="props.txId" tabindex="0">{{ shortenAddress(props.txId ?? '', props.length ?? 4) }}</span>
   </span>
   <CopyIcon :text="props.txId"></CopyIcon>
 </template>

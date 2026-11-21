@@ -1,10 +1,16 @@
+<script lang="ts">
+/** Where keyboard focus was before it entered the toast region; shared so it survives moving between toasts. */
+let returnFocus: HTMLElement | undefined
+</script>
+
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { removeToast, type ToastMessage } from '@/scripts/common/toast'
+import { removeToast, setToastPaused, type ToastMessage } from '@/scripts/common/toast'
 import SeverityIcon from './SeverityIcon.vue'
 
 const props = defineProps<{ message: ToastMessage }>()
 
+const root = ref<HTMLLIElement>()
 const hovered = ref(false)
 const focused = ref(false)
 const paused = computed(() => hovered.value || focused.value)
@@ -13,12 +19,26 @@ let timer: ReturnType<typeof setTimeout> | undefined
 let remaining = props.message.life ?? 0
 let startedAt = 0
 
-const close = () => removeToast(props.message.id)
+const dismiss = () => removeToast(props.message.id)
+
+const close = () => {
+  const li = root.value
+  if (li?.contains(document.activeElement)) {
+    // keep keyboard users in place: move to a neighbouring toast, else back where they came from
+    // toasts still playing their leave animation are on their way out: skip them
+    const others = [...(li.parentElement?.children ?? [])].filter((item) => item === li || !item.classList.contains('toast-leave-active'))
+    const index = others.indexOf(li)
+    const sibling = (others[index + 1] ?? others[index - 1])?.querySelector<HTMLElement>('.toast__close')
+    const target = sibling ?? (returnFocus?.isConnected ? returnFocus : undefined)
+    target?.focus()
+  }
+  dismiss()
+}
 
 const start = () => {
   if (!props.message.life || timer !== undefined) return
   startedAt = Date.now()
-  timer = setTimeout(close, remaining)
+  timer = setTimeout(dismiss, remaining)
 }
 
 const stop = () => {
@@ -28,29 +48,47 @@ const stop = () => {
   remaining = Math.max(0, remaining - (Date.now() - startedAt))
 }
 
-const setHovered = (value: boolean) => {
-  hovered.value = value
+const update = () => {
+  setToastPaused(props.message.id, paused.value)
   if (paused.value) stop()
   else start()
 }
 
-const setFocused = (value: boolean) => {
-  focused.value = value
-  if (paused.value) stop()
-  else start()
+// touch sends no reliable "leave", so a tap would pause the toast forever; only real pointers pause it
+const onPointerEnter = (event: PointerEvent) => {
+  if (event.pointerType === 'touch') return
+  hovered.value = true
+  update()
+}
+
+const onPointerLeave = (event: PointerEvent) => {
+  if (event.pointerType === 'touch') return
+  hovered.value = false
+  update()
+}
+
+const onFocusIn = (event: FocusEvent) => {
+  if (event.relatedTarget instanceof HTMLElement && !event.relatedTarget.closest('.toast-region')) returnFocus = event.relatedTarget
+  focused.value = true
+  update()
 }
 
 const onFocusOut = (event: FocusEvent) => {
   // focus moving between elements inside the toast keeps it paused
-  if (!(event.currentTarget as HTMLElement).contains(event.relatedTarget as Node | null)) setFocused(false)
+  if (root.value?.contains(event.relatedTarget as Node | null)) return
+  focused.value = false
+  update()
 }
 
 onMounted(start)
-onBeforeUnmount(stop)
+onBeforeUnmount(() => {
+  stop()
+  setToastPaused(props.message.id, false)
+})
 </script>
 
 <template>
-  <li class="toast" :class="`toast--${message.severity}`" @mouseenter="setHovered(true)" @mouseleave="setHovered(false)" @focusin="setFocused(true)" @focusout="onFocusOut">
+  <li ref="root" class="toast" :class="`toast--${message.severity}`" @pointerenter="onPointerEnter" @pointerleave="onPointerLeave" @focusin="onFocusIn" @focusout="onFocusOut">
     <span class="toast__icon">
       <SeverityIcon :severity="message.severity" />
     </span>

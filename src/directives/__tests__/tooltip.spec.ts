@@ -133,6 +133,45 @@ describe('v-tooltip', () => {
     wrapper.unmount()
   })
 
+  it('clamps to the viewport and picks the roomier side when neither side fits', () => {
+    const wrapper = mountWith(`<span v-tooltip.top="'Tall'">x</span>`)
+    const span = wrapper.get('span').element
+    // jsdom viewport is 1024x768; 100px above the target, 648px below, tooltip 700px tall
+    span.getBoundingClientRect = () => rect(100, 100, 40, 20)
+    const original = HTMLElement.prototype.getBoundingClientRect
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      return this.getAttribute('role') === 'tooltip' ? rect(0, 0, 80, 700) : original.call(this)
+    })
+
+    pointer(span, 'pointerenter')
+    expect(tip()?.dataset.placement).toBe('bottom')
+    expect(tip()?.style.top).toBe(`${768 - 8 - 700}px`)
+    wrapper.unmount()
+  })
+
+  it('hides while the target is not rendered (display: none)', () => {
+    const wrapper = mountWith(`<span v-tooltip="'Hidden'">x</span>`)
+    const span = wrapper.get('span').element
+    span.getBoundingClientRect = () => rect(0, 0, 0, 0)
+    pointer(span, 'pointerenter')
+    expect(tip()?.style.visibility).toBe('hidden')
+    wrapper.unmount()
+  })
+
+  it('follows the target when layout moves it while open', async () => {
+    const wrapper = mountWith(`<span v-tooltip.bottom="'Follow'">x</span>`)
+    const span = wrapper.get('span').element
+    let top = 100
+    span.getBoundingClientRect = () => rect(top, 100, 40, 20)
+    pointer(span, 'pointerenter')
+    expect(tip()?.style.top).toBe('130px')
+
+    top = 160 // e.g. a message was inserted above the target; no scroll/resize event
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    expect(tip()?.style.top).toBe('190px')
+    wrapper.unmount()
+  })
+
   it('follows the target on scroll, hides while it is off screen, and is removed on unmount', () => {
     const wrapper = mountWith(`<span v-tooltip.bottom="'Follow'">x</span>`)
     const span = wrapper.get('span').element

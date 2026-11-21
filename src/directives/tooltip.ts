@@ -21,6 +21,9 @@ interface TooltipState {
   focused: boolean
   /** Closed by a click or Escape; stays closed until the pointer re-enters or keyboard focus returns. */
   dismissed: boolean
+  /** Target rect at the last placement, and the pending animation frame of the layout tracker. */
+  lastRect?: string
+  frame?: number
   onKeydown: (event: KeyboardEvent) => void
   onReposition: () => void
   cleanup: () => void
@@ -65,30 +68,59 @@ const fits = (placement: TooltipPlacement, target: DOMRect, width: number, heigh
 
 const clamp = (value: number, min: number, max: number): number => Math.min(Math.max(value, min), Math.max(min, max))
 
-/** Places the tooltip next to the target, flipping to the opposite side when it does not fit and keeping it on screen. */
+/** Free space on the given side of the target. */
+const room = (placement: TooltipPlacement, target: DOMRect): number => {
+  switch (placement) {
+    case 'top':
+      return target.top
+    case 'bottom':
+      return window.innerHeight - target.bottom
+    case 'left':
+      return target.left
+    case 'right':
+      return window.innerWidth - target.right
+  }
+}
+
+const rectKey = (rect: DOMRect): string => `${rect.left},${rect.top},${rect.width},${rect.height}`
+
+/**
+ * Places the tooltip next to the target: the preferred side, else the opposite one if only that fits,
+ * else whichever has more room; always kept inside the viewport.
+ */
 const position = (el: HTMLElement, state: TooltipState): void => {
   const tip = state.tip
   if (!tip) return
   const target = el.getBoundingClientRect()
-  // target scrolled out of view: hide the tooltip until it comes back
-  const offscreen = target.bottom < 0 || target.top > window.innerHeight || target.right < 0 || target.left > window.innerWidth
-  tip.style.visibility = offscreen ? 'hidden' : ''
-  if (offscreen) return
+  state.lastRect = rectKey(target)
+  // target not rendered (display: none gives an empty rect) or scrolled out of view: hide until it is back
+  const hidden = (target.width === 0 && target.height === 0) || target.bottom < 0 || target.top > window.innerHeight || target.right < 0 || target.left > window.innerWidth
+  tip.style.visibility = hidden ? 'hidden' : ''
+  if (hidden) return
 
+  // measure at the origin so the previous position does not squeeze the width of new text
+  tip.style.left = '0px'
+  tip.style.top = '0px'
   const { width, height } = tip.getBoundingClientRect()
+
   let placement = state.placement
-  if (!fits(placement, target, width, height) && fits(OPPOSITE[placement], target, width, height)) placement = OPPOSITE[placement]
+  if (!fits(placement, target, width, height)) {
+    const opposite = OPPOSITE[placement]
+    if (fits(opposite, target, width, height) || room(opposite, target) > room(placement, target)) placement = opposite
+  }
 
   const centerX = target.left + target.width / 2
   const centerY = target.top + target.height / 2
+  const maxLeft = window.innerWidth - VIEWPORT_MARGIN - width
+  const maxTop = window.innerHeight - VIEWPORT_MARGIN - height
   let left: number
   let top: number
   if (placement === 'top' || placement === 'bottom') {
-    left = clamp(centerX - width / 2, VIEWPORT_MARGIN, window.innerWidth - VIEWPORT_MARGIN - width)
-    top = placement === 'top' ? target.top - OFFSET - height : target.bottom + OFFSET
+    left = clamp(centerX - width / 2, VIEWPORT_MARGIN, maxLeft)
+    top = clamp(placement === 'top' ? target.top - OFFSET - height : target.bottom + OFFSET, VIEWPORT_MARGIN, maxTop)
   } else {
-    top = clamp(centerY - height / 2, VIEWPORT_MARGIN, window.innerHeight - VIEWPORT_MARGIN - height)
-    left = placement === 'left' ? target.left - OFFSET - width : target.right + OFFSET
+    top = clamp(centerY - height / 2, VIEWPORT_MARGIN, maxTop)
+    left = clamp(placement === 'left' ? target.left - OFFSET - width : target.right + OFFSET, VIEWPORT_MARGIN, maxLeft)
   }
 
   tip.dataset.placement = placement
@@ -97,6 +129,17 @@ const position = (el: HTMLElement, state: TooltipState): void => {
   // keep the arrow pointing at the target even when the tooltip was shifted to stay on screen
   tip.style.setProperty('--arrow-x', `${Math.round(clamp(centerX - left, 14, width - 14))}px`)
   tip.style.setProperty('--arrow-y', `${Math.round(clamp(centerY - top, 12, height - 12))}px`)
+}
+
+/** While open, follow the target when layout moves it (content inserted above it, etc.); only re-places on change. */
+const track = (el: HTMLElement, state: TooltipState): void => {
+  if (typeof requestAnimationFrame !== 'function') return
+  const tick = () => {
+    if (!state.tip) return
+    if (rectKey(el.getBoundingClientRect()) !== state.lastRect) position(el, state)
+    state.frame = requestAnimationFrame(tick)
+  }
+  state.frame = requestAnimationFrame(tick)
 }
 
 const addDescribedBy = (el: HTMLElement, id: string): void => {
@@ -114,6 +157,8 @@ const hide = (el: HTMLElement, state: TooltipState): void => {
   if (!state.tip) return
   state.tip.remove()
   state.tip = undefined
+  if (state.frame !== undefined) cancelAnimationFrame(state.frame)
+  state.frame = undefined
   removeDescribedBy(el, state.id)
   document.removeEventListener('keydown', state.onKeydown)
   document.removeEventListener('scroll', state.onReposition, true)
@@ -140,6 +185,7 @@ const show = (el: HTMLElement, state: TooltipState): void => {
     // follow the target when any ancestor scrolls (capture) or the viewport resizes (e.g. a virtual keyboard opens)
     document.addEventListener('scroll', state.onReposition, true)
     window.addEventListener('resize', state.onReposition)
+    track(el, state)
   }
   ;(state.tip.firstElementChild as HTMLElement).textContent = state.text
   position(el, state)

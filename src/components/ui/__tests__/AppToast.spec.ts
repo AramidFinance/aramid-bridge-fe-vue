@@ -1,7 +1,7 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
-import { addToast, removeAllToasts, toastMessages } from '@/scripts/common/toast'
+import { addToast, MAX_TOASTS, removeAllToasts, toastMessages } from '@/scripts/common/toast'
 import AppToast from '../AppToast.vue'
 
 let wrapper: VueWrapper | undefined
@@ -13,6 +13,12 @@ const mountToast = () => {
 
 const $ = (selector: string) => document.querySelector<HTMLElement>(selector)
 const items = () => document.querySelectorAll<HTMLElement>('.toast')
+
+const pointer = (el: Element, type: 'pointerenter' | 'pointerleave', pointerType = 'mouse') => {
+  const event = new Event(type)
+  Object.defineProperty(event, 'pointerType', { value: pointerType })
+  el.dispatchEvent(event)
+}
 
 /** Lets the announcer's 50 ms clear-then-set delay run and re-render. */
 const flushAnnouncement = async () => {
@@ -78,17 +84,56 @@ describe('AppToast', () => {
     const [item] = items()
 
     vi.advanceTimersByTime(1000)
-    item.dispatchEvent(new Event('mouseenter'))
+    pointer(item, 'pointerenter')
     await nextTick()
     vi.advanceTimersByTime(10000)
     expect(toastMessages).toHaveLength(1)
     expect($('.toast__progress')!.style.animationPlayState).toBe('paused')
 
-    item.dispatchEvent(new Event('mouseleave'))
+    pointer(item, 'pointerleave')
     vi.advanceTimersByTime(1999)
     expect(toastMessages).toHaveLength(1)
     vi.advanceTimersByTime(1)
     expect(toastMessages).toHaveLength(0)
+  })
+
+  it('is not paused by a touch tap (touch never sends a reliable leave)', async () => {
+    mountToast()
+    addToast({ detail: 'timed', life: 1000 })
+    await nextTick()
+    pointer(items()[0], 'pointerenter', 'touch')
+    vi.advanceTimersByTime(1000)
+    expect(toastMessages).toHaveLength(0)
+  })
+
+  it('does not trim a toast that is being read when the list is full', async () => {
+    mountToast()
+    addToast({ detail: 'reading this' })
+    await nextTick()
+    pointer(items()[0], 'pointerenter')
+    for (let i = 0; i < MAX_TOASTS; i++) addToast({ detail: `burst ${i}` })
+    expect(toastMessages.map((m) => m.detail)).toContain('reading this')
+    expect(toastMessages).toHaveLength(MAX_TOASTS)
+  })
+
+  it('moves focus to a neighbouring toast, then back to where it came from, when closing with the keyboard', async () => {
+    const origin = document.createElement('button')
+    document.body.append(origin)
+    mountToast()
+    addToast({ detail: 'first' })
+    addToast({ detail: 'second' })
+    await nextTick()
+    origin.focus()
+    const [first, second] = [...document.querySelectorAll<HTMLElement>('.toast__close')]
+
+    first.focus()
+    first.click()
+    await nextTick()
+    expect(document.activeElement).toBe(second)
+
+    second.click()
+    await nextTick()
+    expect(document.activeElement).toBe(origin)
   })
 
   it('pauses while focus is inside the toast', async () => {
