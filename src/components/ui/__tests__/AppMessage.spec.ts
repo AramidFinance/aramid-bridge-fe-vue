@@ -22,8 +22,7 @@ describe('AppMessage', () => {
   })
 
   it('announces non-error messages politely through the persistent live region once settled', () => {
-    const wrapper = mount(AppMessage, { props: { severity: 'warn' }, slots: { default: 'Escrow is low' } })
-    expect(wrapper.attributes('role')).toBeUndefined()
+    mount(AppMessage, { props: { severity: 'warn' }, slots: { default: 'Escrow is low' } })
     settle()
     expect(liveRegions.polite).toBe('Escrow is low')
     expect(liveRegions.assertive).toBe('')
@@ -51,12 +50,12 @@ describe('AppMessage', () => {
     expect(liveRegions.polite).toBe('Second')
   })
 
-  it('uses role=alert for errors (announced on insertion), without a duplicate live-region announcement', () => {
+  it('announces errors at once and assertively (no role=alert insertion to rely on)', () => {
     const wrapper = mount(AppMessage, { props: { severity: 'error' }, slots: { default: 'Failed' } })
-    expect(wrapper.attributes('role')).toBe('alert')
-    settle()
+    expect(wrapper.attributes('role')).toBeUndefined()
+    vi.advanceTimersByTime(50)
+    expect(liveRegions.assertive).toBe('Failed')
     expect(liveRegions.polite).toBe('')
-    expect(liveRegions.assertive).toBe('')
   })
 
   it('defaults to info', () => {

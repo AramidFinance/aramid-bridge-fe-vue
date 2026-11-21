@@ -3,25 +3,26 @@ import { onBeforeUnmount, onMounted, onUpdated, ref } from 'vue'
 import { announce, type Severity } from '@/scripts/common/toast'
 import SeverityIcon from './SeverityIcon.vue'
 
-/** A message must stay this long before it is announced, so one flickering in and out while typing stays quiet. */
+/** A non-error message must stay this long before it is announced, so one flickering in and out stays quiet. */
 const SETTLE_MS = 1000
 
 const props = withDefaults(defineProps<{ severity?: Severity }>(), { severity: 'info' })
 const root = ref<HTMLElement>()
 
-// Errors use role=alert, which screen readers announce on insertion. Other messages are announced politely through
-// the persistent live region (a role=status element inserted with its text already in place is usually not read):
-// once they have settled, and again whenever their text changes.
+// Announced through the persistent live regions (role=alert/status elements inserted with their text already in place
+// are not read reliably by every screen reader): errors at once and assertively, others politely once settled; and
+// again whenever the text changes.
 let announced = ''
 let settleTimer: ReturnType<typeof setTimeout> | undefined
+const announceNow = () => {
+  const text = root.value?.textContent?.trim() ?? ''
+  if (text && text !== announced) announce(text, props.severity === 'error')
+  announced = text
+}
 const scheduleAnnouncement = () => {
-  if (props.severity === 'error') return
   clearTimeout(settleTimer)
-  settleTimer = setTimeout(() => {
-    const text = root.value?.textContent?.trim() ?? ''
-    if (text && text !== announced) announce(text)
-    announced = text
-  }, SETTLE_MS)
+  if (props.severity === 'error') announceNow()
+  else settleTimer = setTimeout(announceNow, SETTLE_MS)
 }
 onMounted(scheduleAnnouncement)
 onUpdated(scheduleAnnouncement)
@@ -29,7 +30,7 @@ onBeforeUnmount(() => clearTimeout(settleTimer))
 </script>
 
 <template>
-  <div ref="root" class="message" :class="`message--${severity}`" :role="severity === 'error' ? 'alert' : undefined">
+  <div ref="root" class="message" :class="`message--${severity}`">
     <span class="message__icon">
       <SeverityIcon :severity="severity" />
     </span>

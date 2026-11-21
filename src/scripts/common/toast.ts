@@ -21,8 +21,8 @@ export interface ToastMessage {
   life?: number
 }
 
-/** Errors and warnings are the last toasts to be trimmed. */
-export const isUrgent = (severity: Severity): boolean => severity === 'error' || severity === 'warn'
+/** Trim priority: info/success go first, then warnings, then errors. */
+const rank = (severity: Severity): number => (severity === 'error' ? 2 : severity === 'warn' ? 1 : 0)
 
 /** Only errors interrupt the screen reader (assertive); warnings and the rest wait politely, toasts and messages alike. */
 export const isAssertive = (severity: Severity): boolean => severity === 'error'
@@ -107,19 +107,19 @@ export const addToast = (options: ToastOptions): number => {
   state.messages.push(message)
   // announced at insertion, so even a toast trimmed in the same burst is read out
   announce([message.summary, message.detail].filter(Boolean).join(': '), isAssertive(message.severity))
-  // Over the limit: drop the oldest info/success toasts first, then warnings/errors. Never the new toast or one
-  // being read; if nothing else can go, the list may briefly exceed the limit.
-  for (const urgentPass of [false, true]) {
-    // an incoming info/success toast never evicts a warning or error: it gives way itself (it was announced above)
-    const wouldEvictUrgent = state.messages.slice(0, -1).some((existing) => isUrgent(existing.severity) && !paused.has(existing.id))
-    if (urgentPass && state.messages.length > MAX_TOASTS && !isUrgent(message.severity) && wouldEvictUrgent) {
-      state.messages.pop()
+  // Over the limit: drop the oldest info/success toasts first, then warnings, then errors - but never one that ranks
+  // above the incoming toast (it gives way itself; it was announced above), never the new toast's peers that are
+  // being read, and never the new toast otherwise. If nothing can go, the list may briefly exceed the limit.
+  for (let rankToDrop = 0; rankToDrop <= 2 && state.messages.length > MAX_TOASTS; rankToDrop++) {
+    const droppable = (existing: ToastMessage) => rank(existing.severity) === rankToDrop && !paused.has(existing.id)
+    if (rankToDrop > rank(message.severity)) {
+      // only higher-ranked toasts are left: give way, unless they are all being read (then briefly exceed the limit)
+      if (state.messages.slice(0, -1).some((existing) => !paused.has(existing.id))) state.messages.pop()
       break
     }
     for (let i = 0; state.messages.length > MAX_TOASTS && i < state.messages.length - 1;) {
-      const existing = state.messages[i]
-      if (paused.has(existing.id) || isUrgent(existing.severity) !== urgentPass) i++
-      else state.messages.splice(i, 1)
+      if (droppable(state.messages[i])) state.messages.splice(i, 1)
+      else i++
     }
   }
   return id

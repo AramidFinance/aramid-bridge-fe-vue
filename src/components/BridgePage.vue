@@ -110,8 +110,8 @@ const fillInRoute = () => {
 
 /**
  * Called when the review button is pressed. `silent`: re-check a shown error after the inputs or loaded data
- * changed - it clears once the problem is gone. It never rewrites the shown reason (an alert would interrupt the
- * screen reader on every keystroke); the next Review press reports the current one.
+ * changed. The shown reason stays only while it is still the reason; otherwise it is removed (never rewritten, which
+ * would interrupt the screen reader on every keystroke) and the next Review press reports the current one.
  */
 const doValidation = (silent = false): boolean => {
   if (!silent) state.error = '' // a previous failure must not linger once the input is fixed
@@ -216,10 +216,13 @@ const doValidation = (silent = false): boolean => {
     state.error = ''
     return true
   } catch (e: any) {
-    if (silent) return false
     const message = toText(e) ?? String(e)
+    if (silent) {
+      if (message !== state.error) state.error = ''
+      return false
+    }
     console.error(e)
-    // shown inline (AppMessage, role=alert) right above the button; a toast as well would announce it twice
+    // shown inline (AppMessage, announced assertively) right above the button; a toast as well would announce it twice
     state.error = message
     state.errorAttempt++
     return false

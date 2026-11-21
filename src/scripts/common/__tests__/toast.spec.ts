@@ -62,6 +62,18 @@ describe('toast store', () => {
     expect(toastMessages[0].detail).toBe('failure 0')
   })
 
+  it('a warning gives way rather than evicting an error; an error can evict a warning', () => {
+    for (let i = 0; i < MAX_TOASTS; i++) addToast({ severity: 'error', detail: `failure ${i}` })
+    addToast({ severity: 'warn', detail: 'low balance' })
+    expect(toastMessages.map((m) => m.severity)).toEqual(Array(MAX_TOASTS).fill('error'))
+
+    removeAllToasts()
+    for (let i = 0; i < MAX_TOASTS; i++) addToast({ severity: 'warn', detail: `warning ${i}` })
+    addToast({ severity: 'error', detail: 'failure' })
+    expect(toastMessages[MAX_TOASTS - 1].detail).toBe('failure')
+    expect(toastMessages[0].detail).toBe('warning 1')
+  })
+
   it('trims info/success before warnings and errors', () => {
     addToast({ severity: 'error', detail: 'why the tx failed', life: 10000 })
     for (let i = 0; i < MAX_TOASTS; i++) addToast({ severity: 'info', detail: `copied ${i}`, life: 3000 })
