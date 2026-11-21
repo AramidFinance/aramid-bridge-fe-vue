@@ -286,8 +286,8 @@ const bridginigButtonClick = async () => {
 
     if (attempt === currentAttempt) state.bridginig = false
   } catch (e: any) {
-    if (e instanceof BridgingAbortedError) return
-    if (attempt === currentAttempt) state.bridginig = false
+    if (e instanceof BridgingAbortedError || attempt !== currentAttempt) return
+    state.bridginig = false
     showError(toast, e, 10000)
   }
 }
@@ -335,7 +335,10 @@ const signAndSend = async (order: BridgeOrder, algodClient: algosdk.Algodv2, txn
   if (filteredSigned.length === 0) {
     throw Error(t('sign.noTransactionsSigned'))
   }
+  // a wallet leaving out transactions would send an incomplete group
+  if (filteredSigned.length !== txns.length) throw Error(t('sign.useWalletNotAllSigned'))
   await algodClient.sendRawTransaction(filteredSigned).do()
+  if (order.attempt !== currentAttempt) throw new BridgingAbortedError()
   // the group's own txid is its first transaction (e.g. an opt-in): show the swap/withdraw/deposit one
   state.resultTx = algosdk.decodeSignedTransaction(filteredSigned[filteredSigned.length - 1]).txn.txID()
   console.log('Claim tx sent with txid', state.resultTx)
@@ -474,7 +477,7 @@ const bridgeArc200ToAsa = async (order: BridgeOrder) => {
 
     await signAndSend(order, algodClient, toSignFinal)
   } catch (e: any) {
-    if (e instanceof BridgingAbortedError) return
+    if (e instanceof BridgingAbortedError || order.attempt !== currentAttempt) return
     showError(toast, e)
   } finally {
     if (order.attempt === currentAttempt) state.bridginig = false
@@ -647,7 +650,7 @@ const bridgeAsaToArc200 = async (order: BridgeOrder) => {
     console.log('toSignFinal', toSignFinal)
     await signAndSend(order, algodClient, toSignFinal)
   } catch (e: any) {
-    if (e instanceof BridgingAbortedError) return
+    if (e instanceof BridgingAbortedError || order.attempt !== currentAttempt) return
     showError(toast, e)
   } finally {
     if (order.attempt === currentAttempt) state.bridginig = false
