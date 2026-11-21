@@ -38,7 +38,7 @@ import WalletArc200Bridge from './WalletArc200Bridge.vue'
 Config.configure({ debug: true })
 
 const useWalletState = useWallet()
-const { activeNetwork, assertSigner, signAs, switchToChain } = useWalletNetwork(useWalletState)
+const { activeNetwork, assertSigner, signAs, signingNeedsClick, switchToChain } = useWalletNetwork(useWalletState)
 const toast = useToast()
 const { t } = useI18n()
 const router = useRouter()
@@ -64,6 +64,9 @@ const state = reactive({
   bridgingIsSuccessful: false,
   resultTx: '',
   bridginig: false,
+  awaitingSignClick: false,
+  // the wallet is asked to sign: that request cannot be cancelled from here
+  signing: false,
   claimErrorMessage: '',
   mounted: false
 })
@@ -100,6 +103,9 @@ let routeRun = 0
 let unmounted = false
 onBeforeUnmount(() => {
   unmounted = true
+  currentAttempt++
+  settleSignClick(new BridgingAbortedError())
+  state.bridginig = false
 })
 const applyRoute = async () => {
   const run = ++routeRun
@@ -210,6 +216,13 @@ const fillInRoute = (replace = false) => {
   navigate({ name: 'arc200-claim-t', params }, replace || amountOnly)
 }
 
+// the group waiting for the Sign click was built from the inputs at the Bridge click: changing them cancels it
+watch(
+  [() => store.state.arc200BridgeToken, () => store.state.arc200BridgeAmount, () => store.state.arc200BridgeDirection, () => store.state.arc200BridgeChain, () => store.state.arc200BridgeAddress],
+  () => {
+    if (state.awaitingSignClick) cancelBridging()
+  }
+)
 // one watcher: a change of several of these in one flush is one navigation
 watch([() => store.state.arc200BridgeToken, () => store.state.arc200BridgeAmount, () => store.state.arc200BridgeDirection], () => fillInRoute())
 
@@ -222,6 +235,8 @@ interface BridgeOrder {
   tokenId: string
   arc200TokenId: NonNullable<TokenItem['arc200TokenId']>
   amount: string
+  /** The bridging attempt (Bridge click) that built this order. */
+  attempt: number
 }
 
 const boundChain = (chain: number | undefined): number => {
@@ -231,6 +246,7 @@ const boundChain = (chain: number | undefined): number => {
 const signBound = (sender: string, chain: number | undefined, txns: algosdk.Transaction[]) => signAs(boundChain(chain), sender, txns)
 
 const bridginigButtonClick = async () => {
+  const attempt = ++currentAttempt
   try {
     state.bridginig = true
     if (!store.state.arc200BridgeChain) throw new Error('No destination chain set')
@@ -265,7 +281,8 @@ const bridginigButtonClick = async () => {
       sender: store.state.arc200BridgeAddress as string,
       tokenId,
       arc200TokenId,
-      amount: store.state.arc200BridgeAmount
+      amount: store.state.arc200BridgeAmount,
+      attempt
     }
     if (!isPositiveBaseUnits(order.amount)) throw Error(t('bridge.amountZero'))
 
@@ -277,25 +294,77 @@ const bridginigButtonClick = async () => {
       throw new Error('No bridge direction selected')
     }
 
-    state.bridginig = false
+    if (attempt === currentAttempt) state.bridginig = false
   } catch (e: any) {
+    if (e instanceof BridgingAbortedError || attempt !== currentAttempt) return
     state.bridginig = false
     showError(toast, e, 10000)
   }
 }
 
+// thrown when the user cancelled bridging or left the page: stop without signing or reporting
+class BridgingAbortedError extends Error {}
+// the latest Bridge click; a flow of an older attempt (cancelled meanwhile) must not sign
+let currentAttempt = 0
+// a popup wallet (Biatec Direct) can only open its popup from a click: the built group waits for it here
+let pendingSignClick: { resolve: () => void; reject: (e: Error) => void } | undefined
+const waitForSignClick = () =>
+  new Promise<void>((resolve, reject) => {
+    settleSignClick(new BridgingAbortedError())
+    pendingSignClick = { resolve, reject }
+    state.awaitingSignClick = true
+  })
+const settleSignClick = (error?: Error) => {
+  const pending = pendingSignClick
+  pendingSignClick = undefined
+  state.awaitingSignClick = false
+  if (error) pending?.reject(error)
+  else pending?.resolve()
+}
+const signClick = () => settleSignClick()
+const cancelBridging = () => {
+  currentAttempt++
+  settleSignClick(new BridgingAbortedError())
+  state.bridginig = false
+}
+
 /** Signs the group with the bound account, sends it and shows the bridge transaction (the last one). */
 const signAndSend = async (order: BridgeOrder, algodClient: algosdk.Algodv2, txns: algosdk.Transaction[]) => {
-  const signed = await signBound(order.sender, order.chainId, txns)
-  // Filter out any null values to satisfy the type requirement
-  const filteredSigned = signed.filter((s: Uint8Array | null): s is Uint8Array => s !== null)
-  if (filteredSigned.length === 0) {
-    throw Error(t('sign.noTransactionsSigned'))
+  // after the Sign click only microtasks run before the wallet is asked, which stays within the click's
+  // user activation, so the popup is allowed
+  if (order.attempt !== currentAttempt) throw new BridgingAbortedError()
+  if (signingNeedsClick()) {
+    await waitForSignClick()
+    if (order.attempt !== currentAttempt) throw new BridgingAbortedError()
   }
+  // signing and sending cannot be cancelled: the Cancel button is hidden until both are done
+  state.signing = true
+  try {
+    await signAndSendGroup(order, algodClient, txns)
+  } finally {
+    state.signing = false
+  }
+}
+
+const signAndSendGroup = async (order: BridgeOrder, algodClient: algosdk.Algodv2, txns: algosdk.Transaction[]) => {
+  const signed = await signBound(order.sender, order.chainId, txns)
+  // cancelled (or left) while the wallet was signing: do not send it
+  if (order.attempt !== currentAttempt) throw new BridgingAbortedError()
+  if (signed.length === 0 || signed.every((s) => !s)) throw Error(t('sign.noTransactionsSigned'))
+  // one signature per transaction: a wallet leaving transactions out would send an incomplete group
+  const filteredSigned = signed.filter((s): s is Uint8Array => !!s && ArrayBuffer.isView(s) && s.byteLength > 0)
+  if (signed.length !== txns.length || filteredSigned.length !== txns.length) throw Error(t('sign.useWalletNotAllSigned'))
+  // once sent the result is always shown, even when cancelled meanwhile: the user must not send it twice
   await algodClient.sendRawTransaction(filteredSigned).do()
   // the group's own txid is its first transaction (e.g. an opt-in): show the swap/withdraw/deposit one
-  state.resultTx = algosdk.decodeSignedTransaction(filteredSigned[filteredSigned.length - 1]).txn.txID()
-  console.log('Claim tx sent with txid', state.resultTx)
+  const resultTx = algosdk.decodeSignedTransaction(filteredSigned[filteredSigned.length - 1]).txn.txID()
+  console.log('Claim tx sent with txid', resultTx)
+  // only a newer attempt that is running owns the page (cancel alone does not): then just tell the user this one was sent
+  if (order.attempt !== currentAttempt && state.bridginig) {
+    toast.add({ severity: 'warn', detail: `${t('sign.claimSuccess')} ${resultTx}`, life: 15000 })
+    return
+  }
+  state.resultTx = resultTx
   state.bridgingIsSuccessful = true
   toast.add({
     severity: 'success',
@@ -431,9 +500,13 @@ const bridgeArc200ToAsa = async (order: BridgeOrder) => {
 
     await signAndSend(order, algodClient, toSignFinal)
   } catch (e: any) {
+    if (e instanceof BridgingAbortedError || order.attempt !== currentAttempt) {
+      if (!(e instanceof BridgingAbortedError)) console.error(e)
+      return
+    }
     showError(toast, e)
   } finally {
-    state.bridginig = false
+    if (order.attempt === currentAttempt) state.bridginig = false
   }
 }
 
@@ -603,9 +676,13 @@ const bridgeAsaToArc200 = async (order: BridgeOrder) => {
     console.log('toSignFinal', toSignFinal)
     await signAndSend(order, algodClient, toSignFinal)
   } catch (e: any) {
+    if (e instanceof BridgingAbortedError || order.attempt !== currentAttempt) {
+      if (!(e instanceof BridgingAbortedError)) console.error(e)
+      return
+    }
     showError(toast, e)
   } finally {
-    state.bridginig = false
+    if (order.attempt === currentAttempt) state.bridginig = false
   }
 }
 
@@ -631,8 +708,9 @@ const resetButtonClick = async () => {
         </div>
 
         <div v-if="state.bridginig">
-          <p>{{ t('wallet.checkWallet') }}</p>
-          <MainActionButton @click="state.bridginig = false">{{ t('common.cancel') }}</MainActionButton>
+          <p v-if="!state.awaitingSignClick">{{ t('wallet.checkWallet') }}</p>
+          <MainActionButton v-else @click="signClick">{{ t('bridge.signTransaction') }}</MainActionButton>
+          <MainActionButton v-if="!state.signing" @click="cancelBridging">{{ t('common.cancel') }}</MainActionButton>
         </div>
         <div class="w-full" v-else>
           <MainActionButton v-if="activeNetwork == getUseWalletNetworkId(store.state.arc200BridgeChain)" @click="bridginigButtonClick">Bridge</MainActionButton>
