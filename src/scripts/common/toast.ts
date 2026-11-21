@@ -67,6 +67,42 @@ export const removeAllToasts = (): void => {
   paused.clear()
 }
 
+/**
+ * Screen-reader announcements. Screen readers only announce changes to live regions that already exist, so
+ * AppToast renders these two persistent visually-hidden regions and anything that appears dynamically (new toasts,
+ * inline messages) is mirrored into them instead of relying on freshly inserted role=status elements.
+ */
+export const liveRegions = reactive({ polite: '', assertive: '' })
+const pendingAnnouncements = { polite: [] as string[], assertive: [] as string[] }
+let announceTimer: ReturnType<typeof setTimeout> | undefined
+
+/** Queues `text` for the polite (or, when `urgent`, assertive) live region; bursts are batched into one announcement. */
+export const announce = (text: string, urgent = false): void => {
+  if (!text) return
+  pendingAnnouncements[urgent ? 'assertive' : 'polite'].push(text)
+  if (announceTimer !== undefined) return // already scheduled: it will include this
+  // clear first so repeating the same message is announced again
+  liveRegions.polite = ''
+  liveRegions.assertive = ''
+  announceTimer = setTimeout(() => {
+    announceTimer = undefined
+    liveRegions.polite = pendingAnnouncements.polite.join('. ')
+    liveRegions.assertive = pendingAnnouncements.assertive.join('. ')
+    pendingAnnouncements.polite = []
+    pendingAnnouncements.assertive = []
+  }, 50)
+}
+
+/** Drops pending announcements and empties the regions (tests, teardown). */
+export const resetAnnouncements = (): void => {
+  clearTimeout(announceTimer)
+  announceTimer = undefined
+  pendingAnnouncements.polite = []
+  pendingAnnouncements.assertive = []
+  liveRegions.polite = ''
+  liveRegions.assertive = ''
+}
+
 export interface ToastApi {
   add: (options: ToastOptions) => number
   remove: (id: number) => void

@@ -39,8 +39,8 @@ const close = () => {
     const others = [...(li.parentElement?.children ?? [])].filter((item) => item === li || !item.classList.contains('toast-leave-active'))
     const index = others.indexOf(li)
     const sibling = (others[index + 1] ?? others[index - 1])?.querySelector<HTMLElement>('.toast__close')
-    // last resort: the app root (tabindex=-1), so focus does not fall to <body> and restart at the top
-    const appRoot = document.getElementById('app2')
+    // last resort: a labelled anchor at the top of the app, so focus does not fall to <body>
+    const appRoot = document.getElementById('app-focus-anchor')
     const target = sibling ?? (returnFocus?.isConnected ? returnFocus : appRoot)
     if (!sibling) returnFocus = undefined
     target?.focus({ preventScroll: true })

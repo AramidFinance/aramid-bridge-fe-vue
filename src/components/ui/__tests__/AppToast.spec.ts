@@ -1,7 +1,7 @@
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
-import { addToast, MAX_TOASTS, removeAllToasts, toastMessages } from '@/scripts/common/toast'
+import { addToast, MAX_TOASTS, removeAllToasts, resetAnnouncements, toastMessages } from '@/scripts/common/toast'
 import AppToast from '../AppToast.vue'
 
 let wrapper: VueWrapper | undefined
@@ -33,6 +33,7 @@ afterEach(() => {
   wrapper?.unmount()
   wrapper = undefined
   removeAllToasts()
+  resetAnnouncements()
   vi.useRealTimers()
   document.body.innerHTML = ''
 })
@@ -137,9 +138,9 @@ describe('AppToast', () => {
     expect(document.activeElement).toBe(origin)
   })
 
-  it('falls back to the app root when there is nowhere to return focus to', async () => {
+  it('falls back to the app focus anchor when there is nowhere to return focus to', async () => {
     const root = document.createElement('div')
-    root.id = 'app2'
+    root.id = 'app-focus-anchor'
     root.tabIndex = -1
     document.body.append(root)
     mountToast()
@@ -154,7 +155,7 @@ describe('AppToast', () => {
 
   it('forgets where focus came from once the user leaves the toasts for the page', async () => {
     const root = document.createElement('div')
-    root.id = 'app2'
+    root.id = 'app-focus-anchor'
     root.tabIndex = -1
     const a = document.createElement('button')
     document.body.append(root, a)

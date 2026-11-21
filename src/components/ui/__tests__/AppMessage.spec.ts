@@ -1,23 +1,39 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { liveRegions, resetAnnouncements } from '@/scripts/common/toast'
 import AppMessage from '../AppMessage.vue'
 
+beforeEach(() => vi.useFakeTimers())
+afterEach(() => {
+  resetAnnouncements()
+  vi.useRealTimers()
+})
+
 describe('AppMessage', () => {
-  it('renders slot content with the severity style', () => {
+  it('renders slot content with the severity style and icon', () => {
     const wrapper = mount(AppMessage, { props: { severity: 'warn' }, slots: { default: 'Low balance' } })
     expect(wrapper.text()).toBe('Low balance')
     expect(wrapper.classes()).toContain('message--warn')
-    expect(wrapper.attributes('role')).toBe('status') // a standing warning must not interrupt
     expect(wrapper.find('svg').exists()).toBe(true)
   })
 
-  it('announces errors assertively', () => {
-    expect(mount(AppMessage, { props: { severity: 'error' }, slots: { default: 'Failed' } }).attributes('role')).toBe('alert')
+  it('announces non-error messages politely through the persistent live region', () => {
+    const wrapper = mount(AppMessage, { props: { severity: 'warn' }, slots: { default: 'Low balance' } })
+    expect(wrapper.attributes('role')).toBeUndefined()
+    vi.advanceTimersByTime(50)
+    expect(liveRegions.polite).toBe('Low balance')
+    expect(liveRegions.assertive).toBe('')
   })
 
-  it('defaults to a polite info message', () => {
-    const wrapper = mount(AppMessage, { slots: { default: 'FYI' } })
-    expect(wrapper.classes()).toContain('message--info')
-    expect(wrapper.attributes('role')).toBe('status')
+  it('uses role=alert for errors (announced on insertion), without a duplicate live-region announcement', () => {
+    const wrapper = mount(AppMessage, { props: { severity: 'error' }, slots: { default: 'Failed' } })
+    expect(wrapper.attributes('role')).toBe('alert')
+    vi.advanceTimersByTime(50)
+    expect(liveRegions.polite).toBe('')
+    expect(liveRegions.assertive).toBe('')
+  })
+
+  it('defaults to info', () => {
+    expect(mount(AppMessage, { slots: { default: 'FYI' } }).classes()).toContain('message--info')
   })
 })

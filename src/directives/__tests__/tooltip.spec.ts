@@ -119,6 +119,36 @@ describe('v-tooltip', () => {
     wrapper.unmount()
   })
 
+  it('leaves native long-press behaviour alone when there is no tooltip text', () => {
+    vi.useFakeTimers()
+    const activate = vi.fn()
+    const wrapper = mountWith(`<a href="#" v-tooltip="''" @click.prevent="activate">tx</a>`, () => ({ activate }))
+    const link = wrapper.get('a').element
+    expect(link.classList).not.toContain('aramid-tooltip-hold')
+
+    pointer(link, 'pointerdown', 'touch')
+    vi.advanceTimersByTime(LONG_PRESS_MS)
+    const menu = new Event('contextmenu', { cancelable: true })
+    link.dispatchEvent(menu)
+    expect(menu.defaultPrevented).toBe(false)
+    pointer(link, 'pointerup', 'touch')
+    link.click()
+    expect(activate).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('suppresses the iOS callout only where a long-press opens a tooltip', async () => {
+    const text = ref('Hint')
+    const wrapper = mountWith(`<div><a class="a" v-tooltip="text">x</a><input class="i" v-tooltip.focus="'Amount'" /></div>`, () => ({ text }))
+    const hold = (selector: string) => wrapper.get(selector).classes().includes('aramid-tooltip-hold')
+    expect(hold('.a')).toBe(true)
+    expect(hold('.i')).toBe(false) // input hints are focus-only: keep the text-edit menu
+    text.value = ''
+    await nextTick()
+    expect(hold('.a')).toBe(false)
+    wrapper.unmount()
+  })
+
   it('suppresses the native context menu only while a press is pending or open', () => {
     vi.useFakeTimers()
     const wrapper = mountWith(`<button v-tooltip="'Hint'">x</button>`)
@@ -143,6 +173,18 @@ describe('v-tooltip', () => {
     const button = wrapper.get('button').element
     pointer(button, 'pointerenter')
     expect(tip()).not.toBeNull()
+    expect(button.hasAttribute('aria-describedby')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('re-evaluates the describedby link when the text changes while open', async () => {
+    const text = ref('Other')
+    const wrapper = mountWith(`<button aria-label="Copy ABC" v-tooltip="text">x</button>`, () => ({ text }))
+    const button = wrapper.get('button').element
+    pointer(button, 'pointerenter')
+    expect(button.getAttribute('aria-describedby')).toBe(tip()?.id)
+    text.value = 'Copy ABC'
+    await nextTick()
     expect(button.hasAttribute('aria-describedby')).toBe(false)
     wrapper.unmount()
   })

@@ -96,6 +96,11 @@ wcm-modal,
 }
 
 /* v-tooltip (src/directives/tooltip.ts) */
+/* targets where a touch long-press opens a tooltip: no iOS link/image callout over it */
+.aramid-tooltip-hold {
+  -webkit-touch-callout: none;
+}
+
 .aramid-tooltip {
   position: fixed;
   z-index: 9500;
@@ -169,9 +174,4 @@ wcm-modal,
   .aramid-tooltip {
     animation: none;
   }
-}
-
-/* app root is focused programmatically as a last-resort focus target (toast close); no ring for that */
-#app2:focus {
-  outline: none;
 }

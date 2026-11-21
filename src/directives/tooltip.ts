@@ -215,8 +215,7 @@ const show = (el: HTMLElement, state: TooltipState): void => {
     document.body.appendChild(tip)
     state.tip = tip
     open.add(el)
-    // when the tooltip just repeats the accessible name, describing the element with it would read it twice
-    if (el.getAttribute('aria-label') !== state.text) addDescribedBy(el, state.id)
+
     document.addEventListener('keydown', state.onKeydown)
     // follow the target when any ancestor scrolls (capture) or the viewport resizes (e.g. a virtual keyboard opens)
     document.addEventListener('scroll', state.onReposition, true)
@@ -224,7 +223,18 @@ const show = (el: HTMLElement, state: TooltipState): void => {
     track(el, state)
   }
   ;(state.tip.firstElementChild as HTMLElement).textContent = state.text
+  // when the tooltip just repeats the accessible name, describing the element with it would read it twice
+  if (el.getAttribute('aria-label') === state.text) removeDescribedBy(el, state.id)
+  else addDescribedBy(el, state.id)
   position(el, state)
+}
+
+/**
+ * iOS shows its link/image callout on long-press regardless of `contextmenu`; suppress it only where a long-press
+ * opens a tooltip (has text, not a `.focus` input hint), so inputs and plain links keep their native menus.
+ */
+const applyTouchCallout = (el: HTMLElement, state: TooltipState): void => {
+  el.classList.toggle('aramid-tooltip-hold', !!state.text && !state.focusOnly)
 }
 
 function sync(el: HTMLElement, state: TooltipState): void {
@@ -310,6 +320,7 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
     }
     const openPress = () => {
       state.pressTimer = undefined
+      if (!state.text) return // emptied while the finger was down
       state.pressed = true
       state.swallowClick = true
       state.dismissed = false
@@ -337,7 +348,8 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
       if (state.focusOnly) return
       state.dismissed = true
       sync(el, state)
-      if (isTouch(event)) {
+      // nothing to show: leave the native long-press (context menu, link callout) alone
+      if (isTouch(event) && state.text) {
         cancelPress()
         state.pressTimer = setTimeout(openPress, LONG_PRESS_MS)
       }
@@ -389,8 +401,7 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
     el.addEventListener('click', onClickCapture, true)
     el.addEventListener('click', onClick)
     el.addEventListener('contextmenu', onContextMenu)
-    // iOS shows its link/image callout on long-press regardless of contextmenu
-    el.style.setProperty('-webkit-touch-callout', 'none')
+    applyTouchCallout(el, state)
     el.addEventListener('focusin', onFocusIn)
     el.addEventListener('focusout', onFocusOut)
     states.set(el, state)
@@ -407,12 +418,14 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
     state.text = text
     state.placement = placement
     state.focusOnly = focusOnly
+    applyTouchCallout(el, state)
     sync(el, state)
   },
   beforeUnmount(el) {
     const state = states.get(el)
     if (!state) return
     targets.delete(el)
+    el.classList.remove('aramid-tooltip-hold')
     hide(el, state)
     state.cleanup()
     states.delete(el)

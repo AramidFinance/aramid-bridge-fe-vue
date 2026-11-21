@@ -1,43 +1,20 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue'
-import { isUrgent, toastMessages } from '@/scripts/common/toast'
+import { watch } from 'vue'
+import { announce, isUrgent, liveRegions, toastMessages } from '@/scripts/common/toast'
 import ToastItem from './ToastItem.vue'
 
-// Screen readers only announce changes to live regions that already exist, so new toasts are mirrored
-// into two persistent visually-hidden regions instead of giving each freshly inserted toast a role.
-const politeText = ref('')
-const assertiveText = ref('')
-let announceTimer: ReturnType<typeof setTimeout> | undefined
 // toasts already on screen when this mounts are not "new" later on
 let seen = new Set<number>(toastMessages.map((message) => message.id))
-// toasts arriving in quick succession are batched into one announcement rather than cancelling each other
-const pending = { polite: [] as string[], assertive: [] as string[] }
 
 watch(
   () => toastMessages.map((message) => message.id),
   (ids) => {
-    const added = toastMessages.filter((message) => !seen.has(message.id))
-    seen = new Set(ids)
-    if (!added.length) return
-    for (const message of added) {
-      const text = [message.summary, message.detail].filter(Boolean).join(': ')
-      pending[isUrgent(message.severity) ? 'assertive' : 'polite'].push(text)
+    for (const message of toastMessages) {
+      if (!seen.has(message.id)) announce([message.summary, message.detail].filter(Boolean).join(': '), isUrgent(message.severity))
     }
-    if (announceTimer !== undefined) return // already scheduled: it will include these
-    // clear first so repeating the same message is announced again
-    politeText.value = ''
-    assertiveText.value = ''
-    announceTimer = setTimeout(() => {
-      announceTimer = undefined
-      politeText.value = pending.polite.join('. ')
-      assertiveText.value = pending.assertive.join('. ')
-      pending.polite = []
-      pending.assertive = []
-    }, 50)
+    seen = new Set(ids)
   }
 )
-
-onBeforeUnmount(() => clearTimeout(announceTimer))
 </script>
 
 <template>
@@ -46,8 +23,8 @@ onBeforeUnmount(() => clearTimeout(announceTimer))
       <TransitionGroup tag="ol" name="toast" class="toast-list">
         <ToastItem v-for="message in toastMessages" :key="message.id" :message="message" />
       </TransitionGroup>
-      <div class="toast-sr-only" role="status" aria-live="polite" aria-atomic="true">{{ politeText }}</div>
-      <div class="toast-sr-only" role="alert" aria-live="assertive" aria-atomic="true">{{ assertiveText }}</div>
+      <div class="toast-sr-only" role="status" aria-live="polite" aria-atomic="true">{{ liveRegions.polite }}</div>
+      <div class="toast-sr-only" role="alert" aria-live="assertive" aria-atomic="true">{{ liveRegions.assertive }}</div>
     </section>
   </Teleport>
 </template>

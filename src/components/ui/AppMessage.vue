@@ -1,16 +1,20 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { Severity } from '@/scripts/common/toast'
+import { onMounted, ref } from 'vue'
+import { announce, type Severity } from '@/scripts/common/toast'
 import SeverityIcon from './SeverityIcon.vue'
 
 const props = withDefaults(defineProps<{ severity?: Severity }>(), { severity: 'info' })
+const root = ref<HTMLElement>()
 
-// only errors interrupt; a standing warning (e.g. low escrow balance) is announced politely
-const role = computed(() => (props.severity === 'error' ? 'alert' : 'status'))
+// Errors use role=alert, which screen readers announce on insertion. Other messages are announced politely through
+// the persistent live region: a role=status element inserted with its text already in place is usually not read.
+onMounted(() => {
+  if (props.severity !== 'error') announce(root.value?.textContent?.trim() ?? '')
+})
 </script>
 
 <template>
-  <div class="message" :class="`message--${severity}`" :role="role">
+  <div ref="root" class="message" :class="`message--${severity}`" :role="severity === 'error' ? 'alert' : undefined">
     <span class="message__icon">
       <SeverityIcon :severity="severity" />
     </span>
