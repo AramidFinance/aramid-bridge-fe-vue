@@ -215,6 +215,13 @@ const fillInRoute = (replace = false) => {
 }
 
 // one watcher: a change of several of these in one flush is one navigation
+// the group waiting for the Sign click was built from the inputs at the Bridge click: changing them cancels it
+watch(
+  [() => store.state.arc200BridgeToken, () => store.state.arc200BridgeAmount, () => store.state.arc200BridgeDirection, () => store.state.arc200BridgeChain, () => store.state.arc200BridgeAddress],
+  () => {
+    if (state.awaitingSignClick) cancelBridging()
+  }
+)
 watch([() => store.state.arc200BridgeToken, () => store.state.arc200BridgeAmount, () => store.state.arc200BridgeDirection], () => fillInRoute())
 
 // the use-wallet manager is shared with other pages: sign only with the account this page is bound to,
@@ -331,18 +338,21 @@ const signAndSend = async (order: BridgeOrder, algodClient: algosdk.Algodv2, txn
   const signed = await signBound(order.sender, order.chainId, txns)
   // cancelled (or left) while the wallet was signing: do not send it
   if (order.attempt !== currentAttempt) throw new BridgingAbortedError()
-  // Filter out any null values to satisfy the type requirement
-  const filteredSigned = signed.filter((s: Uint8Array | null): s is Uint8Array => s !== null)
-  if (filteredSigned.length === 0) {
-    throw Error(t('sign.noTransactionsSigned'))
-  }
-  // a wallet leaving out transactions would send an incomplete group
-  if (filteredSigned.length !== txns.length) throw Error(t('sign.useWalletNotAllSigned'))
+  if (signed.length === 0 || signed.every((s) => !s)) throw Error(t('sign.noTransactionsSigned'))
+  // one signature per transaction: a wallet leaving transactions out would send an incomplete group
+  const filteredSigned = signed.filter((s): s is Uint8Array => !!s && ArrayBuffer.isView(s) && s.byteLength > 0)
+  if (signed.length !== txns.length || filteredSigned.length !== txns.length) throw Error(t('sign.useWalletNotAllSigned'))
   // once sent the result is always shown, even when cancelled meanwhile: the user must not send it twice
   await algodClient.sendRawTransaction(filteredSigned).do()
   // the group's own txid is its first transaction (e.g. an opt-in): show the swap/withdraw/deposit one
-  state.resultTx = algosdk.decodeSignedTransaction(filteredSigned[filteredSigned.length - 1]).txn.txID()
-  console.log('Claim tx sent with txid', state.resultTx)
+  const resultTx = algosdk.decodeSignedTransaction(filteredSigned[filteredSigned.length - 1]).txn.txID()
+  console.log('Claim tx sent with txid', resultTx)
+  // a newer attempt may be running: do not replace its page, but still tell the user this one was sent
+  if (order.attempt !== currentAttempt) {
+    toast.add({ severity: 'warn', detail: `${t('sign.claimSuccess')} ${resultTx}`, life: 15000 })
+    return
+  }
+  state.resultTx = resultTx
   state.bridgingIsSuccessful = true
   toast.add({
     severity: 'success',
@@ -478,7 +488,10 @@ const bridgeArc200ToAsa = async (order: BridgeOrder) => {
 
     await signAndSend(order, algodClient, toSignFinal)
   } catch (e: any) {
-    if (e instanceof BridgingAbortedError || order.attempt !== currentAttempt) return
+    if (e instanceof BridgingAbortedError || order.attempt !== currentAttempt) {
+      if (!(e instanceof BridgingAbortedError)) console.error(e)
+      return
+    }
     showError(toast, e)
   } finally {
     if (order.attempt === currentAttempt) state.bridginig = false
@@ -651,7 +664,10 @@ const bridgeAsaToArc200 = async (order: BridgeOrder) => {
     console.log('toSignFinal', toSignFinal)
     await signAndSend(order, algodClient, toSignFinal)
   } catch (e: any) {
-    if (e instanceof BridgingAbortedError || order.attempt !== currentAttempt) return
+    if (e instanceof BridgingAbortedError || order.attempt !== currentAttempt) {
+      if (!(e instanceof BridgingAbortedError)) console.error(e)
+      return
+    }
     showError(toast, e)
   } finally {
     if (order.attempt === currentAttempt) state.bridginig = false
