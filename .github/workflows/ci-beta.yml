@@ -72,6 +72,9 @@ jobs:
       - name: Apply Kubernetes manifests
         run: kubectl apply -f k8s/deployment-beta.yaml
 
+      - name: Restart deployment to pull the freshly pushed image
+        run: kubectl rollout restart deployment/zb-web-beta-deployment -n zb-web-beta
+
       - name: Wait for rollout
         run: kubectl rollout status deployment/zb-web-beta-deployment -n zb-web-beta --timeout=120s
 
