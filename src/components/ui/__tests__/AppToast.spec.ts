@@ -296,6 +296,20 @@ describe('AppToast', () => {
     expect(document.activeElement).toBe(anchor)
   })
 
+  it('pins a leaving toast where it was, so it fades out in place instead of jumping to the top', async () => {
+    mountToast()
+    addToast({ detail: 'first' })
+    addToast({ detail: 'second' })
+    await nextTick()
+    const second = items()[1]
+    Object.defineProperty(second, 'offsetTop', { value: 96 })
+    Object.defineProperty(second, 'offsetWidth', { value: 384 })
+    second.querySelector<HTMLElement>('.toast__close')!.click()
+    await nextTick()
+    expect(second.style.top).toBe('96px')
+    expect(second.style.width).toBe('384px')
+  })
+
   it('keeps sticky toasts until closed', async () => {
     mountToast()
     addToast({ detail: 'sticky' })

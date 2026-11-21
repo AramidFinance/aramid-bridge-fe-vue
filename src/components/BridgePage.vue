@@ -359,7 +359,12 @@ watch(
     store.state.escrowBalanceIsSufficient,
     store.state.loadingSourceAddressBalance,
     store.state.loadingDestinationAddressBalance,
-    store.state.loadingDestinationEscrowAddressBalance
+    store.state.loadingDestinationEscrowAddressBalance,
+    store.state.routeConfig,
+    store.state.feeAmount,
+    store.state.destinationAmount,
+    store.state.sourceTokenConfiguration,
+    store.state.destinationTokenConfiguration
   ],
   () => {
     state.error = ''

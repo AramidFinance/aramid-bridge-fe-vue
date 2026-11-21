@@ -1,13 +1,22 @@
 <script setup lang="ts">
 import { liveRegions, toastMessages } from '@/scripts/common/toast'
 import ToastItem from './ToastItem.vue'
+
+// A leaving toast is taken out of the flow (position: absolute) so the others can slide up; pin it where it was first,
+// otherwise an absolute child of the flex list would jump to the top while it fades out.
+const pinBeforeLeave = (el: Element) => {
+  const item = el as HTMLElement
+  item.style.top = `${item.offsetTop}px`
+  item.style.left = `${item.offsetLeft}px`
+  item.style.width = `${item.offsetWidth}px`
+}
 </script>
 
 <template>
   <Teleport to="body">
     <!-- labelled (a landmark) only while there are notifications, so screen readers do not list an empty region -->
     <section class="toast-region" :aria-label="toastMessages.length ? $t('common.notifications') : undefined">
-      <TransitionGroup tag="ol" name="toast" class="toast-list">
+      <TransitionGroup tag="ol" name="toast" class="toast-list" @before-leave="pinBeforeLeave">
         <ToastItem v-for="message in toastMessages" :key="message.id" :message="message" />
       </TransitionGroup>
     </section>
@@ -67,7 +76,6 @@ import ToastItem from './ToastItem.vue'
 /* take leaving items out of the flow so the rest slide up smoothly */
 .toast-leave-active {
   position: absolute;
-  width: 100%;
 }
 
 @media (max-width: 640px) {

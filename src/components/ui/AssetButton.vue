@@ -3,10 +3,12 @@ import { highlightAramidText } from '@/scripts/common/highlightAramidText'
 import { sanitizeTokenName } from '@/scripts/common/sanitizeTokenName'
 import { createButtonKeyHandlers } from '@/scripts/common/buttonKeys'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import CopyIcon from './CopyIcon.vue'
 
 const props = defineProps({ img: String, text: String, id: String, arc200TokenId: String })
 const emit = defineEmits<{ click: [event: MouseEvent] }>()
+const { t } = useI18n()
 // The card is not itself a control: the selection button and the copy button sit side by side (a button inside a
 // role=button would be flattened by screen readers). Clicks anywhere on the card except the copy button select.
 const keys = createButtonKeyHandlers()
@@ -56,6 +58,6 @@ const highlightedTokenName = computed(() => {
         <div class="hidden md:inline-block text-left text-sm">({{ props.id }}{{ props.arc200TokenId ? ` <> ${props.arc200TokenId}` : '' }})</div>
       </div>
     </div>
-    <CopyIcon :text="props.id"></CopyIcon>
+    <CopyIcon :text="props.id" :title="t('address.copyToken', { tokenId: props.id })"></CopyIcon>
   </div>
 </template>
