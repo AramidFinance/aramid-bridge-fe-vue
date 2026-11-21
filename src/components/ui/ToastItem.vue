@@ -51,10 +51,12 @@ const handOffFocus = () => {
 let focusDecided = false
 
 /** `fromTimer`: the toast expired with focus inside it - focus must go somewhere, however it got there. */
-const close = (fromTimer = false) => {
+const close = (fromTimer = false, event?: MouseEvent) => {
   // only keyboard users need focus carried along; a mouse click merely focused the button as a side effect
-  // (moving it elsewhere, e.g. back to an input, would pop that input's hint or the mobile keyboard)
-  if (root.value?.contains(document.activeElement) && (fromTimer || isKeyboardFocused(document.activeElement))) handOffFocus()
+  // (moving it elsewhere, e.g. back to an input, would pop that input's hint or the mobile keyboard).
+  // detail === 0: a synthesised click (keyboard, screen-reader browse mode, voice control), not a real pointer.
+  const nonPointer = fromTimer || event?.detail === 0 || isKeyboardFocused(document.activeElement)
+  if (root.value?.contains(document.activeElement) && nonPointer) handOffFocus()
   focusDecided = true
   dismiss()
 }
@@ -141,7 +143,7 @@ onBeforeUnmount(() => {
       <p v-if="message.summary" class="toast__summary">{{ message.summary }}</p>
       <p v-if="message.detail" class="toast__detail" :class="{ 'toast__detail--solo': !message.summary }">{{ message.detail }}</p>
     </div>
-    <button type="button" class="toast__close" :aria-label="$t('common.close')" @click="close()">
+    <button type="button" class="toast__close" :aria-label="$t('common.close')" @click="close(false, $event)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false">
         <path d="M18 6 6 18" />
         <path d="m6 6 12 12" />

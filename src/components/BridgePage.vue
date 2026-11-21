@@ -375,7 +375,12 @@ watch(
     store.state.feeAmount,
     store.state.destinationAmount,
     store.state.sourceTokenConfiguration,
-    store.state.destinationTokenConfiguration
+    store.state.destinationTokenConfiguration,
+    store.state.sourceAmountFormatted,
+    store.state.feeAmountFormatted,
+    store.state.destinationAmountFormatted,
+    store.state.sourceChainConfiguration,
+    store.state.destinationChainConfiguration
   ],
   () => {
     if (state.error) doValidation(true)
