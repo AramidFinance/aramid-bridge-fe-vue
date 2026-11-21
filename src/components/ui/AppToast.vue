@@ -1,6 +1,40 @@
 <script setup lang="ts">
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { toastMessages } from '@/scripts/common/toast'
 import ToastItem from './ToastItem.vue'
+
+// Screen readers only announce changes to live regions that already exist, so new toasts are mirrored
+// into two persistent visually-hidden regions instead of giving each freshly inserted toast a role.
+const politeText = ref('')
+const assertiveText = ref('')
+let announceTimer: ReturnType<typeof setTimeout> | undefined
+let seen = new Set<number>()
+
+watch(
+  () => toastMessages.map((message) => message.id),
+  (ids) => {
+    const added = toastMessages.filter((message) => !seen.has(message.id))
+    seen = new Set(ids)
+    if (!added.length) return
+    const text = (urgent: boolean) =>
+      added
+        .filter((message) => (message.severity === 'error' || message.severity === 'warn') === urgent)
+        .map((message) => [message.summary, message.detail].filter(Boolean).join(': '))
+        .join('. ')
+    const polite = text(false)
+    const assertive = text(true)
+    // clear first so repeating the same message is announced again
+    politeText.value = ''
+    assertiveText.value = ''
+    clearTimeout(announceTimer)
+    announceTimer = setTimeout(() => {
+      politeText.value = polite
+      assertiveText.value = assertive
+    }, 50)
+  }
+)
+
+onBeforeUnmount(() => clearTimeout(announceTimer))
 </script>
 
 <template>
@@ -9,6 +43,8 @@ import ToastItem from './ToastItem.vue'
       <TransitionGroup tag="ol" name="toast" class="toast-list">
         <ToastItem v-for="message in toastMessages" :key="message.id" :message="message" />
       </TransitionGroup>
+      <div class="toast-sr-only" role="status" aria-live="polite" aria-atomic="true">{{ politeText }}</div>
+      <div class="toast-sr-only" role="alert" aria-live="assertive" aria-atomic="true">{{ assertiveText }}</div>
     </section>
   </Teleport>
 </template>
@@ -31,6 +67,18 @@ import ToastItem from './ToastItem.vue'
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.toast-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .toast-enter-active,

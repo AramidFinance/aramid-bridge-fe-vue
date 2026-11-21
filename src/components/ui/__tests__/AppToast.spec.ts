@@ -1,17 +1,30 @@
-import { mount } from '@vue/test-utils'
+import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 import { addToast, removeAllToasts, toastMessages } from '@/scripts/common/toast'
 import AppToast from '../AppToast.vue'
 
-const mountToast = () =>
-  mount(AppToast, {
-    attachTo: document.body,
-    global: { mocks: { $t: (key: string) => key }, stubs: { teleport: true, transition: false, 'transition-group': false } }
-  })
+let wrapper: VueWrapper | undefined
+
+// real Teleport (content lands in document.body), transitions disabled so items render synchronously
+const mountToast = () => {
+  wrapper = mount(AppToast, { attachTo: document.body, global: { mocks: { $t: (key: string) => key }, stubs: { transition: false, 'transition-group': false } } })
+}
+
+const $ = (selector: string) => document.querySelector<HTMLElement>(selector)
+const items = () => document.querySelectorAll<HTMLElement>('.toast')
+
+/** Lets the announcer's 50 ms clear-then-set delay run and re-render. */
+const flushAnnouncement = async () => {
+  await nextTick()
+  vi.advanceTimersByTime(50)
+  await nextTick()
+}
 
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => {
+  wrapper?.unmount()
+  wrapper = undefined
   removeAllToasts()
   vi.useRealTimers()
   document.body.innerHTML = ''
@@ -19,61 +32,85 @@ afterEach(() => {
 
 describe('AppToast', () => {
   it('renders summary, detail and severity', async () => {
-    const wrapper = mountToast()
+    mountToast()
     addToast({ severity: 'error', summary: 'Failed', detail: 'Something broke' })
     await nextTick()
-    const item = wrapper.get('li')
-    expect(item.classes()).toContain('toast--error')
-    expect(item.attributes('role')).toBe('alert')
-    expect(item.text()).toContain('Failed')
-    expect(item.text()).toContain('Something broke')
-    wrapper.unmount()
+    const [item] = items()
+    expect(item.classList).toContain('toast--error')
+    expect(item.textContent).toContain('Failed')
+    expect(item.textContent).toContain('Something broke')
   })
 
-  it('uses a polite status role for info and success', async () => {
-    const wrapper = mountToast()
-    addToast({ severity: 'success', detail: 'ok' })
+  it('announces new toasts through persistent live regions by urgency', async () => {
+    mountToast()
+    const polite = $('[aria-live="polite"]')!
+    const assertive = $('[aria-live="assertive"]')!
+    expect(polite.textContent).toBe('')
+
+    addToast({ severity: 'success', detail: 'Copied' })
+    addToast({ severity: 'error', summary: 'Failed', detail: 'Rejected' })
+    await flushAnnouncement()
+    expect(polite.textContent).toBe('Copied')
+    expect(assertive.textContent).toBe('Failed: Rejected')
+
+    // the same message again is re-announced (region cleared first), in the same live region node
+    addToast({ severity: 'success', detail: 'Copied' })
     await nextTick()
-    expect(wrapper.get('li').attributes('role')).toBe('status')
-    wrapper.unmount()
+    expect(polite.textContent).toBe('')
+    await flushAnnouncement()
+    expect($('[aria-live="polite"]')).toBe(polite)
+    expect(polite.textContent).toBe('Copied')
+    expect(assertive.textContent).toBe('')
   })
 
   it('closes when the close button is clicked', async () => {
-    const wrapper = mountToast()
+    mountToast()
     addToast({ detail: 'bye' })
     await nextTick()
-    await wrapper.get('button[aria-label="common.close"]').trigger('click')
+    $('button[aria-label="common.close"]')!.click()
     expect(toastMessages).toHaveLength(0)
-    wrapper.unmount()
   })
 
   it('auto-dismisses after its life and pauses while hovered', async () => {
-    const wrapper = mountToast()
+    mountToast()
     addToast({ detail: 'timed', life: 3000 })
     await nextTick()
-    const item = wrapper.get('li')
+    const [item] = items()
 
     vi.advanceTimersByTime(1000)
-    await item.trigger('mouseenter')
+    item.dispatchEvent(new Event('mouseenter'))
+    await nextTick()
     vi.advanceTimersByTime(10000)
     expect(toastMessages).toHaveLength(1)
-    expect(wrapper.get('.toast__progress').attributes('style')).toContain('animation-play-state: paused')
+    expect($('.toast__progress')!.style.animationPlayState).toBe('paused')
 
-    await item.trigger('mouseleave')
+    item.dispatchEvent(new Event('mouseleave'))
     vi.advanceTimersByTime(1999)
     expect(toastMessages).toHaveLength(1)
     vi.advanceTimersByTime(1)
     expect(toastMessages).toHaveLength(0)
-    wrapper.unmount()
+  })
+
+  it('pauses while focus is inside the toast', async () => {
+    mountToast()
+    addToast({ detail: 'timed', life: 1000 })
+    await nextTick()
+    const close = $('button[aria-label="common.close"]')!
+
+    close.focus()
+    vi.advanceTimersByTime(5000)
+    expect(toastMessages).toHaveLength(1)
+    close.blur()
+    vi.advanceTimersByTime(1000)
+    expect(toastMessages).toHaveLength(0)
   })
 
   it('keeps sticky toasts until closed', async () => {
-    const wrapper = mountToast()
+    mountToast()
     addToast({ detail: 'sticky' })
     await nextTick()
     vi.advanceTimersByTime(60000)
     expect(toastMessages).toHaveLength(1)
-    expect(wrapper.find('.toast__progress').exists()).toBe(false)
-    wrapper.unmount()
+    expect($('.toast__progress')).toBeNull()
   })
 })

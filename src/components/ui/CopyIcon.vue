@@ -35,7 +35,7 @@ const title = () => {
     type="button"
     @click="copy"
     v-tooltip.top="title()"
-    :aria-label="title() || $t('common.copy')"
+    :aria-label="$t('common.copy')"
     class="inline-flex items-center justify-center align-middle m-auto p-1 rounded-md cursor-pointer bg-transparent border-0 transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-[#FB7EFF]"
   >
     <img alt="" aria-hidden="true" width="20" height="20" decoding="async" src="../../assets/images/CopySimple.svg" />

@@ -47,22 +47,10 @@ const onFocusOut = (event: FocusEvent) => {
 
 onMounted(start)
 onBeforeUnmount(stop)
-
-// errors and warnings interrupt the screen reader; success/info wait for a pause
-const role = computed(() => (props.message.severity === 'error' || props.message.severity === 'warn' ? 'alert' : 'status'))
 </script>
 
 <template>
-  <li
-    class="toast"
-    :class="`toast--${message.severity}`"
-    :role="role"
-    aria-atomic="true"
-    @mouseenter="setHovered(true)"
-    @mouseleave="setHovered(false)"
-    @focusin="setFocused(true)"
-    @focusout="onFocusOut"
-  >
+  <li class="toast" :class="`toast--${message.severity}`" @mouseenter="setHovered(true)" @mouseleave="setHovered(false)" @focusin="setFocused(true)" @focusout="onFocusOut">
     <span class="toast__icon">
       <SeverityIcon :severity="message.severity" />
     </span>

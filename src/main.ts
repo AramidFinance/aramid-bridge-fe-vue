@@ -17,7 +17,6 @@ import i18n from './i18n'
 import router from './router'
 
 import tooltip from '@/directives/tooltip'
-import './assets/base.css'
 
 // Guards against a corrupted persisted WalletConnect session (leftover from a stale/mismatched
 // domain registration) crashing the whole app during provider init. Reload once to force a

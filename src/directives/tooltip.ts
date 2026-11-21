@@ -13,13 +13,16 @@ const OPPOSITE: Record<TooltipPlacement, TooltipPlacement> = { top: 'bottom', bo
 interface TooltipState {
   text: string
   placement: TooltipPlacement
+  /** `.focus` modifier: only shown while the element has focus (input hints). */
   focusOnly: boolean
   id: string
   tip?: HTMLElement
   hovered: boolean
   focused: boolean
+  /** Closed by a click or Escape; stays closed until the pointer re-enters or keyboard focus returns. */
+  dismissed: boolean
   onKeydown: (event: KeyboardEvent) => void
-  onDismiss: () => void
+  onReposition: () => void
   cleanup: () => void
 }
 
@@ -35,6 +38,17 @@ const placementOf = (binding: DirectiveBinding<TooltipValue>): TooltipPlacement 
 }
 
 const textOf = (binding: DirectiveBinding<TooltipValue>): string => (binding.value == null ? '' : String(binding.value))
+
+/** True when focus came from the keyboard (a mouse click on a button does not count). */
+const isKeyboardFocus = (target: EventTarget | null): boolean => {
+  if (!(target instanceof Element)) return false
+  try {
+    return target.matches(':focus-visible')
+  } catch {
+    // selector unsupported: assume keyboard so the tooltip stays reachable
+    return true
+  }
+}
 
 const fits = (placement: TooltipPlacement, target: DOMRect, width: number, height: number): boolean => {
   switch (placement) {
@@ -56,8 +70,12 @@ const position = (el: HTMLElement, state: TooltipState): void => {
   const tip = state.tip
   if (!tip) return
   const target = el.getBoundingClientRect()
-  const { width, height } = tip.getBoundingClientRect()
+  // target scrolled out of view: hide the tooltip until it comes back
+  const offscreen = target.bottom < 0 || target.top > window.innerHeight || target.right < 0 || target.left > window.innerWidth
+  tip.style.visibility = offscreen ? 'hidden' : ''
+  if (offscreen) return
 
+  const { width, height } = tip.getBoundingClientRect()
   let placement = state.placement
   if (!fits(placement, target, width, height) && fits(OPPOSITE[placement], target, width, height)) placement = OPPOSITE[placement]
 
@@ -77,10 +95,8 @@ const position = (el: HTMLElement, state: TooltipState): void => {
   tip.style.left = `${Math.round(left)}px`
   tip.style.top = `${Math.round(top)}px`
   // keep the arrow pointing at the target even when the tooltip was shifted to stay on screen
-  const arrowX = clamp(centerX - left, 14, width - 14)
-  const arrowY = clamp(centerY - top, 12, height - 12)
-  tip.style.setProperty('--arrow-x', `${Math.round(arrowX)}px`)
-  tip.style.setProperty('--arrow-y', `${Math.round(arrowY)}px`)
+  tip.style.setProperty('--arrow-x', `${Math.round(clamp(centerX - left, 14, width - 14))}px`)
+  tip.style.setProperty('--arrow-y', `${Math.round(clamp(centerY - top, 12, height - 12))}px`)
 }
 
 const addDescribedBy = (el: HTMLElement, id: string): void => {
@@ -100,12 +116,12 @@ const hide = (el: HTMLElement, state: TooltipState): void => {
   state.tip = undefined
   removeDescribedBy(el, state.id)
   document.removeEventListener('keydown', state.onKeydown)
-  document.removeEventListener('scroll', state.onDismiss, true)
-  window.removeEventListener('resize', state.onDismiss)
+  document.removeEventListener('scroll', state.onReposition, true)
+  window.removeEventListener('resize', state.onReposition)
 }
 
 const show = (el: HTMLElement, state: TooltipState): void => {
-  if (!state.text || !el.isConnected) return
+  if (!el.isConnected) return
   if (!state.tip) {
     const tip = document.createElement('div')
     tip.id = state.id
@@ -121,23 +137,25 @@ const show = (el: HTMLElement, state: TooltipState): void => {
     state.tip = tip
     addDescribedBy(el, state.id)
     document.addEventListener('keydown', state.onKeydown)
-    // scrolling any ancestor (capture) or resizing would leave the tooltip detached from its target
-    document.addEventListener('scroll', state.onDismiss, true)
-    window.addEventListener('resize', state.onDismiss)
+    // follow the target when any ancestor scrolls (capture) or the viewport resizes (e.g. a virtual keyboard opens)
+    document.addEventListener('scroll', state.onReposition, true)
+    window.addEventListener('resize', state.onReposition)
   }
   ;(state.tip.firstElementChild as HTMLElement).textContent = state.text
   position(el, state)
 }
 
 const sync = (el: HTMLElement, state: TooltipState): void => {
-  if (state.focused || (state.hovered && !state.focusOnly)) show(el, state)
+  const wanted = !!state.text && !state.dismissed && (state.focused || (state.hovered && !state.focusOnly))
+  if (wanted) show(el, state)
   else hide(el, state)
 }
 
 /**
- * `v-tooltip="text"` shows `text` on hover and keyboard focus.
+ * `v-tooltip="text"` shows `text` on mouse hover and keyboard focus.
  * Modifiers: `.top` (default) / `.bottom` / `.left` / `.right` choose the preferred side;
- * `.focus` shows it only while the element has focus (e.g. hints for inputs).
+ * `.focus` shows it only while the element has focus, from mouse or keyboard (e.g. hints for inputs).
+ * Clicking the element or pressing Escape closes it.
  */
 export const tooltip: Directive<HTMLElement, TooltipValue> = {
   mounted(el, binding) {
@@ -148,41 +166,61 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
       id: `aramid-tooltip-${++nextId}`,
       hovered: false,
       focused: false,
+      dismissed: false,
       onKeydown: (event) => {
-        if (event.key === 'Escape') hide(el, state)
+        if (event.key !== 'Escape') return
+        state.dismissed = true
+        sync(el, state)
       },
-      onDismiss: () => hide(el, state),
+      onReposition: () => position(el, state),
       cleanup: () => {
-        el.removeEventListener('mouseenter', onMouseEnter)
-        el.removeEventListener('mouseleave', onMouseLeave)
-        el.removeEventListener('focusin', onFocus)
-        el.removeEventListener('focusout', onBlur)
+        el.removeEventListener('pointerenter', onPointerEnter)
+        el.removeEventListener('pointerleave', onPointerLeave)
+        el.removeEventListener('pointerdown', onPointerDown)
+        el.removeEventListener('focusin', onFocusIn)
+        el.removeEventListener('focusout', onFocusOut)
       }
     }
 
-    const onMouseEnter = () => {
+    // touch "hover" is just the tap that activates the element; it must not open the tooltip over what the tap opens
+    const isTouch = (event: Event) => (event as PointerEvent).pointerType === 'touch'
+
+    const onPointerEnter = (event: Event) => {
+      if (isTouch(event)) return
       state.hovered = true
+      state.dismissed = false
       sync(el, state)
     }
-    const onMouseLeave = () => {
+    const onPointerLeave = (event: Event) => {
+      if (isTouch(event)) return
       state.hovered = false
       sync(el, state)
     }
-    const onFocus = () => {
-      state.focused = true
+    const onPointerDown = () => {
+      // clicking usually opens something (a dialog, a menu) the tooltip would cover; input hints stay
+      if (state.focusOnly) return
+      state.dismissed = true
       sync(el, state)
     }
-    const onBlur = (event: FocusEvent) => {
+    const onFocusIn = (event: FocusEvent) => {
+      // a mouse click focusing a button is not a request for its tooltip
+      if (!state.focusOnly && !isKeyboardFocus(event.target)) return
+      state.focused = true
+      state.dismissed = false
+      sync(el, state)
+    }
+    const onFocusOut = (event: FocusEvent) => {
       // focus moving between controls inside the target keeps the tooltip open
       if (event.relatedTarget instanceof Node && el.contains(event.relatedTarget)) return
       state.focused = false
       sync(el, state)
     }
 
-    el.addEventListener('mouseenter', onMouseEnter)
-    el.addEventListener('mouseleave', onMouseLeave)
-    el.addEventListener('focusin', onFocus)
-    el.addEventListener('focusout', onBlur)
+    el.addEventListener('pointerenter', onPointerEnter)
+    el.addEventListener('pointerleave', onPointerLeave)
+    el.addEventListener('pointerdown', onPointerDown)
+    el.addEventListener('focusin', onFocusIn)
+    el.addEventListener('focusout', onFocusOut)
     states.set(el, state)
   },
   updated(el, binding) {
@@ -191,8 +229,7 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
     state.text = textOf(binding)
     state.placement = placementOf(binding)
     state.focusOnly = !!binding.modifiers.focus
-    if (!state.text) hide(el, state)
-    else if (state.tip) show(el, state)
+    sync(el, state)
   },
   beforeUnmount(el) {
     const state = states.get(el)
