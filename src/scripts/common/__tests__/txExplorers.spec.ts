@@ -9,8 +9,8 @@ describe('getTxExplorers', () => {
     ])
     expect(getTxExplorers('416101', undefined, 'A')).toEqual([{ name: 'Biatec Scan', url: 'https://voi.scan.biatec.io/transaction/A' }])
   })
-  it('dedupes a configured Biatec explorer and normalises the trailing slash', () => {
-    const r = getTxExplorers(416101, ['https://VOI.scan.biatec.io/transaction/', 'https://x.io/tx'], 'A')
+  it('dedupes a configured Biatec explorer and repeated entries', () => {
+    const r = getTxExplorers(416101, ['https://VOI.scan.biatec.io/transaction/', 'https://x.io/tx/', 'https://x.io/tx/'], 'A')
     expect(r.map((e) => e.url)).toEqual(['https://voi.scan.biatec.io/transaction/A', 'https://x.io/tx/A'])
   })
   it('keeps configured explorers for other chains and encodes the id', () => {

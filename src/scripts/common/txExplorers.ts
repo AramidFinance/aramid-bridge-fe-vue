@@ -18,7 +18,7 @@ const hostOf = (base: string): string => {
 
 const explorerName = (base: string): string => hostOf(base).replace(/^(www|app|explorer)\./, '')
 
-/** Explorer links for a tx; Biatec Scan comes first (default) on Algorand and Voi mainnet, configured explorers follow. */
+/** Configured bases are used verbatim (they must end where the tx id starts, e.g. '/tx/'). Explorer links for a tx; Biatec Scan comes first (default) on Algorand and Voi mainnet, configured explorers follow. */
 export const getTxExplorers = (chainId: number | string | undefined, configured: string[] | undefined, txId: string): TxExplorer[] => {
   const result: TxExplorer[] = []
   const biatec = chainId === undefined ? undefined : BIATEC[chainId.toString()]
@@ -27,8 +27,8 @@ export const getTxExplorers = (chainId: number | string | undefined, configured:
   for (const raw of configured ?? []) {
     if (!raw) continue
     if (biatec && hostOf(raw) === hostOf(biatec.base)) continue
-    const base = raw.endsWith('/') ? raw : `${raw}/`
-    result.push({ name: explorerName(raw), url: `${base}${id}` })
+    const url = `${raw}${id}`
+    if (!result.some((e) => e.url === url)) result.push({ name: explorerName(raw), url })
   }
   return result
 }
