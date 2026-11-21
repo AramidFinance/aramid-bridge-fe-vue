@@ -27,7 +27,7 @@ export const isUrgent = (severity: Severity): boolean => severity === 'error' ||
 export const isAssertive = (severity: Severity): boolean => severity === 'error'
 
 /** Call sites pass `e.message ?? e`; make sure a thrown non-Error never renders as "[object Object]". */
-const toText = (value: unknown): string | undefined => {
+export const toText = (value: unknown): string | undefined => {
   if (value === undefined || value === null || value === '') return undefined
   if (typeof value === 'string') return value
   if (typeof value === 'object' && typeof (value as { message?: unknown }).message === 'string') return (value as { message: string }).message

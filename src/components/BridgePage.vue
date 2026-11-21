@@ -15,7 +15,7 @@ import algosdk from 'algosdk'
 import base64url from 'base64url'
 import BigNumber from 'bignumber.js'
 import { ethers } from 'ethers'
-import { useToast } from '@/scripts/common/toast'
+import { toText, useToast } from '@/scripts/common/toast'
 import { onMounted, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
@@ -213,7 +213,7 @@ const doValidation = (): boolean => {
   } catch (e: any) {
     console.error(e)
     // shown inline (AppMessage, role=alert) right above the button; a toast as well would announce it twice
-    state.error = e.message ?? e
+    state.error = toText(e) ?? String(e)
     state.errorAttempt++
     return false
   }

@@ -33,6 +33,10 @@ interface TooltipState {
   pressCloseTimer?: ReturnType<typeof setTimeout>
   /** The click some browsers send when a long-press ends is swallowed: holding is for reading, not activating. */
   swallowClick: boolean
+  /** Touch on a plain target (text, a value): a tap toggles the tooltip, as there is nothing else a tap would do. */
+  tapping: boolean
+  /** This touch closed the open tooltip (document listener runs first), so its tap must not reopen it. */
+  tapClosed: boolean
   lastPointerDown: number
   /** Target rect at the last placement, and the observer that re-places the tooltip when the page changes. */
   lastRect?: string
@@ -279,6 +283,8 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
       dismissed: false,
       pressed: false,
       swallowClick: false,
+      tapping: false,
+      tapClosed: false,
       lastPointerDown: -Infinity,
       onKeydown: (event) => {
         if (event.key !== 'Escape') return
@@ -298,7 +304,7 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
         el.removeEventListener('pointerleave', onPointerLeave)
         el.removeEventListener('pointerdown', onPointerDown)
         el.removeEventListener('pointerup', onPointerUp)
-        el.removeEventListener('pointercancel', onPointerUp)
+        el.removeEventListener('pointercancel', onPointerCancel)
         el.removeEventListener('click', onClickCapture, true)
         el.removeEventListener('click', onClick)
         el.removeEventListener('contextmenu', onContextMenu)
@@ -315,6 +321,12 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
       clearTimeout(state.pressTimer)
       state.pressTimer = undefined
     }
+    // a scroll that started on the target (pointercancel) is not a tap
+    const onPointerCancel = () => {
+      state.tapping = false
+      state.tapClosed = false
+      onPointerUp()
+    }
     function closePress() {
       clearTimeout(state.pressCloseTimer)
       state.pressCloseTimer = undefined
@@ -323,14 +335,15 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
       state.pressed = false
       sync(el, state)
     }
-    function closePressOnTouch() {
+    function closePressOnTouch(event: Event) {
+      if (state.pressed && event.target instanceof Node && el.contains(event.target)) state.tapClosed = true
       closePress()
     }
-    const openPress = () => {
+    const openPress = (swallowClick = true) => {
       state.pressTimer = undefined
       if (!state.text) return // emptied while the finger was down
       state.pressed = true
-      state.swallowClick = true
+      state.swallowClick = swallowClick
       state.dismissed = false
       sync(el, state)
       // the next touch anywhere (or a timeout) closes it, as there is no "leave" on touch
@@ -356,15 +369,23 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
       if (state.focusOnly) return
       state.dismissed = true
       sync(el, state)
-      // only controls get press-and-hold; with nothing to show, or on links/text/inputs, the native long-press
-      // (context menu, link callout, text selection) is left alone
-      if (isTouch(event) && state.text && isControl(el)) {
+      if (!isTouch(event) || !state.text) return
+      // Controls: a tap activates them, so the tooltip needs press-and-hold. Plain targets (a value, an address):
+      // a tap toggles it. Links keep their native tap and long-press.
+      if (isControl(el)) {
         cancelPress()
         state.pressTimer = setTimeout(openPress, LONG_PRESS_MS)
+      } else if (!el.closest('a')) {
+        state.tapping = true
       }
     }
     const onPointerUp = () => {
       cancelPress()
+      if (state.tapping) {
+        state.tapping = false
+        if (state.tapClosed) state.tapClosed = false
+        else openPress(false)
+      }
       // the click that may follow this release comes right away; after that, clicks are real again
       if (state.swallowClick) setTimeout(() => (state.swallowClick = false), 400)
     }
@@ -406,7 +427,7 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
     el.addEventListener('pointerleave', onPointerLeave)
     el.addEventListener('pointerdown', onPointerDown)
     el.addEventListener('pointerup', onPointerUp)
-    el.addEventListener('pointercancel', onPointerUp)
+    el.addEventListener('pointercancel', onPointerCancel)
     el.addEventListener('click', onClickCapture, true)
     el.addEventListener('click', onClick)
     el.addEventListener('contextmenu', onContextMenu)

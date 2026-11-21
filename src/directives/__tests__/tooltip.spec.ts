@@ -155,16 +155,38 @@ describe('v-tooltip', () => {
     wrapper.unmount()
   })
 
-  it('keeps the native long-press on links and text: no press-and-hold tooltip there', () => {
+  it('keeps native tap and long-press on links: no touch tooltip there', () => {
     vi.useFakeTimers()
-    const wrapper = mountWith(`<div><a href="#" v-tooltip="'Full tx id'">tx</a><span v-tooltip="'ADDR'">A..R</span></div>`)
-    for (const selector of ['a', 'span']) {
-      const el = wrapper.get(selector).element
+    const wrapper = mountWith(`<a href="#" v-tooltip="'Full tx id'"><span>tx</span></a>`)
+    const el = wrapper.get('span').element
+    pointer(el, 'pointerdown', 'touch')
+    vi.advanceTimersByTime(LONG_PRESS_MS)
+    pointer(el, 'pointerup', 'touch')
+    expect(tip()).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('on touch, a tap toggles the tooltip of a plain target (a value, an address)', () => {
+    vi.useFakeTimers()
+    const wrapper = mountWith(`<div tabindex="0" v-tooltip="'Amount you receive'">12.5</div>`)
+    const el = wrapper.get('div').element
+    const tap = () => {
       pointer(el, 'pointerdown', 'touch')
-      vi.advanceTimersByTime(LONG_PRESS_MS)
-      expect(tip()).toBeNull()
       pointer(el, 'pointerup', 'touch')
     }
+    tap()
+    expect(tip()?.textContent).toBe('Amount you receive')
+    tap()
+    expect(tip()).toBeNull()
+    tap()
+    expect(tip()).not.toBeNull()
+    vi.advanceTimersByTime(5000)
+    expect(tip()).toBeNull()
+
+    // a scroll that starts on it is not a tap
+    pointer(el, 'pointerdown', 'touch')
+    pointer(el, 'pointercancel', 'touch')
+    expect(tip()).toBeNull()
     wrapper.unmount()
   })
 

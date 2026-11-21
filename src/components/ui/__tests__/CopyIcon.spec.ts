@@ -42,6 +42,14 @@ describe('CopyIcon', () => {
     wrapper.unmount()
   })
 
+  it('renders nothing while there is no value to copy', () => {
+    expect(
+      mount(CopyIcon, { props: { text: undefined }, global })
+        .find('button')
+        .exists()
+    ).toBe(false)
+  })
+
   it('prefers an explicit title', () => {
     expect(
       mount(CopyIcon, { props: { text: 'X', title: 'Copy asset ID: X' }, global })
@@ -52,11 +60,13 @@ describe('CopyIcon', () => {
 })
 
 describe('AssetButton', () => {
-  it('is a keyboard-operable button row', async () => {
+  it('has a keyboard-operable selection button with the copy button beside it, not nested inside', async () => {
     const wrapper = mount(AssetButton, { props: { text: 'Token', id: '123', img: 'algo' }, global })
-    expect(wrapper.attributes('role')).toBe('button')
-    expect(wrapper.attributes('tabindex')).toBe('0')
-    await wrapper.trigger('keydown', { key: 'Enter' })
+    const row = wrapper.get('[role="button"]')
+    expect(row.attributes('tabindex')).toBe('0')
+    expect(row.find('button').exists()).toBe(false)
+    expect(wrapper.find('.copy-icon').exists()).toBe(true)
+    await row.trigger('keydown', { key: 'Enter' })
     expect(wrapper.emitted('click')).toHaveLength(1)
   })
 

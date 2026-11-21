@@ -13,6 +13,12 @@ describe('WalletAddress', () => {
     expect(span.attributes('tabindex')).toBe('0')
   })
 
+  it('treats a value that would only be padded with "..." as fully visible', () => {
+    const span = render({ address: 'ABCDEFGHIJ', length: 4 }).get('span')
+    expect(span.text()).toBe('ABCDEFGHIJ')
+    expect(span.attributes('tabindex')).toBeUndefined()
+  })
+
   it('adds no tab stop when the full address is already visible', () => {
     const span = render({ address: ADDRESS, length: 30 }).get('span')
     expect(span.text()).toBe(ADDRESS)

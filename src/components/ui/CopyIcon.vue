@@ -34,6 +34,7 @@ const label = computed(() => {
 
 <template>
   <button
+    v-if="props.text"
     type="button"
     @click="copy"
     v-tooltip.top="label"
