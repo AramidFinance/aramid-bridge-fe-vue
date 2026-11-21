@@ -21,16 +21,22 @@ interface TooltipState {
   focused: boolean
   /** Closed by a click or Escape; stays closed until the pointer re-enters or keyboard focus returns. */
   dismissed: boolean
-  /** Target rect at the last placement, and the pending animation frame of the layout tracker. */
+  /** Target rect at the last placement, and the observer that re-places the tooltip when the page changes. */
   lastRect?: string
-  frame?: number
+  observer?: MutationObserver
   onKeydown: (event: KeyboardEvent) => void
   onReposition: () => void
   cleanup: () => void
 }
 
 const states = new WeakMap<HTMLElement, TooltipState>()
+/** All elements carrying the directive, and those whose tooltip is open (for nested targets). */
+const targets = new Set<HTMLElement>()
+const open = new Set<HTMLElement>()
 let nextId = 0
+
+/** Directive targets that contain `el` (e.g. a button with a tooltip around an address with its own). */
+const ancestorsOf = (el: HTMLElement): HTMLElement[] => [...targets].filter((target) => target !== el && target.contains(el))
 
 const placementOf = (binding: DirectiveBinding<TooltipValue>): TooltipPlacement => {
   const { modifiers } = binding
@@ -131,15 +137,16 @@ const position = (el: HTMLElement, state: TooltipState): void => {
   tip.style.setProperty('--arrow-y', `${Math.round(clamp(centerY - top, 12, height - 12))}px`)
 }
 
-/** While open, follow the target when layout moves it (content inserted above it, etc.); only re-places on change. */
+/**
+ * While open, follow the target when DOM changes move it (e.g. a message inserted above it); scroll and resize are
+ * handled by listeners. Event-driven, and only re-places when the target's rect actually changed.
+ */
 const track = (el: HTMLElement, state: TooltipState): void => {
-  if (typeof requestAnimationFrame !== 'function') return
-  const tick = () => {
-    if (!state.tip) return
-    if (rectKey(el.getBoundingClientRect()) !== state.lastRect) position(el, state)
-    state.frame = requestAnimationFrame(tick)
-  }
-  state.frame = requestAnimationFrame(tick)
+  if (typeof MutationObserver !== 'function') return
+  state.observer = new MutationObserver(() => {
+    if (state.tip && rectKey(el.getBoundingClientRect()) !== state.lastRect) position(el, state)
+  })
+  state.observer.observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true })
 }
 
 const addDescribedBy = (el: HTMLElement, id: string): void => {
@@ -157,12 +164,18 @@ const hide = (el: HTMLElement, state: TooltipState): void => {
   if (!state.tip) return
   state.tip.remove()
   state.tip = undefined
-  if (state.frame !== undefined) cancelAnimationFrame(state.frame)
-  state.frame = undefined
+  open.delete(el)
+  state.observer?.disconnect()
+  state.observer = undefined
   removeDescribedBy(el, state.id)
   document.removeEventListener('keydown', state.onKeydown)
   document.removeEventListener('scroll', state.onReposition, true)
   window.removeEventListener('resize', state.onReposition)
+  // an enclosing target that gave way to this one may show again (its pointer may still be over it)
+  for (const ancestor of ancestorsOf(el)) {
+    const ancestorState = states.get(ancestor)
+    if (ancestorState) sync(ancestor, ancestorState)
+  }
 }
 
 const show = (el: HTMLElement, state: TooltipState): void => {
@@ -180,6 +193,7 @@ const show = (el: HTMLElement, state: TooltipState): void => {
     tip.append(text, arrow)
     document.body.appendChild(tip)
     state.tip = tip
+    open.add(el)
     addDescribedBy(el, state.id)
     document.addEventListener('keydown', state.onKeydown)
     // follow the target when any ancestor scrolls (capture) or the viewport resizes (e.g. a virtual keyboard opens)
@@ -191,10 +205,20 @@ const show = (el: HTMLElement, state: TooltipState): void => {
   position(el, state)
 }
 
-const sync = (el: HTMLElement, state: TooltipState): void => {
-  const wanted = !!state.text && !state.dismissed && (state.focused || (state.hovered && !state.focusOnly))
-  if (wanted) show(el, state)
-  else hide(el, state)
+function sync(el: HTMLElement, state: TooltipState): void {
+  // the innermost target wins: never show while a nested target's tooltip is open
+  const nestedOpen = [...open].some((target) => target !== el && el.contains(target))
+  const wanted = !!state.text && !state.dismissed && !nestedOpen && (state.focused || (state.hovered && !state.focusOnly))
+  if (!wanted) {
+    hide(el, state)
+    return
+  }
+  show(el, state)
+  // and enclosing targets give way, so two tooltips never stack on top of each other
+  for (const ancestor of ancestorsOf(el)) {
+    const ancestorState = states.get(ancestor)
+    if (ancestorState?.tip) hide(ancestor, ancestorState)
+  }
 }
 
 /**
@@ -215,6 +239,11 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
       dismissed: false,
       onKeydown: (event) => {
         if (event.key !== 'Escape') return
+        // Escape closes enclosing tooltips too, rather than letting them take over
+        for (const ancestor of ancestorsOf(el)) {
+          const ancestorState = states.get(ancestor)
+          if (ancestorState) ancestorState.dismissed = true
+        }
         state.dismissed = true
         sync(el, state)
       },
@@ -268,6 +297,7 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
     el.addEventListener('focusin', onFocusIn)
     el.addEventListener('focusout', onFocusOut)
     states.set(el, state)
+    targets.add(el)
   },
   updated(el, binding) {
     const state = states.get(el)
@@ -280,6 +310,7 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
   beforeUnmount(el) {
     const state = states.get(el)
     if (!state) return
+    targets.delete(el)
     hide(el, state)
     state.cleanup()
     states.delete(el)

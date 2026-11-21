@@ -167,8 +167,33 @@ describe('v-tooltip', () => {
     expect(tip()?.style.top).toBe('130px')
 
     top = 160 // e.g. a message was inserted above the target; no scroll/resize event
-    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    document.body.prepend(document.createElement('p'))
+    await Promise.resolve() // MutationObserver callbacks run as a microtask
     expect(tip()?.style.top).toBe('190px')
+    wrapper.unmount()
+  })
+
+  it('shows only the innermost of nested tooltips, restores the outer one after, and Escape closes both', () => {
+    const wrapper = mountWith(`<div class="outer" v-tooltip="'Origin wallet'"><span class="inner" tabindex="0" v-tooltip="'ADDRESS'">AD..SS</span></div>`)
+    const outer = wrapper.get('.outer').element
+    const inner = wrapper.get('.inner').element
+    const tips = () => [...document.querySelectorAll('[role="tooltip"]')].map((t) => t.textContent)
+
+    pointer(outer, 'pointerenter')
+    expect(tips()).toEqual(['Origin wallet'])
+    pointer(inner, 'pointerenter')
+    expect(tips()).toEqual(['ADDRESS'])
+    pointer(inner, 'pointerleave')
+    expect(tips()).toEqual(['Origin wallet'])
+
+    // keyboard focus on the inner element bubbles to the outer target; still only the inner tooltip
+    pointer(outer, 'pointerleave')
+    vi.spyOn(Element.prototype, 'matches').mockReturnValue(true)
+    ;(inner as HTMLElement).focus()
+    expect(tips()).toEqual(['ADDRESS'])
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    expect(tips()).toEqual([])
     wrapper.unmount()
   })
 

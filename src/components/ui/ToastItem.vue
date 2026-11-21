@@ -21,15 +21,25 @@ let startedAt = 0
 
 const dismiss = () => removeToast(props.message.id)
 
+const isKeyboardFocused = (el: Element | null): boolean => {
+  try {
+    return !!el?.matches(':focus-visible')
+  } catch {
+    return false
+  }
+}
+
 const close = () => {
   const li = root.value
-  if (li?.contains(document.activeElement)) {
+  // only keyboard users need focus carried along; a mouse click merely focused the button as a side effect
+  if (li?.contains(document.activeElement) && isKeyboardFocused(document.activeElement)) {
     // keep keyboard users in place: move to a neighbouring toast, else back where they came from
     // toasts still playing their leave animation are on their way out: skip them
     const others = [...(li.parentElement?.children ?? [])].filter((item) => item === li || !item.classList.contains('toast-leave-active'))
     const index = others.indexOf(li)
     const sibling = (others[index + 1] ?? others[index - 1])?.querySelector<HTMLElement>('.toast__close')
     const target = sibling ?? (returnFocus?.isConnected ? returnFocus : undefined)
+    if (!sibling) returnFocus = undefined
     target?.focus()
   }
   dismiss()

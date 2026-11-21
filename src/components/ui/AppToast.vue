@@ -9,6 +9,8 @@ const politeText = ref('')
 const assertiveText = ref('')
 let announceTimer: ReturnType<typeof setTimeout> | undefined
 let seen = new Set<number>()
+// toasts arriving in quick succession are batched into one announcement rather than cancelling each other
+const pending = { polite: [] as string[], assertive: [] as string[] }
 
 watch(
   () => toastMessages.map((message) => message.id),
@@ -16,20 +18,20 @@ watch(
     const added = toastMessages.filter((message) => !seen.has(message.id))
     seen = new Set(ids)
     if (!added.length) return
-    const text = (urgent: boolean) =>
-      added
-        .filter((message) => (message.severity === 'error' || message.severity === 'warn') === urgent)
-        .map((message) => [message.summary, message.detail].filter(Boolean).join(': '))
-        .join('. ')
-    const polite = text(false)
-    const assertive = text(true)
+    for (const message of added) {
+      const text = [message.summary, message.detail].filter(Boolean).join(': ')
+      pending[message.severity === 'error' || message.severity === 'warn' ? 'assertive' : 'polite'].push(text)
+    }
+    if (announceTimer !== undefined) return // already scheduled: it will include these
     // clear first so repeating the same message is announced again
     politeText.value = ''
     assertiveText.value = ''
-    clearTimeout(announceTimer)
     announceTimer = setTimeout(() => {
-      politeText.value = polite
-      assertiveText.value = assertive
+      announceTimer = undefined
+      politeText.value = pending.polite.join('. ')
+      assertiveText.value = pending.assertive.join('. ')
+      pending.polite = []
+      pending.assertive = []
     }, 50)
   }
 )

@@ -29,6 +29,7 @@ const flushAnnouncement = async () => {
 
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => {
+  vi.restoreAllMocks()
   wrapper?.unmount()
   wrapper = undefined
   removeAllToasts()
@@ -134,6 +135,32 @@ describe('AppToast', () => {
     second.click()
     await nextTick()
     expect(document.activeElement).toBe(origin)
+  })
+
+  it('leaves focus alone when a toast is closed with the mouse', async () => {
+    mountToast()
+    addToast({ detail: 'first', life: 1000 })
+    addToast({ detail: 'second', life: 1000 })
+    await nextTick()
+    const [first, second] = [...document.querySelectorAll<HTMLElement>('.toast__close')]
+    first.focus() // browsers focus a clicked button...
+    vi.spyOn(Element.prototype, 'matches').mockReturnValue(false) // ...but not :focus-visible
+    first.click()
+    await nextTick()
+    expect(document.activeElement).not.toBe(second)
+    // the remaining toast is not paused by stolen focus
+    vi.advanceTimersByTime(1000)
+    expect(toastMessages).toHaveLength(0)
+  })
+
+  it('announces toasts that arrive in quick succession together', async () => {
+    mountToast()
+    addToast({ severity: 'error', detail: 'Chain failed' })
+    await nextTick()
+    vi.advanceTimersByTime(20)
+    addToast({ severity: 'error', detail: 'Asset failed' })
+    await flushAnnouncement()
+    expect($('[aria-live="assertive"]')!.textContent).toBe('Chain failed. Asset failed')
   })
 
   it('pauses while focus is inside the toast', async () => {
