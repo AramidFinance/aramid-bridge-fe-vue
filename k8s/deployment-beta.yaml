@@ -12,7 +12,7 @@ spec:
   selector:
     matchLabels:
       app: zb-web-beta
-  replicas: 3
+  replicas: 1
   template:
     metadata:
       labels:
