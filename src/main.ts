@@ -75,7 +75,8 @@ const networks = new NetworkConfigBuilder()
 app.use(WalletManagerPlugin, {
   wallets: [
     // Direct, Liquid Auth and WalletConnect. Direct opens a popup per signature, which needs a click:
-    // SignPage builds the transactions on mount and signs them from a Sign button for Direct sessions.
+    // SignPage and Arc200ClaimPage build the transactions first and sign from a Sign button for Direct
+    // sessions. (The destination wallet uses avm-wallet-vue, which has no Direct transport.)
     biatec({
       projectId: walletConnectProjectId,
       metadata: dappMetadata

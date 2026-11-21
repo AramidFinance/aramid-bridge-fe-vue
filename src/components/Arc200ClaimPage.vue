@@ -38,7 +38,7 @@ import WalletArc200Bridge from './WalletArc200Bridge.vue'
 Config.configure({ debug: true })
 
 const useWalletState = useWallet()
-const { activeNetwork, assertSigner, signAs, switchToChain } = useWalletNetwork(useWalletState)
+const { activeNetwork, assertSigner, signAs, signingNeedsClick, switchToChain } = useWalletNetwork(useWalletState)
 const toast = useToast()
 const { t } = useI18n()
 const router = useRouter()
@@ -64,6 +64,7 @@ const state = reactive({
   bridgingIsSuccessful: false,
   resultTx: '',
   bridginig: false,
+  awaitingSignClick: false,
   claimErrorMessage: '',
   mounted: false
 })
@@ -99,6 +100,7 @@ const navigate = async (to: RouteLocationRaw, replace = false) => {
 let routeRun = 0
 let unmounted = false
 onBeforeUnmount(() => {
+  settleSignClick(new Error(t('common.cancel')))
   unmounted = true
 })
 const applyRoute = async () => {
@@ -284,8 +286,30 @@ const bridginigButtonClick = async () => {
   }
 }
 
+// a popup wallet (Biatec Direct) can only open its popup from a click: the built group waits for it here
+let pendingSignClick: { resolve: () => void; reject: (e: Error) => void } | undefined
+const waitForSignClick = () =>
+  new Promise<void>((resolve, reject) => {
+    pendingSignClick = { resolve, reject }
+    state.awaitingSignClick = true
+  })
+const settleSignClick = (error?: Error) => {
+  const pending = pendingSignClick
+  pendingSignClick = undefined
+  state.awaitingSignClick = false
+  if (error) pending?.reject(error)
+  else pending?.resolve()
+}
+const signClick = () => settleSignClick()
+const cancelBridging = () => {
+  settleSignClick(new Error(t('common.cancel')))
+  state.bridginig = false
+}
+
 /** Signs the group with the bound account, sends it and shows the bridge transaction (the last one). */
 const signAndSend = async (order: BridgeOrder, algodClient: algosdk.Algodv2, txns: algosdk.Transaction[]) => {
+  // nothing is awaited between the Sign click and the wallet being asked, so the popup is allowed
+  if (signingNeedsClick()) await waitForSignClick()
   const signed = await signBound(order.sender, order.chainId, txns)
   // Filter out any null values to satisfy the type requirement
   const filteredSigned = signed.filter((s: Uint8Array | null): s is Uint8Array => s !== null)
@@ -631,8 +655,9 @@ const resetButtonClick = async () => {
         </div>
 
         <div v-if="state.bridginig">
-          <p>{{ t('wallet.checkWallet') }}</p>
-          <MainActionButton @click="state.bridginig = false">{{ t('common.cancel') }}</MainActionButton>
+          <p v-if="!state.awaitingSignClick">{{ t('wallet.checkWallet') }}</p>
+          <MainActionButton v-else @click="signClick">{{ t('bridge.signTransaction') }}</MainActionButton>
+          <MainActionButton @click="cancelBridging">{{ t('common.cancel') }}</MainActionButton>
         </div>
         <div class="w-full" v-else>
           <MainActionButton v-if="activeNetwork == getUseWalletNetworkId(store.state.arc200BridgeChain)" @click="bridginigButtonClick">Bridge</MainActionButton>
