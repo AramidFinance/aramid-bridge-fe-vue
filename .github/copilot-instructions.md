@@ -89,7 +89,7 @@ After making changes, ALWAYS test these scenarios:
 
 ## Technology Stack
 - **Frontend**: Vue 3 (Composition API), TypeScript, Vite
-- **Styling**: Tailwind CSS with custom design system, PrimeVue components
+- **Styling**: Tailwind CSS with custom design system; custom UI components in `src/components/ui/` (toasts via `useToast()` from `@/scripts/common/toast`, `AppMessage`, `v-tooltip` directive from `src/directives/tooltip.ts`)
 - **Blockchain**: Algorand SDK, Ethers.js, Web3.js, multiple wallet connectors
 - **State Management**: Pinia
 - **Routing**: Vue Router with dynamic bridge routes

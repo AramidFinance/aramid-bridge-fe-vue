@@ -9,7 +9,7 @@ import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/Public
 import { useAppStore } from '@/stores/app'
 import { useWallet, type Wallet } from '@txnlab/use-wallet-vue'
 import algosdk from 'algosdk'
-import { useToast } from 'primevue/usetoast'
+import { useToast } from '@/scripts/common/toast'
 import { onMounted, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import DialogTitle from '../ui/DialogTitle.vue'

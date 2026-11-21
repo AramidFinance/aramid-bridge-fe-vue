@@ -4,7 +4,7 @@ import SelectArc200BridgeWalletAlgoDialog from './dialogs/SelectArc200BridgeWall
 import SimpleLabel from './ui/SimpleLabel.vue'
 
 import asyncdelay from '@/scripts/common/asyncDelay'
-import { formatTooltip } from '@/scripts/common/formatTooltip'
+import { tooltipWithDetail } from '@/scripts/common/formatTooltip'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import getAppKit, { getAppKitNetworkByChainId } from '@/scripts/eth/getAppKit'
 import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
@@ -14,7 +14,7 @@ import { useAppStore } from '@/stores/app'
 import { useWalletSync } from '@/scripts/algo/useWalletSync'
 import { arc200BridgeWalletSlot } from '@/scripts/algo/walletSlots'
 import { useAppKitAccount, useAppKitNetwork, useDisconnect } from '@reown/appkit/vue'
-import { useToast } from 'primevue/usetoast'
+import { useToast } from '@/scripts/common/toast'
 import { onMounted, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import RoundButton from './ui/RoundButton.vue'
@@ -164,13 +164,13 @@ const getImageUrl = () => {
   <div>
     <SimpleLabel>Wallet for ARC200 claim</SimpleLabel>
     <RoundButton
-      v-tooltip.top="formatTooltip(t('wallet.tooltipOrigin'))"
+      v-tooltip.top="tooltipWithDetail(t('wallet.tooltipOrigin'), state.connected && store.state.arc200BridgeAddress)"
       v-if="store.state.arc200BridgeChainConfiguration"
       :img="`logos/tokens/${store.state.arc200BridgeChainConfiguration?.logo}.png`"
       :text="store.state.arc200BridgeChainConfiguration.name"
       @click="buttonClick"
     >
-      <img alt="wallet" loading="lazy" width="20" height="20" decoding="async" data-nimg="1" class="3xl:w-14 3xl:h-14" :src="getImageUrl()" style="color: transparent" />
+      <img alt="" loading="lazy" width="20" height="20" decoding="async" data-nimg="1" class="3xl:w-14 3xl:h-14" :src="getImageUrl()" style="color: transparent" />
       <div
         class="mx-auto self-center text-[14px] font-bold text-center 3xl:text-xl 4xl:text-2xl truncate"
         v-if="store.state.arc200BridgeChainConfiguration?.type == 'algo' && store.state.arc200BridgeAlgoConnectorType == AlgoConnectorType.QRCode"
@@ -179,7 +179,8 @@ const getImageUrl = () => {
       </div>
 
       <div class="mx-auto self-center text-[14px] font-bold text-center 3xl:text-xl 4xl:text-2xl truncate" v-else-if="state.connected">
-        <WalletAddress :address="store.state.arc200BridgeAddress"></WalletAddress>
+        <!-- inside a button: not a separate tab stop -->
+        <WalletAddress :address="store.state.arc200BridgeAddress" :focusable="false"></WalletAddress>
       </div>
       <div class="mx-auto self-center text-[14px] font-bold text-center 3xl:text-xl 4xl:text-2xl truncate" v-else>{{ t('wallet.connectOrigin') }}</div>
     </RoundButton>

@@ -1,8 +1,7 @@
 import plugin from 'tailwindcss/plugin'
-import primeui from 'tailwindcss-primeui'
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./src/**/*.{vue,js,ts,jsx,tsx}', './presets/**/*.{js,vue,ts}'],
+  content: ['./src/**/*.{vue,js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
@@ -140,7 +139,6 @@ export default {
     }
   },
   plugins: [
-    primeui,
     plugin(function ({ matchUtilities, theme }) {
       matchUtilities(
         {

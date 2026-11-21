@@ -6,7 +6,7 @@ import getAlgoAccountARC200TokenBalance from '@/scripts/algo/getAlgoAccountARC20
 import getAlgoAccountTokenBalance from '@/scripts/algo/getAlgoAccountTokenBalance'
 import getAlgoAccountTokenOptedIn from '@/scripts/algo/getAlgoAccountTokenOptedIn'
 import asyncdelay from '@/scripts/common/asyncDelay'
-import { formatTooltip } from '@/scripts/common/formatTooltip'
+import { tooltipWithDetail } from '@/scripts/common/formatTooltip'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import getEthAccountTokenBalance from '@/scripts/eth/getEthAccountTokenBalance'
 import getAppKit from '@/scripts/eth/getAppKit'
@@ -15,7 +15,7 @@ import { useAppStore } from '@/stores/app'
 import { useAppKitAccount } from '@reown/appkit/vue'
 import { useWallet } from 'avm-wallet-vue'
 import BigNumber from 'bignumber.js'
-import { useToast } from 'primevue/usetoast'
+import { useToast } from '@/scripts/common/toast'
 import { onMounted, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SelectDestinationWalletDialog from './dialogs/SelectDestinationWalletDialog.vue'
@@ -275,12 +275,13 @@ watch(
       v-if="store.state.destinationTokenConfiguration"
       :img="`logos/tokens/${store.state.destinationTokenConfiguration?.logo}.png`"
       :text="store.state.destinationTokenConfiguration.name"
-      v-tooltip.top="formatTooltip(t('wallet.tooltipDestination'))"
+      v-tooltip.top="tooltipWithDetail(t('wallet.tooltipDestination'), state.connected && store.state.destinationAddress)"
       @click="buttonClick"
     >
-      <img alt="wallet" loading="lazy" width="20" height="20" decoding="async" data-nimg="1" class="3xl:w-14 3xl:h-14" :src="getImageUrl()" style="color: transparent" />
+      <img alt="" loading="lazy" width="20" height="20" decoding="async" data-nimg="1" class="3xl:w-14 3xl:h-14" :src="getImageUrl()" style="color: transparent" />
       <div class="mx-auto self-center text-[14px] font-bold text-center 3xl:text-xl 4xl:text-2xl truncate" v-if="state.connected">
-        <WalletAddress :address="store.state.destinationAddress"></WalletAddress>
+        <!-- inside a button: not a separate tab stop -->
+        <WalletAddress :address="store.state.destinationAddress" :focusable="false"></WalletAddress>
       </div>
       <div class="mx-auto self-center text-[14px] font-bold text-center 3xl:text-xl 4xl:text-2xl truncate" v-else>{{ t('wallet.selectDestAddress') }}</div>
     </RoundButton>

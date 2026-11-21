@@ -5,7 +5,7 @@ import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/PublicConfigurationRoot'
 import type { ChainItem } from '@/scripts/interface/mapping/ChainItem'
 import { onMounted, reactive, watch } from 'vue'
-import { useToast } from 'primevue/usetoast'
+import { useToast } from '@/scripts/common/toast'
 import { viewAmount } from '@/scripts/common/viewAmount'
 import BigNumber from 'bignumber.js'
 import calculateFeeAndDestinationAmount from '@/scripts/common/calculateFeeAndDestinationAmount'
@@ -112,7 +112,8 @@ watch(
     <SimpleLabel class="justify-center md:justify-end lg:justify-end xl:justify-end md:text-right"> {{ t('amount.toReceive') }} </SimpleLabel>
     <div
       v-tooltip.top="'This is the amount of assets that will be transferred to the destination address.'"
-      class="flex items-center bg-transparent h-[40px] text-2xl font-bold rounded-[2px] focus:outline-none text-center md:text-right justify-center md:justify-end mt-5 md:mt-0"
+      tabindex="0"
+      class="flex items-center bg-transparent h-[40px] text-2xl font-bold rounded-[2px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FB7EFF] text-center md:text-right justify-center md:justify-end mt-5 md:mt-0"
       v-if="store.state.destinationTokenConfiguration"
     >
       {{ viewAmount(store.state.destinationAmount, store.state.destinationTokenConfiguration?.decimals) }}

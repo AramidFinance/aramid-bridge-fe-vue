@@ -2,28 +2,27 @@
 import shortenAddress from '@/scripts/common/shortenAddress'
 import CopyIcon from './CopyIcon.vue'
 import { useAppStore } from '@/stores/app'
-import { reactive } from 'vue'
+import { computed, reactive } from 'vue'
 
 const props = defineProps({ txId: String, length: Number, chain: Number })
 
 const store = useAppStore()
+// reactive, so the explorer link appears once the public configuration loads; unknown chains have no link
 const state = reactive({
-  explorer: ''
+  explorer: computed(() => {
+    const chain = props.chain ?? store.state.sourceChain
+    return (chain && store.state.publicConfiguration?.chains?.[chain.toString()]?.blockExplorers?.[0]) || ''
+  })
 })
-const chain = props.chain ?? store.state.sourceChain
-if (chain && store.state.publicConfiguration?.chains[chain?.toString()].blockExplorers) {
-  state.explorer = store.state.publicConfiguration?.chains[chain?.toString()].blockExplorers[0]
-}
-console.log('state.explorer', props, state.explorer)
+// the full id only needs revealing (keyboard stop) when it was actually shortened
+const truncated = computed(() => !!props.txId && shortenAddress(props.txId, props.length ?? 4) !== props.txId)
 </script>
 <template>
   <span v-if="state.explorer">
-    <a :href="`${state.explorer}${props.txId}`" target="_blank" rel="noreferrer">
-      <span :v-tooltip="props.txId">{{ shortenAddress(props.txId ?? '', props.length ?? 4) }}</span>
-    </a>
+    <a v-tooltip.top="truncated ? props.txId : ''" :href="`${state.explorer}${props.txId}`" target="_blank" rel="noreferrer">{{ shortenAddress(props.txId ?? '', props.length ?? 4) }}</a>
   </span>
   <span v-else>
-    <span :v-tooltip="props.txId">{{ shortenAddress(props.txId ?? '', props.length ?? 4) }}</span>
+    <span v-tooltip.top="truncated ? props.txId : ''" :tabindex="truncated ? 0 : undefined">{{ shortenAddress(props.txId ?? '', props.length ?? 4) }}</span>
   </span>
   <CopyIcon :text="props.txId"></CopyIcon>
 </template>

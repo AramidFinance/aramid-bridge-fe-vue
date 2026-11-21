@@ -8,7 +8,7 @@ import type { PublicConfigurationRoot } from '@/scripts/interface/mapping/Public
 import { useAppStore } from '@/stores/app'
 import { fromBaseUnits, maxSendable, rescaleBaseUnits, toBaseUnits } from '@/scripts/common/baseUnits'
 import { showError } from '@/scripts/common/showError'
-import { useToast } from 'primevue/usetoast'
+import { useToast } from '@/scripts/common/toast'
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
@@ -161,13 +161,14 @@ const setMax = () => {
           ref="amountInputEl"
           v-model="amountInput"
         />
-        <div
+        <button
           v-if="store.state.arc200BridgeAddress"
+          type="button"
           @click="setMax"
-          class="mt-2 ml-2 text-xl bg-clip-text bg-gradient-to-r text-transparent from-white to-[#E469FF] ease-in-out duration-100 font-bold cursor-pointer select-none text-center"
+          class="mt-2 ml-2 text-xl bg-clip-text bg-gradient-to-r text-transparent from-white to-[#E469FF] ease-in-out duration-100 font-bold cursor-pointer select-none rounded-md focus-visible:outline-2 focus-visible:outline-[#FB7EFF] text-center"
         >
           Max
-        </div>
+        </button>
       </div>
 
       <div

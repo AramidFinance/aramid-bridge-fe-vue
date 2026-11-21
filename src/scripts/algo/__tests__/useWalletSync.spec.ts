@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { effectScope, nextTick, reactive, type EffectScope } from 'vue'
 
 const toast = vi.hoisted(() => ({ add: vi.fn() }))
-vi.mock('primevue/usetoast', () => ({ useToast: () => toast }))
+vi.mock('@/scripts/common/toast', () => ({ useToast: () => toast }))
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
 
 vi.mock('@txnlab/use-wallet-vue', async () => {

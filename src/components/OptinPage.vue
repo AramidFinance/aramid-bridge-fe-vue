@@ -5,7 +5,7 @@ import getAlgodClientByChainId from '@/scripts/algo/getAlgodClientByChainId'
 import { useAppStore } from '@/stores/app'
 import algosdk from 'algosdk'
 import { useWallet } from 'avm-wallet-vue'
-import { useToast } from 'primevue/usetoast'
+import { useToast } from '@/scripts/common/toast'
 import QRCodeVue3 from 'qrcode-vue3'
 import { computed, onMounted, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -131,7 +131,7 @@ const optinUsingUseWallet = async () => {
 
     <p>{{ t('optin.chainRequirement', { chain: store.state.destinationChainConfiguration?.name }) }}</p>
 
-    <p v-if="store.state.destinationToken"><CopyIcon :text="store.state.destinationToken" :title="store.state.destinationToken"></CopyIcon> {{ store.state.destinationToken }}</p>
+    <p v-if="store.state.destinationToken"><CopyIcon :text="store.state.destinationToken"></CopyIcon> {{ store.state.destinationToken }}</p>
 
     <div v-if="activeAccount?.address == store.state.destinationAddress">
       <p v-if="state.signInWallet"><img :src="loader" alt="Loading" height="18" width="18" class="inline-block" /> {{ t('sign.signInWallet', { wallet: walletName || '' }) }}</p>

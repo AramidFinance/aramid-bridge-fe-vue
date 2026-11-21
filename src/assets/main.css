@@ -94,3 +94,91 @@ wcm-modal,
   font-weight: 600;
   text-shadow: 0 0 8px rgba(174, 239, 225, 0.3);
 }
+
+/* v-tooltip (src/directives/tooltip.ts) */
+/* targets where a touch long-press opens a tooltip: no iOS link/image callout over it */
+.aramid-tooltip-hold {
+  -webkit-touch-callout: none;
+}
+/* on touch, holding would start a text selection (and cancel the press) instead of opening the tooltip */
+@media (pointer: coarse) {
+  .aramid-tooltip-hold {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+.aramid-tooltip {
+  position: fixed;
+  z-index: 9500;
+  top: 0;
+  left: 0;
+  max-width: min(22rem, calc(100vw - 16px));
+  pointer-events: none;
+  animation: aramid-tooltip-in 140ms ease-out;
+}
+
+.aramid-tooltip__text {
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid rgba(251, 126, 255, 0.25);
+  background: linear-gradient(135deg, rgba(48, 0, 74, 0.97), rgba(26, 6, 52, 0.97));
+  box-shadow:
+    0 10px 30px -10px rgba(0, 0, 0, 0.7),
+    0 0 18px -6px rgba(116, 0, 255, 0.55);
+  color: rgba(246, 246, 246, 0.95);
+  font-family: Satoshi, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.45;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.aramid-tooltip__arrow {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: rgb(40, 3, 64);
+  border: 1px solid rgba(251, 126, 255, 0.25);
+  transform: rotate(45deg);
+}
+.aramid-tooltip[data-placement='top'] .aramid-tooltip__arrow {
+  bottom: -5px;
+  left: calc(var(--arrow-x, 50%) - 5px);
+  border-top: 0;
+  border-left: 0;
+}
+.aramid-tooltip[data-placement='bottom'] .aramid-tooltip__arrow {
+  top: -5px;
+  left: calc(var(--arrow-x, 50%) - 5px);
+  border-bottom: 0;
+  border-right: 0;
+}
+.aramid-tooltip[data-placement='left'] .aramid-tooltip__arrow {
+  right: -5px;
+  top: calc(var(--arrow-y, 50%) - 5px);
+  border-bottom: 0;
+  border-left: 0;
+}
+.aramid-tooltip[data-placement='right'] .aramid-tooltip__arrow {
+  left: -5px;
+  top: calc(var(--arrow-y, 50%) - 5px);
+  border-top: 0;
+  border-right: 0;
+}
+
+@keyframes aramid-tooltip-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aramid-tooltip {
+    animation: none;
+  }
+}

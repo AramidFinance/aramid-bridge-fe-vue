@@ -6,7 +6,7 @@ import SimpleLabel from './ui/SimpleLabel.vue'
 import getAlgoAccountARC200TokenBalance from '@/scripts/algo/getAlgoAccountARC200TokenBalance'
 import getAlgoAccountTokenBalance from '@/scripts/algo/getAlgoAccountTokenBalance'
 import asyncdelay from '@/scripts/common/asyncDelay'
-import { formatTooltip } from '@/scripts/common/formatTooltip'
+import { tooltipWithDetail } from '@/scripts/common/formatTooltip'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import getEthAccountTokenBalance from '@/scripts/eth/getEthAccountTokenBalance'
 import getAppKit, { getAppKitNetworkByChainId } from '@/scripts/eth/getAppKit'
@@ -18,7 +18,7 @@ import { useAppStore } from '@/stores/app'
 import { useWalletSync } from '@/scripts/algo/useWalletSync'
 import { sourceWalletSlot } from '@/scripts/algo/walletSlots'
 import { useAppKitAccount, useAppKitNetwork, useDisconnect } from '@reown/appkit/vue'
-import { useToast } from 'primevue/usetoast'
+import { useToast } from '@/scripts/common/toast'
 import { onMounted, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import RoundButton from './ui/RoundButton.vue'
@@ -219,13 +219,13 @@ const getImageUrl = () => {
   <div>
     <SimpleLabel>{{ t('wallet.originWallet') }}</SimpleLabel>
     <RoundButton
-      v-tooltip.top="formatTooltip(t('wallet.tooltipOrigin'))"
+      v-tooltip.top="tooltipWithDetail(t('wallet.tooltipOrigin'), state.connected && store.state.sourceAddress)"
       v-if="store.state.sourceTokenConfiguration"
       :img="`logos/tokens/${store.state.sourceTokenConfiguration?.logo}.png`"
       :text="store.state.sourceTokenConfiguration.name"
       @click="buttonClick"
     >
-      <img alt="wallet" loading="lazy" width="20" height="20" decoding="async" data-nimg="1" class="3xl:w-14 3xl:h-14" :src="getImageUrl()" style="color: transparent" />
+      <img alt="" loading="lazy" width="20" height="20" decoding="async" data-nimg="1" class="3xl:w-14 3xl:h-14" :src="getImageUrl()" style="color: transparent" />
       <div
         class="mx-auto self-center text-[14px] font-bold text-center 3xl:text-xl 4xl:text-2xl truncate"
         v-if="store.state.sourceChainConfiguration?.type == 'algo' && store.state.sourceAlgoConnectorType == AlgoConnectorType.QRCode"
@@ -234,7 +234,8 @@ const getImageUrl = () => {
       </div>
 
       <div class="mx-auto self-center text-[14px] font-bold text-center 3xl:text-xl 4xl:text-2xl truncate" v-else-if="state.connected">
-        <WalletAddress :address="store.state.sourceAddress"></WalletAddress>
+        <!-- inside a button: not a separate tab stop -->
+        <WalletAddress :address="store.state.sourceAddress" :focusable="false"></WalletAddress>
       </div>
       <div class="mx-auto self-center text-[14px] font-bold text-center 3xl:text-xl 4xl:text-2xl truncate" v-else>{{ t('wallet.connectOrigin') }}</div>
     </RoundButton>

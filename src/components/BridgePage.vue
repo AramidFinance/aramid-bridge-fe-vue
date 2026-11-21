@@ -15,12 +15,12 @@ import algosdk from 'algosdk'
 import base64url from 'base64url'
 import BigNumber from 'bignumber.js'
 import { ethers } from 'ethers'
-import Message from 'primevue/message'
-import { useToast } from 'primevue/usetoast'
+import { toText, useToast } from '@/scripts/common/toast'
 import { onMounted, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import AmountDestination from './AmountDestination.vue'
+import AppMessage from './ui/AppMessage.vue'
 import AmountSource from './AmountSource.vue'
 import AssetSelectionDestination from './AssetSelectionDestination.vue'
 import AssetSelectionSource from './AssetSelectionSource.vue'
@@ -40,7 +40,9 @@ const router = useRouter()
 const toast = useToast()
 const state = reactive({
   mounted: false,
-  error: ''
+  error: '',
+  /** Bumped on every failed validation so the inline error re-mounts: re-announced and re-animated even if unchanged. */
+  errorAttempt: 0
 })
 const fillInRoute = () => {
   if (!state.mounted) return
@@ -106,8 +108,13 @@ const fillInRoute = () => {
   }
 }
 
-const doValidation = (): boolean => {
-  // called when the review button is pressed, right after confirmNetworksAndDestinationAddress
+/**
+ * Called when the review button is pressed. `silent`: re-check a shown error after the inputs or loaded data
+ * changed. The shown reason stays only while it is still the reason; otherwise it is removed (never rewritten, which
+ * would interrupt the screen reader on every keystroke) and the next Review press reports the current one.
+ */
+const doValidation = (silent = false): boolean => {
+  if (!silent) state.error = '' // a previous failure must not linger once the input is fixed
   try {
     if (store.state.loadingDestinationAddressBalance) {
       throw Error(t('error.loadingBalance', { type: t('address.destination').toLowerCase() }))
@@ -206,15 +213,18 @@ const doValidation = (): boolean => {
       )
     }
 
+    state.error = ''
     return true
   } catch (e: any) {
+    const message = toText(e) ?? String(e)
+    if (silent) {
+      if (message !== state.error) state.error = ''
+      return false
+    }
     console.error(e)
-    state.error = e.message ?? e
-    toast.add({
-      severity: 'error',
-      detail: state.error,
-      life: 3000
-    })
+    // shown inline (AppMessage, announced assertively) right above the button; a toast as well would announce it twice
+    state.error = message
+    state.errorAttempt++
     return false
   }
 }
@@ -340,7 +350,40 @@ watch(
   () => store.state.destinationAddress,
   () => {
     fillInRoute()
-    state.error = ''
+    if (state.error) doValidation(true)
+  }
+)
+// While an inline validation error is shown, re-check it whenever the inputs or the data it depends on change
+// (balances finishing loading, fees arriving...): it disappears once fixed, rather than lingering or being dropped blindly.
+watch(
+  () => [
+    store.state.sourceAmount,
+    store.state.sourceAddress,
+    store.state.sourceChain,
+    store.state.sourceToken,
+    store.state.destinationChain,
+    store.state.destinationToken,
+    store.state.memo,
+    store.state.sourceAlgoConnectorType,
+    store.state.sourceAddressBalance,
+    store.state.destinationBridgeBalance,
+    store.state.escrowBalanceIsSufficient,
+    store.state.loadingSourceAddressBalance,
+    store.state.loadingDestinationAddressBalance,
+    store.state.loadingDestinationEscrowAddressBalance,
+    store.state.routeConfig,
+    store.state.feeAmount,
+    store.state.destinationAmount,
+    store.state.sourceTokenConfiguration,
+    store.state.destinationTokenConfiguration,
+    store.state.sourceAmountFormatted,
+    store.state.feeAmountFormatted,
+    store.state.destinationAmountFormatted,
+    store.state.sourceChainConfiguration,
+    store.state.destinationChainConfiguration
+  ],
+  () => {
+    if (state.error) doValidation(true)
   }
 )
 </script>
@@ -369,10 +412,10 @@ watch(
       <SimpleLabel>{{ t('transaction.memo') }}</SimpleLabel>
       <input :maxlength="50" class="bg-white-rgba rounded-[10px] focus:outline-none w-full mt-1 3xl:mt-3 4xl:mt-6 p-1 3xl:p-3 4xl:p-6 text-base w-full" type="text" v-model="store.state.memo" />
     </div>
-    <Message severity="error" v-if="state.error" class="mt-4 w-full">{{ state.error }}</Message>
-    <Message severity="warn" v-if="store.state.escrowBalanceIsSufficient && !store.state.escrowBalanceIsSufficient10x" class="mt-4 w-full">
+    <AppMessage severity="error" v-if="state.error" :key="state.errorAttempt" class="mt-4 w-full">{{ state.error }}</AppMessage>
+    <AppMessage severity="warn" v-if="store.state.escrowBalanceIsSufficient && !store.state.escrowBalanceIsSufficient10x" class="mt-4 w-full">
       {{ t('bridge.lowBalanceWarning') }}
-    </Message>
+    </AppMessage>
     <MainActionButton @click="reviewButtonClick">{{ t('bridge.reviewTransaction') }}</MainActionButton>
   </MainBox>
 </template>

@@ -101,15 +101,9 @@ importers:
       pinia:
         specifier: ^4.1.0
         version: 4.1.0(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.46(typescript@6.0.3))
-      primevue:
-        specifier: ^5.0.5
-        version: 5.0.5(vue@3.5.46(typescript@6.0.3))
       qrcode-vue3:
         specifier: ^1.7.1
         version: 1.7.1
-      tailwindcss-primeui:
-        specifier: ^0.6.1
-        version: 0.6.1(tailwindcss@4.3.5)
       ulujs:
         specifier: ^3.0.2
         version: 3.0.2
@@ -806,40 +800,6 @@ packages:
   '@pkgr/core@0.3.6':
     resolution: {integrity: sha512-SEeaJLb3qBNF/OaXnaR1NmmBbFYk1zC0ZH/52fATcRPLFg/p791YrcyFFy44Bo9sLaGuSuLp5Q6axbb/O+v/RA==}
     engines: {node: ^14.18.0 || >=16.0.0}
-
-  '@primeicons/core@8.0.2':
-    resolution: {integrity: sha512-VySryvfIQH2xzNVXISIQg357gAt4oFYX2vKy27tWMB7UvEHu/gjRpeilBty3LBln7oVuAdFLPYOWr/FtTH8eJw==}
-
-  '@primeicons/vue@8.0.2':
-    resolution: {integrity: sha512-HRb3kgnj0XbqZvYCkgnF5LSAKNoRAgU8hwXcVqeCSKQKO3uJoI4oYDtEwULM8Rxy2avhiJuozlVHugskDF4HdQ==}
-    peerDependencies:
-      vue: ^3
-
-  '@primeui/license-manager@1.1.0':
-    resolution: {integrity: sha512-irjhOGs6Xjwh1JhMyXtdUsYCsve6kBySZzDUhS/mWxsjwQm/wSN7oulyP/f5huJKdhZSzaN6rVApwpp4nDWE1g==}
-
-  '@primeuix/motion@1.0.0':
-    resolution: {integrity: sha512-rqpFRKmUVp9BI3YQKdok0rLUwzYShXzuuxy72Kq74xYRV14eR+4+XrIXOdyVs7j7CYV0ajYowiRpJCrVgdrq6A==}
-    engines: {node: '>=12.11.0'}
-
-  '@primeuix/styled@1.2.0':
-    resolution: {integrity: sha512-PaZ2CMkMGcW03XO3CawHbCCxB9rj0IFKj/7lOmNLYw9s4UqgeleJVii2BJ7P0Un3OxIG7oU9wnjsamrp1QFchQ==}
-    engines: {node: '>=12.11.0'}
-
-  '@primeuix/styles@3.1.1':
-    resolution: {integrity: sha512-7ujpnhU5cU/ZCE/RoQJoKBFJEV6OWZSILWipEk8yfXnaNnED3jmBsG/qATv8DhLEJeJPiCGE2t64iWyfwSDBjg==}
-
-  '@primeuix/utils@0.8.3':
-    resolution: {integrity: sha512-UyFtnzxHfG7UqbOqUsjMXpe96h36eDre9Iw+zkZuJHsplHdoXNWgovDkoGZNxw4V5ZUHP1Y3pIu0kJw0OhmT0g==}
-    engines: {node: '>=12.11.0'}
-
-  '@primevue/core@5.0.5':
-    resolution: {integrity: sha512-zYHdENpY/5uEEkKiGs8iCgnIRJLI0cjwxwrm1Wp+/KunGAorRnp4RBwyQI07idqQe/W1JiGbmnG3UsCNmsJ1cg==}
-    peerDependencies:
-      vue: ^3.5.0
-
-  '@primevue/icons@5.0.5':
-    resolution: {integrity: sha512-gL94WMebzaQYlLLAePTXKrVClAC8gyL88IM7M+8Tpim0jsM9ec2QRGgAEgvCRASphk9QkESXke86qrzVXH7/+g==}
 
   '@reown/appkit-adapter-ethers@2.0.0':
     resolution: {integrity: sha512-VfU39us7rzO+rYFI0L91J2RzVU3JYHgVbIkoHj8+n4mml+WMaLzHEaBSyFYWJ4zlR27a/W/4snwt8yj9Elw8Tw==}
@@ -3820,9 +3780,6 @@ packages:
     resolution: {integrity: sha512-FFw039TmrBqFK8ma/7OL3sDz/VytdtJr044/QUJtH0wK9lb9jLq9tJyIxUwtQJHwar2BqtiA4iCWSwo9JLkzFg==}
     engines: {node: '>=6'}
 
-  primevue@5.0.5:
-    resolution: {integrity: sha512-OtWnnk6oREilTVJjaiHtFiqjL+VBn4kWem1CEr3uRhLv8bnTo4F8eMX2jScVHZxcdBPy8ZkEH76QB3rvd/cRSg==}
-
   process-warning@5.1.1:
     resolution: {integrity: sha512-oCkNVj4OKnKEcocVBcDfiIugN1/cE6rgfT3nCtzeqZPA8+rIxMaQ0xXzIkGP8Gj2qUaP1UR7uhJ1VD8lUCpzCg==}
 
@@ -4131,11 +4088,6 @@ packages:
     engines: {node: '>=10.0.0'}
     os: [darwin, linux, win32, freebsd, openbsd, netbsd, sunos, android]
     hasBin: true
-
-  tailwindcss-primeui@0.6.1:
-    resolution: {integrity: sha512-T69Rylcrmnt8zy9ik+qZvsLuRIrS9/k6rYJSIgZ1trnbEzGDDQSCIdmfyZknevqiHwpSJHSmQ9XT2C+S/hJY4A==}
-    peerDependencies:
-      tailwindcss: '>=3.1.0'
 
   tailwindcss@4.3.5:
     resolution: {integrity: sha512-FcQk9BuffmEHJP2G0XmB2SplU1aLTI7j07Kunk+U74Ny+XiWOtzXz9aujFZ/avntw1e2cOv/3PkgzflQ7gX2vQ==}
@@ -5529,46 +5481,6 @@ snapshots:
       lit: 3.3.0
 
   '@pkgr/core@0.3.6': {}
-
-  '@primeicons/core@8.0.2':
-    dependencies:
-      '@primeuix/utils': 0.8.3
-
-  '@primeicons/vue@8.0.2(vue@3.5.46(typescript@6.0.3))':
-    dependencies:
-      '@primeicons/core': 8.0.2
-      '@primeuix/utils': 0.8.3
-      vue: 3.5.46(typescript@6.0.3)
-
-  '@primeui/license-manager@1.1.0': {}
-
-  '@primeuix/motion@1.0.0':
-    dependencies:
-      '@primeuix/utils': 0.8.3
-
-  '@primeuix/styled@1.2.0':
-    dependencies:
-      '@primeuix/utils': 0.8.3
-
-  '@primeuix/styles@3.1.1':
-    dependencies:
-      '@primeuix/styled': 1.2.0
-
-  '@primeuix/utils@0.8.3': {}
-
-  '@primevue/core@5.0.5(vue@3.5.46(typescript@6.0.3))':
-    dependencies:
-      '@primeui/license-manager': 1.1.0
-      '@primeuix/styled': 1.2.0
-      '@primeuix/utils': 0.8.3
-      vue: 3.5.46(typescript@6.0.3)
-
-  '@primevue/icons@5.0.5(vue@3.5.46(typescript@6.0.3))':
-    dependencies:
-      '@primeuix/utils': 0.8.3
-      '@primevue/core': 5.0.5(vue@3.5.46(typescript@6.0.3))
-    transitivePeerDependencies:
-      - vue
 
   '@reown/appkit-adapter-ethers@2.0.0(@ethersproject/sha2@5.8.0)(@solana/kit@8.6.0(typescript@6.0.3))(@solana/sysvars@8.6.0(typescript@6.0.3))(@types/react@19.2.17)(ethers@6.17.0)(react@18.3.1)(typescript@6.0.3)(use-sync-external-store@1.2.0(react@18.3.1))(zod@3.25.76)':
     dependencies:
@@ -9529,19 +9441,6 @@ snapshots:
 
   pretty-bytes@5.6.0: {}
 
-  primevue@5.0.5(vue@3.5.46(typescript@6.0.3)):
-    dependencies:
-      '@primeicons/vue': 8.0.2(vue@3.5.46(typescript@6.0.3))
-      '@primeui/license-manager': 1.1.0
-      '@primeuix/motion': 1.0.0
-      '@primeuix/styled': 1.2.0
-      '@primeuix/styles': 3.1.1
-      '@primeuix/utils': 0.8.3
-      '@primevue/core': 5.0.5(vue@3.5.46(typescript@6.0.3))
-      '@primevue/icons': 5.0.5(vue@3.5.46(typescript@6.0.3))
-    transitivePeerDependencies:
-      - vue
-
   process-warning@5.1.1: {}
 
   process@0.11.10: {}
@@ -9896,10 +9795,6 @@ snapshots:
       '@pkgr/core': 0.3.6
 
   systeminformation@5.33.23: {}
-
-  tailwindcss-primeui@0.6.1(tailwindcss@4.3.5):
-    dependencies:
-      tailwindcss: 4.3.5
 
   tailwindcss@4.3.5: {}
 

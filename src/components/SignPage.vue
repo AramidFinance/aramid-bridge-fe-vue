@@ -20,7 +20,7 @@ import { useWallet } from '@txnlab/use-wallet-vue'
 import algosdk, { Address } from 'algosdk'
 import { type Arc200ExchangeInfo, getArc200ASAClient } from 'arc200-client'
 import { useWallet as useAvmWallet } from 'avm-wallet-vue'
-import { useToast } from 'primevue/usetoast'
+import { useToast } from '@/scripts/common/toast'
 import QRCodeVue3 from 'qrcode-vue3'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -456,7 +456,7 @@ const claimButtonClick = async () => {
     <div v-else-if="store.state.claimTx && store.state.destinationChainConfiguration?.type == 'algo'">
       <div v-if="store.state.destinationChainConfiguration?.name === 'Voi' && store.state.destinationTokenConfiguration?.arc200TokenId">
         <p>Crosschain bridging was successful. If you are owner of the destination address, you can now claim the ARC200 token.</p>
-        <MainActionButton @click="claimButtonClick" :tooltip="t('sign.claimTooltip')"> {{ t('sign.claimAssets') }} </MainActionButton>
+        <MainActionButton @click="claimButtonClick" v-tooltip.top="t('sign.claimTooltip')"> {{ t('sign.claimAssets') }} </MainActionButton>
       </div>
       <div v-else-if="store.state.destinationChainConfiguration?.name === 'Voi'">
         <p>{{ t('sign.bridgeSuccess') }}</p>
