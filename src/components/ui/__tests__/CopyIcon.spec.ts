@@ -16,7 +16,8 @@ describe('CopyIcon', () => {
       global: { directives: { tooltip }, mocks: { $t: (key: string) => key } }
     })
     const button = wrapper.get('button')
-    expect(button.attributes('aria-label')).toBe('common.copy')
+    // a distinct name per button (what it copies), not a row of identical "Copy" buttons
+    expect(button.attributes('aria-label')).toBe('ASSET-ID')
     await button.trigger('click')
     expect(writeText).toHaveBeenCalledWith('ASSET-ID')
     expect(rowClick).not.toHaveBeenCalled()

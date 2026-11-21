@@ -87,6 +87,8 @@ const onPointerLeave = (event: PointerEvent) => {
 }
 
 const onFocusIn = (event: FocusEvent) => {
+  // mouse focus (e.g. pressing the close button and releasing elsewhere) must not freeze the toast
+  if (!isKeyboardFocused(event.target as Element | null)) return
   if (event.relatedTarget instanceof HTMLElement && !event.relatedTarget.closest('.toast-region')) returnFocus = event.relatedTarget
   focused.value = true
   update()

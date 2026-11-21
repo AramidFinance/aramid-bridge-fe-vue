@@ -173,6 +173,16 @@ describe('AppToast', () => {
     expect(document.activeElement).toBe(root)
   })
 
+  it('is not paused by mouse focus (pressing the close button and releasing elsewhere)', async () => {
+    mountToast()
+    addToast({ detail: 'timed', life: 1000 })
+    await nextTick()
+    vi.spyOn(Element.prototype, 'matches').mockReturnValue(false) // not :focus-visible
+    $('.toast__close')!.focus()
+    vi.advanceTimersByTime(1000)
+    expect(toastMessages).toHaveLength(0)
+  })
+
   it('leaves focus alone when a toast is closed with the mouse', async () => {
     mountToast()
     addToast({ detail: 'first', life: 1000 })

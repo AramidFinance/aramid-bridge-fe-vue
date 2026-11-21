@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { isUrgent, type Severity } from '@/scripts/common/toast'
+import type { Severity } from '@/scripts/common/toast'
 import SeverityIcon from './SeverityIcon.vue'
 
 const props = withDefaults(defineProps<{ severity?: Severity }>(), { severity: 'info' })
 
-const role = computed(() => (isUrgent(props.severity) ? 'alert' : 'status'))
+// only errors interrupt; a standing warning (e.g. low escrow balance) is announced politely
+const role = computed(() => (props.severity === 'error' ? 'alert' : 'status'))
 </script>
 
 <template>

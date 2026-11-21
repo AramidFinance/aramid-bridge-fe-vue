@@ -31,6 +31,8 @@ interface TooltipState {
   pressed: boolean
   pressTimer?: ReturnType<typeof setTimeout>
   pressCloseTimer?: ReturnType<typeof setTimeout>
+  /** The click some browsers send when a long-press ends is swallowed: holding is for reading, not activating. */
+  swallowClick: boolean
   lastPointerDown: number
   /** Target rect at the last placement, and the observer that re-places the tooltip when the page changes. */
   lastRect?: string
@@ -213,7 +215,8 @@ const show = (el: HTMLElement, state: TooltipState): void => {
     document.body.appendChild(tip)
     state.tip = tip
     open.add(el)
-    addDescribedBy(el, state.id)
+    // when the tooltip just repeats the accessible name, describing the element with it would read it twice
+    if (el.getAttribute('aria-label') !== state.text) addDescribedBy(el, state.id)
     document.addEventListener('keydown', state.onKeydown)
     // follow the target when any ancestor scrolls (capture) or the viewport resizes (e.g. a virtual keyboard opens)
     document.addEventListener('scroll', state.onReposition, true)
@@ -257,6 +260,7 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
       focused: false,
       dismissed: false,
       pressed: false,
+      swallowClick: false,
       lastPointerDown: -Infinity,
       onKeydown: (event) => {
         if (event.key !== 'Escape') return
@@ -275,9 +279,11 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
         el.removeEventListener('pointerenter', onPointerEnter)
         el.removeEventListener('pointerleave', onPointerLeave)
         el.removeEventListener('pointerdown', onPointerDown)
-        el.removeEventListener('pointerup', cancelPress)
-        el.removeEventListener('pointercancel', cancelPress)
+        el.removeEventListener('pointerup', onPointerUp)
+        el.removeEventListener('pointercancel', onPointerUp)
+        el.removeEventListener('click', onClickCapture, true)
         el.removeEventListener('click', onClick)
+        el.removeEventListener('contextmenu', onContextMenu)
         el.removeEventListener('focusin', onFocusIn)
         el.removeEventListener('focusout', onFocusOut)
       }
@@ -305,6 +311,7 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
     const openPress = () => {
       state.pressTimer = undefined
       state.pressed = true
+      state.swallowClick = true
       state.dismissed = false
       sync(el, state)
       // the next touch anywhere (or a timeout) closes it, as there is no "leave" on touch
@@ -325,6 +332,7 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
     }
     const onPointerDown = (event: Event) => {
       state.lastPointerDown = Date.now()
+      state.swallowClick = false
       // clicking usually opens something (a dialog, a menu) the tooltip would cover; input hints stay
       if (state.focusOnly) return
       state.dismissed = true
@@ -334,8 +342,24 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
         state.pressTimer = setTimeout(openPress, LONG_PRESS_MS)
       }
     }
-    // Any click (mouse, Enter/Space on the focused element, or the click some browsers send after a long-press)
-    // usually opens something the tooltip would cover, so it closes; input hints stay.
+    const onPointerUp = () => {
+      cancelPress()
+      // the click that may follow this release comes right away; after that, clicks are real again
+      if (state.swallowClick) setTimeout(() => (state.swallowClick = false), 400)
+    }
+    // Capture phase on the target runs before the element's own click handlers (and those of its children).
+    const onClickCapture = (event: Event) => {
+      if (!state.swallowClick) return
+      state.swallowClick = false
+      event.preventDefault()
+      event.stopImmediatePropagation()
+    }
+    // Long-pressing an image or link would also open the native context menu / callout over the tooltip.
+    const onContextMenu = (event: Event) => {
+      if (state.pressTimer !== undefined || state.pressed) event.preventDefault()
+    }
+    // Any click (mouse, or Enter/Space on the focused element) usually opens something the tooltip would cover,
+    // so it closes; input hints stay.
     const onClick = () => {
       closePress()
       if (state.focusOnly) return
@@ -360,9 +384,13 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
     el.addEventListener('pointerenter', onPointerEnter)
     el.addEventListener('pointerleave', onPointerLeave)
     el.addEventListener('pointerdown', onPointerDown)
-    el.addEventListener('pointerup', cancelPress)
-    el.addEventListener('pointercancel', cancelPress)
+    el.addEventListener('pointerup', onPointerUp)
+    el.addEventListener('pointercancel', onPointerUp)
+    el.addEventListener('click', onClickCapture, true)
     el.addEventListener('click', onClick)
+    el.addEventListener('contextmenu', onContextMenu)
+    // iOS shows its link/image callout on long-press regardless of contextmenu
+    el.style.setProperty('-webkit-touch-callout', 'none')
     el.addEventListener('focusin', onFocusIn)
     el.addEventListener('focusout', onFocusOut)
     states.set(el, state)
@@ -371,9 +399,14 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
   updated(el, binding) {
     const state = states.get(el)
     if (!state) return
-    state.text = textOf(binding)
-    state.placement = placementOf(binding)
-    state.focusOnly = !!binding.modifiers.focus
+    const text = textOf(binding)
+    const placement = placementOf(binding)
+    const focusOnly = !!binding.modifiers.focus
+    // hosts re-render often (polling, typing): only touch the DOM when the tooltip itself changed
+    if (text === state.text && placement === state.placement && focusOnly === state.focusOnly) return
+    state.text = text
+    state.placement = placement
+    state.focusOnly = focusOnly
     sync(el, state)
   },
   beforeUnmount(el) {

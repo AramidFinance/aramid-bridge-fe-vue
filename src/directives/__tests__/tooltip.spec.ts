@@ -99,14 +99,75 @@ describe('v-tooltip', () => {
     wrapper.unmount()
   })
 
-  it('closes a press-opened tooltip on click (whatever it opens stays uncovered) and after a timeout', () => {
+  it('swallows the click some browsers send after a long-press: the tooltip stays and the element is not activated', () => {
+    vi.useFakeTimers()
+    const activate = vi.fn()
+    const wrapper = mountWith(`<button v-tooltip="'Origin wallet'" @click="activate"><img alt="" /></button>`, () => ({ activate }))
+    const button = wrapper.get('button').element
+
+    pointer(button, 'pointerdown', 'touch')
+    vi.advanceTimersByTime(LONG_PRESS_MS)
+    pointer(button, 'pointerup', 'touch')
+    wrapper.get('img').element.click() // the post-long-press click, on a child
+    expect(activate).not.toHaveBeenCalled()
+    expect(tip()).not.toBeNull()
+
+    // a later, real tap activates as usual
+    vi.advanceTimersByTime(400)
+    button.click()
+    expect(activate).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('suppresses the native context menu only while a press is pending or open', () => {
+    vi.useFakeTimers()
+    const wrapper = mountWith(`<button v-tooltip="'Hint'">x</button>`)
+    const button = wrapper.get('button').element
+    const menu = () => {
+      const event = new Event('contextmenu', { cancelable: true })
+      button.dispatchEvent(event)
+      return event.defaultPrevented
+    }
+    expect(menu()).toBe(false)
+    pointer(button, 'pointerdown', 'touch')
+    expect(menu()).toBe(true)
+    vi.advanceTimersByTime(LONG_PRESS_MS)
+    expect(menu()).toBe(true)
+    pointer(document.body, 'pointerdown', 'touch')
+    expect(menu()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('does not describe the element with a tooltip that repeats its aria-label', () => {
+    const wrapper = mountWith(`<button aria-label="Copy ABC" v-tooltip="'Copy ABC'">x</button>`)
+    const button = wrapper.get('button').element
+    pointer(button, 'pointerenter')
+    expect(tip()).not.toBeNull()
+    expect(button.hasAttribute('aria-describedby')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('does not re-place an open tooltip when the host re-renders without changes', async () => {
+    const tick = ref(0)
+    const wrapper = mountWith(`<span v-tooltip="'Same'" :data-tick="tick">x</span>`, () => ({ tick }))
+    pointer(wrapper.get('span').element, 'pointerenter')
+    const spy = vi.spyOn(wrapper.get('span').element, 'getBoundingClientRect')
+    tick.value++
+    await nextTick()
+    expect(spy).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('closes a press-opened tooltip on a later real click (whatever it opens stays uncovered) and after a timeout', () => {
     vi.useFakeTimers()
     const wrapper = mountWith(`<button v-tooltip="'Hint'">x</button>`)
     const button = wrapper.get('button').element
 
     pointer(button, 'pointerdown', 'touch')
     vi.advanceTimersByTime(LONG_PRESS_MS)
-    button.click()
+    pointer(button, 'pointerup', 'touch')
+    vi.advanceTimersByTime(400) // past the post-long-press click window
+    button.click() // e.g. Enter on the focused button
     expect(tip()).toBeNull()
 
     pointer(button, 'pointerdown', 'touch')
