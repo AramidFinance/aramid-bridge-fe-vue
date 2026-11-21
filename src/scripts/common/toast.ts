@@ -20,6 +20,9 @@ export interface ToastMessage {
   life?: number
 }
 
+/** Errors and warnings interrupt (assertive announcements) and are the last to be trimmed. */
+export const isUrgent = (severity: Severity): boolean => severity === 'error' || severity === 'warn'
+
 /** Oldest toasts are dropped once this many are on screen, so a burst of errors cannot fill the viewport. */
 export const MAX_TOASTS = 5
 
@@ -35,10 +38,14 @@ export const addToast = (options: ToastOptions): number => {
   const id = nextId++
   const life = options.life !== undefined && options.life > 0 ? options.life : undefined
   state.messages.push({ id, severity: options.severity ?? 'info', summary: options.summary, detail: options.detail, life })
-  // drop the oldest toasts that are not being read (never the new one); if all are, the list may briefly exceed the limit
-  for (let i = 0; state.messages.length > MAX_TOASTS && i < state.messages.length - 1;) {
-    if (paused.has(state.messages[i].id)) i++
-    else state.messages.splice(i, 1)
+  // Over the limit: drop the oldest info/success toasts first, then warnings/errors. Never the new toast or one
+  // being read; if nothing else can go, the list may briefly exceed the limit.
+  for (const urgentPass of [false, true]) {
+    for (let i = 0; state.messages.length > MAX_TOASTS && i < state.messages.length - 1;) {
+      const message = state.messages[i]
+      if (paused.has(message.id) || isUrgent(message.severity) !== urgentPass) i++
+      else state.messages.splice(i, 1)
+    }
   }
   return id
 }

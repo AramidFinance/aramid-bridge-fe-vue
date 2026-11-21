@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { Severity } from '@/scripts/common/toast'
+import { isUrgent, type Severity } from '@/scripts/common/toast'
 import SeverityIcon from './SeverityIcon.vue'
 
 const props = withDefaults(defineProps<{ severity?: Severity }>(), { severity: 'info' })
 
-const role = computed(() => (props.severity === 'error' || props.severity === 'warn' ? 'alert' : 'status'))
+const role = computed(() => (isUrgent(props.severity) ? 'alert' : 'status'))
 </script>
 
 <template>

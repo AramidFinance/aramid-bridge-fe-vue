@@ -234,7 +234,8 @@ const getImageUrl = () => {
       </div>
 
       <div class="mx-auto self-center text-[14px] font-bold text-center 3xl:text-xl 4xl:text-2xl truncate" v-else-if="state.connected">
-        <WalletAddress :address="store.state.sourceAddress"></WalletAddress>
+        <!-- inside a button: not a separate tab stop -->
+        <WalletAddress :address="store.state.sourceAddress" :focusable="false"></WalletAddress>
       </div>
       <div class="mx-auto self-center text-[14px] font-bold text-center 3xl:text-xl 4xl:text-2xl truncate" v-else>{{ t('wallet.connectOrigin') }}</div>
     </RoundButton>

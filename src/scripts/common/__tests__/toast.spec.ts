@@ -50,6 +50,14 @@ describe('toast store', () => {
     expect(toastMessages[MAX_TOASTS].detail).toBe('newest')
   })
 
+  it('trims info/success before warnings and errors', () => {
+    addToast({ severity: 'error', detail: 'why the tx failed', life: 10000 })
+    for (let i = 0; i < MAX_TOASTS; i++) addToast({ severity: 'info', detail: `copied ${i}`, life: 3000 })
+    expect(toastMessages).toHaveLength(MAX_TOASTS)
+    expect(toastMessages[0].detail).toBe('why the tx failed')
+    expect(toastMessages[1].detail).toBe('copied 1')
+  })
+
   it('exposes the same store through useToast()', () => {
     const toast = useToast()
     const id = toast.add({ severity: 'success', detail: 'done' })

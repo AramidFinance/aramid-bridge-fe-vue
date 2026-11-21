@@ -168,7 +168,7 @@ describe('v-tooltip', () => {
 
     top = 160 // e.g. a message was inserted above the target; no scroll/resize event
     document.body.prepend(document.createElement('p'))
-    await Promise.resolve() // MutationObserver callbacks run as a microtask
+    await new Promise((resolve) => requestAnimationFrame(resolve)) // checked once per frame
     expect(tip()?.style.top).toBe('190px')
     wrapper.unmount()
   })

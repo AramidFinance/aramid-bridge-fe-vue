@@ -24,6 +24,7 @@ interface TooltipState {
   /** Target rect at the last placement, and the observer that re-places the tooltip when the page changes. */
   lastRect?: string
   observer?: MutationObserver
+  frame?: number
   onKeydown: (event: KeyboardEvent) => void
   onReposition: () => void
   cleanup: () => void
@@ -142,9 +143,14 @@ const position = (el: HTMLElement, state: TooltipState): void => {
  * handled by listeners. Event-driven, and only re-places when the target's rect actually changed.
  */
 const track = (el: HTMLElement, state: TooltipState): void => {
-  if (typeof MutationObserver !== 'function') return
+  if (typeof MutationObserver !== 'function' || typeof requestAnimationFrame !== 'function') return
   state.observer = new MutationObserver(() => {
-    if (state.tip && rectKey(el.getBoundingClientRect()) !== state.lastRect) position(el, state)
+    // coalesce bursts of mutations (including our own style writes) into one layout read per frame
+    if (state.frame !== undefined) return
+    state.frame = requestAnimationFrame(() => {
+      state.frame = undefined
+      if (state.tip && rectKey(el.getBoundingClientRect()) !== state.lastRect) position(el, state)
+    })
   })
   state.observer.observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true })
 }
@@ -167,6 +173,8 @@ const hide = (el: HTMLElement, state: TooltipState): void => {
   open.delete(el)
   state.observer?.disconnect()
   state.observer = undefined
+  if (state.frame !== undefined) cancelAnimationFrame(state.frame)
+  state.frame = undefined
   removeDescribedBy(el, state.id)
   document.removeEventListener('keydown', state.onKeydown)
   document.removeEventListener('scroll', state.onReposition, true)

@@ -25,7 +25,8 @@ const isKeyboardFocused = (el: Element | null): boolean => {
   try {
     return !!el?.matches(':focus-visible')
   } catch {
-    return false
+    // selector unsupported: assume keyboard, so keyboard users are never stranded (matches the tooltip directive)
+    return true
   }
 }
 

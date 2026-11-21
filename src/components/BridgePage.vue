@@ -209,12 +209,8 @@ const doValidation = (): boolean => {
     return true
   } catch (e: any) {
     console.error(e)
+    // shown inline (AppMessage, role=alert) right above the button; a toast as well would announce it twice
     state.error = e.message ?? e
-    toast.add({
-      severity: 'error',
-      detail: state.error,
-      life: 3000
-    })
     return false
   }
 }

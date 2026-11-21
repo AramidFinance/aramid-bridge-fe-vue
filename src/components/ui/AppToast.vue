@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue'
-import { toastMessages } from '@/scripts/common/toast'
+import { isUrgent, toastMessages } from '@/scripts/common/toast'
 import ToastItem from './ToastItem.vue'
 
 // Screen readers only announce changes to live regions that already exist, so new toasts are mirrored
@@ -20,7 +20,7 @@ watch(
     if (!added.length) return
     for (const message of added) {
       const text = [message.summary, message.detail].filter(Boolean).join(': ')
-      pending[message.severity === 'error' || message.severity === 'warn' ? 'assertive' : 'polite'].push(text)
+      pending[isUrgent(message.severity) ? 'assertive' : 'polite'].push(text)
     }
     if (announceTimer !== undefined) return // already scheduled: it will include these
     // clear first so repeating the same message is announced again
