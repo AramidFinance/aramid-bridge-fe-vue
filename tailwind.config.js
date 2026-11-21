@@ -132,8 +132,8 @@ export default {
         'menu-2': '0px 0px 16px rgba(252, 157, 255, 0.3) drop-shadow(0px 0px 9px rgba(51, 0, 255, 0.6))'
       },
       screens: {
-        '3xl': '2150px', // 2xl * 1.4
-        '4xl': '3011px' // 3xl * 1.4
+        '3xl': '99998px', // legacy breakpoints disabled: large screens are scaled via --ui-zoom in main.css
+        '4xl': '99999px'
         // multiply div sizes with hardcoded values with 1.4
       }
     }

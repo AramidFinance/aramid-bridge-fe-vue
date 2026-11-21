@@ -111,7 +111,7 @@ watch(
 <template>
   <div :class="store.state.dialogSelectDestinationAssetIsOpen ? '' : 'hidden'">
     <div class="full-screen backdrop-blur-sm z-[100]" @click="store.state.dialogSelectDestinationAssetIsOpen = false"></div>
-    <div class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col z-[101] max-h-[80vh] w-[90vw] max-w-[600px]">
+    <div class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col z-[101] max-h-[calc(80vh/var(--ui-zoom))] w-[calc(90vw/var(--ui-zoom))] max-w-[600px]">
       <div class="bg-gradient-to-r from-topleft-purple to-bottomright-purple drop-shadow-menu-default rounded-[26px] p-3 flex flex-col h-full">
         <DialogTitle>{{ t('dialogs.selectDestinationAsset') }}</DialogTitle>
 
@@ -128,7 +128,7 @@ watch(
         <div v-if="!state.assets?.length" class="text-white text-center py-4">{{ t('dialogs.noAssetsAvailable') }}</div>
 
         <!-- Scrollable content area -->
-        <div v-else class="flex-1 overflow-y-auto space-y-3 max-h-[60vh]">
+        <div v-else class="flex-1 overflow-y-auto space-y-3 max-h-[calc(60vh/var(--ui-zoom))]">
           <!-- Popular Tokens Section -->
           <div v-if="!searchQuery.trim() && popularAssets.length > 0">
             <h3 class="text-white/80 text-sm font-medium mb-2 px-2">{{ t('dialogs.popularTokens') }}</h3>

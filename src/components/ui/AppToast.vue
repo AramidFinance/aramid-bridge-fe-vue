@@ -32,7 +32,7 @@ const pinBeforeLeave = (el: Element) => {
   z-index: 9000;
   top: 1rem;
   right: 1rem;
-  width: min(24rem, calc(100vw - 2rem));
+  width: min(24rem, calc(100vw / var(--ui-zoom) - 2rem));
   pointer-events: none;
 }
 
