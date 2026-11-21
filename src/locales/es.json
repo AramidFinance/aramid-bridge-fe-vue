@@ -240,6 +240,7 @@
     "claimAssets": "Reclamar activos",
     "bridgeAgain": "Transferir de nuevo",
     "bridgeSuccessShort": "Transferencia exitosa.",
+    "otherExplorers": "Otros exploradores",
     "txnIdPrefix": "ID de la transacción:",
     "pleaseWait": "Espera mientras procesamos tu transacción.",
     "useWalletNotInitialized": "El conector UseWallet no está correctamente inicializado.",

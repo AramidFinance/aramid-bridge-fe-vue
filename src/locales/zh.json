@@ -240,6 +240,7 @@
     "claimAssets": "领取资产",
     "bridgeAgain": "再次转移",
     "bridgeSuccessShort": "跨链转移成功。",
+    "otherExplorers": "其他区块浏览器",
     "txnIdPrefix": "交易 ID：",
     "pleaseWait": "请稍候，我们正在处理您的交易。",
     "useWalletNotInitialized": "UseWallet 连接器未正确初始化。",
