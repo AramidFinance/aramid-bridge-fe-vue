@@ -108,9 +108,12 @@ const fillInRoute = () => {
   }
 }
 
-const doValidation = (): boolean => {
-  // called when the review button is pressed, right after confirmNetworksAndDestinationAddress
-  state.error = '' // a previous failure must not linger once the input is fixed
+/**
+ * Called when the review button is pressed. `silent`: re-check a shown error after the inputs or loaded data
+ * changed - it clears once the problem is gone and updates if the reason changed, without counting as a new attempt.
+ */
+const doValidation = (silent = false): boolean => {
+  if (!silent) state.error = '' // a previous failure must not linger once the input is fixed
   try {
     if (store.state.loadingDestinationAddressBalance) {
       throw Error(t('error.loadingBalance', { type: t('address.destination').toLowerCase() }))
@@ -209,11 +212,17 @@ const doValidation = (): boolean => {
       )
     }
 
+    state.error = ''
     return true
   } catch (e: any) {
+    const message = toText(e) ?? String(e)
+    if (silent) {
+      state.error = message // the shown message just follows the current reason
+      return false
+    }
     console.error(e)
     // shown inline (AppMessage, role=alert) right above the button; a toast as well would announce it twice
-    state.error = toText(e) ?? String(e)
+    state.error = message
     state.errorAttempt++
     return false
   }
@@ -340,10 +349,11 @@ watch(
   () => store.state.destinationAddress,
   () => {
     fillInRoute()
-    state.error = ''
+    if (state.error) doValidation(true)
   }
 )
-// the inline validation error describes the inputs as they were: drop it as soon as any of them changes
+// While an inline validation error is shown, re-check it whenever the inputs or the data it depends on change
+// (balances finishing loading, fees arriving...): it disappears once fixed, rather than lingering or being dropped blindly.
 watch(
   () => [
     store.state.sourceAmount,
@@ -367,7 +377,7 @@ watch(
     store.state.destinationTokenConfiguration
   ],
   () => {
-    state.error = ''
+    if (state.error) doValidation(true)
   }
 )
 </script>

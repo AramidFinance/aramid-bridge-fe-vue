@@ -183,7 +183,8 @@ const track = (el: HTMLElement, state: TooltipState): void => {
       if (state.tip && rectKey(el.getBoundingClientRect()) !== state.lastRect) position(el, state)
     })
   })
-  state.observer.observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true })
+  // structure and visibility changes move things; frequent text updates (balances, timers) are left out
+  state.observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'hidden'] })
 }
 
 const clippingAncestors = (el: HTMLElement): HTMLElement[] => {
