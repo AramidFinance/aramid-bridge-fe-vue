@@ -278,7 +278,7 @@ watch(
       v-tooltip.top="tooltipWithDetail(t('wallet.tooltipDestination'), state.connected && store.state.destinationAddress)"
       @click="buttonClick"
     >
-      <img alt="wallet" loading="lazy" width="20" height="20" decoding="async" data-nimg="1" class="3xl:w-14 3xl:h-14" :src="getImageUrl()" style="color: transparent" />
+      <img alt="" loading="lazy" width="20" height="20" decoding="async" data-nimg="1" class="3xl:w-14 3xl:h-14" :src="getImageUrl()" style="color: transparent" />
       <div class="mx-auto self-center text-[14px] font-bold text-center 3xl:text-xl 4xl:text-2xl truncate" v-if="state.connected">
         <!-- inside a button: not a separate tab stop -->
         <WalletAddress :address="store.state.destinationAddress" :focusable="false"></WalletAddress>

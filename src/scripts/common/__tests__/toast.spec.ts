@@ -1,7 +1,11 @@
-import { afterEach, describe, expect, it } from 'vitest'
-import { addToast, MAX_TOASTS, removeAllToasts, removeToast, setToastPaused, toastMessages, useToast } from '../toast'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { addToast, announce, liveRegions, MAX_TOASTS, removeAllToasts, removeToast, resetAnnouncements, setToastPaused, toastMessages, useToast } from '../toast'
 
-afterEach(() => removeAllToasts())
+afterEach(() => {
+  removeAllToasts()
+  resetAnnouncements()
+  vi.useRealTimers()
+})
 
 describe('toast store', () => {
   it('adds messages with defaults and unique ids', () => {
@@ -56,6 +60,24 @@ describe('toast store', () => {
     expect(toastMessages).toHaveLength(MAX_TOASTS)
     expect(toastMessages[0].detail).toBe('why the tx failed')
     expect(toastMessages[1].detail).toBe('copied 1')
+  })
+
+  it('turns non-string details (e.g. a thrown object) into readable text', () => {
+    addToast({ detail: { code: 4001 } as never })
+    addToast({ detail: new Error('rejected') as never })
+    expect(toastMessages.map((m) => m.detail)).toEqual(['{"code":4001}', 'rejected'])
+  })
+
+  it('a polite announcement does not clear an assertive one still being read', () => {
+    vi.useFakeTimers()
+    announce('Transaction failed', true)
+    vi.advanceTimersByTime(50)
+    expect(liveRegions.assertive).toBe('Transaction failed')
+    announce('Copied')
+    expect(liveRegions.assertive).toBe('Transaction failed')
+    vi.advanceTimersByTime(50)
+    expect(liveRegions.polite).toBe('Copied')
+    expect(liveRegions.assertive).toBe('Transaction failed')
   })
 
   it('exposes the same store through useToast()', () => {

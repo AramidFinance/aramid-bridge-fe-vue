@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { describe, expect, it } from 'vitest'
 import { nextTick } from 'vue'
+import { createI18n } from 'vue-i18n'
 import tooltip from '@/directives/tooltip'
 import { useAppStore } from '@/stores/app'
 import ShortTx from '../ShortTx.vue'
@@ -12,7 +13,10 @@ const render = () => {
   const pinia = createPinia()
   setActivePinia(pinia)
   const store = useAppStore()
-  const wrapper = mount(ShortTx, { props: { txId: TX, chain: 416001 }, global: { plugins: [pinia], directives: { tooltip }, mocks: { $t: (key: string) => key } } })
+  const wrapper = mount(ShortTx, {
+    props: { txId: TX, chain: 416001 },
+    global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', messages: { en: {} }, missingWarn: false, fallbackWarn: false })], directives: { tooltip } }
+  })
   return { wrapper, store }
 }
 

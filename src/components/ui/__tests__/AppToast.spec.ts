@@ -68,7 +68,8 @@ describe('AppToast', () => {
     await flushAnnouncement()
     expect($('[aria-live="polite"]')).toBe(polite)
     expect(polite.textContent).toBe('Copied')
-    expect(assertive.textContent).toBe('')
+    // the assertive region is left alone (an error may still be being read)
+    expect(assertive.textContent).toBe('Failed: Rejected')
   })
 
   it('closes when the close button is clicked', async () => {

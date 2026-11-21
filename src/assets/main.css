@@ -100,6 +100,13 @@ wcm-modal,
 .aramid-tooltip-hold {
   -webkit-touch-callout: none;
 }
+/* on touch, holding would start a text selection (and cancel the press) instead of opening the tooltip */
+@media (pointer: coarse) {
+  .aramid-tooltip-hold {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
 
 .aramid-tooltip {
   position: fixed;

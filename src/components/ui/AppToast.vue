@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { watch } from 'vue'
-import { announce, isUrgent, liveRegions, toastMessages } from '@/scripts/common/toast'
+import { announce, isAssertive, liveRegions, toastMessages } from '@/scripts/common/toast'
 import ToastItem from './ToastItem.vue'
 
 // toasts already on screen when this mounts are not "new" later on
@@ -10,7 +10,7 @@ watch(
   () => toastMessages.map((message) => message.id),
   (ids) => {
     for (const message of toastMessages) {
-      if (!seen.has(message.id)) announce([message.summary, message.detail].filter(Boolean).join(': '), isUrgent(message.severity))
+      if (!seen.has(message.id)) announce([message.summary, message.detail].filter(Boolean).join(': '), isAssertive(message.severity))
     }
     seen = new Set(ids)
   }

@@ -18,10 +18,10 @@ describe('AppMessage', () => {
   })
 
   it('announces non-error messages politely through the persistent live region', () => {
-    const wrapper = mount(AppMessage, { props: { severity: 'warn' }, slots: { default: 'Low balance' } })
+    const wrapper = mount(AppMessage, { props: { severity: 'warn' }, slots: { default: 'Escrow is low' } })
     expect(wrapper.attributes('role')).toBeUndefined()
     vi.advanceTimersByTime(50)
-    expect(liveRegions.polite).toBe('Low balance')
+    expect(liveRegions.polite).toBe('Escrow is low')
     expect(liveRegions.assertive).toBe('')
   })
 
@@ -31,6 +31,15 @@ describe('AppMessage', () => {
     vi.advanceTimersByTime(50)
     expect(liveRegions.polite).toBe('')
     expect(liveRegions.assertive).toBe('')
+  })
+
+  it('does not re-announce the same message when it flickers back within a few seconds', () => {
+    mount(AppMessage, { props: { severity: 'warn' }, slots: { default: 'Flicker' } }).unmount()
+    vi.advanceTimersByTime(50)
+    resetAnnouncements()
+    mount(AppMessage, { props: { severity: 'warn' }, slots: { default: 'Flicker' } })
+    vi.advanceTimersByTime(50)
+    expect(liveRegions.polite).toBe('')
   })
 
   it('defaults to info', () => {

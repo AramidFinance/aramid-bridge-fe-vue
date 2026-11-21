@@ -1,3 +1,9 @@
+<script lang="ts">
+/** A message that flickers in and out (e.g. a threshold crossed while typing) is not re-announced every time. */
+const REPEAT_WINDOW_MS = 10_000
+let lastAnnounced = { text: '', at: -Infinity }
+</script>
+
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { announce, type Severity } from '@/scripts/common/toast'
@@ -9,7 +15,11 @@ const root = ref<HTMLElement>()
 // Errors use role=alert, which screen readers announce on insertion. Other messages are announced politely through
 // the persistent live region: a role=status element inserted with its text already in place is usually not read.
 onMounted(() => {
-  if (props.severity !== 'error') announce(root.value?.textContent?.trim() ?? '')
+  if (props.severity === 'error') return
+  const text = root.value?.textContent?.trim() ?? ''
+  if (text === lastAnnounced.text && Date.now() - lastAnnounced.at < REPEAT_WINDOW_MS) return
+  lastAnnounced = { text, at: Date.now() }
+  announce(text)
 })
 </script>
 

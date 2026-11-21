@@ -20,8 +20,23 @@ export interface ToastMessage {
   life?: number
 }
 
-/** Errors and warnings interrupt (assertive announcements) and are the last to be trimmed. */
+/** Errors and warnings are the last toasts to be trimmed. */
 export const isUrgent = (severity: Severity): boolean => severity === 'error' || severity === 'warn'
+
+/** Only errors interrupt the screen reader (assertive); warnings and the rest wait politely, toasts and messages alike. */
+export const isAssertive = (severity: Severity): boolean => severity === 'error'
+
+/** Call sites pass `e.message ?? e`; make sure a thrown non-Error never renders as "[object Object]". */
+const toText = (value: unknown): string | undefined => {
+  if (value === undefined || value === null || value === '') return undefined
+  if (typeof value === 'string') return value
+  if (typeof value === 'object' && typeof (value as { message?: unknown }).message === 'string') return (value as { message: string }).message
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
 
 /** Oldest toasts are dropped once this many are on screen, so a burst of errors cannot fill the viewport. */
 export const MAX_TOASTS = 5
@@ -37,7 +52,7 @@ export const toastMessages = readonly(state).messages
 export const addToast = (options: ToastOptions): number => {
   const id = nextId++
   const life = options.life !== undefined && options.life > 0 ? options.life : undefined
-  state.messages.push({ id, severity: options.severity ?? 'info', summary: options.summary, detail: options.detail, life })
+  state.messages.push({ id, severity: options.severity ?? 'info', summary: toText(options.summary), detail: toText(options.detail), life })
   // Over the limit: drop the oldest info/success toasts first, then warnings/errors. Never the new toast or one
   // being read; if nothing else can go, the list may briefly exceed the limit.
   for (const urgentPass of [false, true]) {
@@ -79,17 +94,19 @@ let announceTimer: ReturnType<typeof setTimeout> | undefined
 /** Queues `text` for the polite (or, when `urgent`, assertive) live region; bursts are batched into one announcement. */
 export const announce = (text: string, urgent = false): void => {
   if (!text) return
-  pendingAnnouncements[urgent ? 'assertive' : 'polite'].push(text)
+  const region = urgent ? 'assertive' : 'polite'
+  // clear this region first so repeating the same message is announced again; the other region is left alone,
+  // so an error still being read is not cut off by an unrelated polite message
+  if (!pendingAnnouncements[region].length) liveRegions[region] = ''
+  pendingAnnouncements[region].push(text)
   if (announceTimer !== undefined) return // already scheduled: it will include this
-  // clear first so repeating the same message is announced again
-  liveRegions.polite = ''
-  liveRegions.assertive = ''
   announceTimer = setTimeout(() => {
     announceTimer = undefined
-    liveRegions.polite = pendingAnnouncements.polite.join('. ')
-    liveRegions.assertive = pendingAnnouncements.assertive.join('. ')
-    pendingAnnouncements.polite = []
-    pendingAnnouncements.assertive = []
+    for (const name of ['polite', 'assertive'] as const) {
+      if (!pendingAnnouncements[name].length) continue
+      liveRegions[name] = pendingAnnouncements[name].join('. ')
+      pendingAnnouncements[name] = []
+    }
   }, 50)
 }
 
