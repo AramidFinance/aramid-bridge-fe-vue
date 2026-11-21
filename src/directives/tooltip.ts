@@ -394,6 +394,8 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
     const onPointerDown = (event: Event) => {
       clearTimeout(state.pointerFocusTimer)
       state.pointerFocusPending = true
+      // safety net: a press released elsewhere (no pointerup/click here) must not mark later keyboard focus as pointer
+      state.pointerFocusTimer = setTimeout(() => (state.pointerFocusPending = false), 1500)
       state.swallowClick = false
       // clicking usually opens something (a dialog, a menu) the tooltip would cover; input hints stay
       if (state.focusOnly) return

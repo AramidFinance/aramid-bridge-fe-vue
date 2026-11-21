@@ -343,6 +343,13 @@ watch(
     state.error = ''
   }
 )
+// the inline validation error describes the inputs as they were: drop it as soon as any of them changes
+watch(
+  () => [store.state.sourceAmount, store.state.sourceAddress, store.state.sourceChain, store.state.sourceToken, store.state.destinationChain, store.state.destinationToken],
+  () => {
+    state.error = ''
+  }
+)
 </script>
 <template>
   <MainBox>

@@ -472,6 +472,18 @@ describe('v-tooltip', () => {
     wrapper.unmount()
   })
 
+  it('does not treat later keyboard focus as pointer focus after a press released elsewhere', () => {
+    vi.useFakeTimers()
+    const wrapper = mountWith(`<button v-tooltip="'Wallet'">w</button>`)
+    const button = wrapper.get('button').element
+    vi.spyOn(Element.prototype, 'matches').mockReturnValue(true) // :focus-visible
+    pointer(button, 'pointerdown') // ...dragged off, released outside: no pointerup/click here
+    vi.advanceTimersByTime(1500)
+    button.focus()
+    expect(tip()?.textContent).toBe('Wallet')
+    wrapper.unmount()
+  })
+
   it('follows the target on scroll, hides while it is off screen, and is removed on unmount', () => {
     const wrapper = mountWith(`<span v-tooltip.bottom="'Follow'">x</span>`)
     const span = wrapper.get('span').element

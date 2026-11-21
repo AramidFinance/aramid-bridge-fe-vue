@@ -11,7 +11,7 @@ const store = useAppStore()
 const state = reactive({
   explorer: computed(() => {
     const chain = props.chain ?? store.state.sourceChain
-    return (chain && store.state.publicConfiguration?.chains[chain.toString()]?.blockExplorers?.[0]) || ''
+    return (chain && store.state.publicConfiguration?.chains?.[chain.toString()]?.blockExplorers?.[0]) || ''
   })
 })
 // the full id only needs revealing (keyboard stop) when it was actually shortened

@@ -26,6 +26,10 @@ describe('ShortTx', () => {
     expect(wrapper.find('a').exists()).toBe(false)
     expect(wrapper.text()).toContain('TXAB...RSTU')
 
+    store.state.publicConfiguration = {} as never // partial configuration without chains
+    await nextTick()
+    expect(wrapper.find('a').exists()).toBe(false)
+
     store.state.publicConfiguration = { chains: { '1': { blockExplorers: ['x'] } } } as never
     await nextTick()
     expect(wrapper.find('a').exists()).toBe(false)
