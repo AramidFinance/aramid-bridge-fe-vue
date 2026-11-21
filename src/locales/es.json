@@ -150,6 +150,7 @@
     "loadingBalance": "Cargando el saldo de la dirección {type}, por favor intenta más tarde",
     "loadingEscrowBalance": "Cargando el saldo de la dirección escrow de destino, por favor intenta más tarde",
     "configurationMissing": "Falta la configuración",
+    "unknown": "Algo salió mal. Inténtelo de nuevo.",
     "sourceConfigurationMissing": "Falta la configuración de la cadena de origen",
     "accountNotOptedIn": "La cuenta aún no tiene opt-in para el activo {assetId}"
   },

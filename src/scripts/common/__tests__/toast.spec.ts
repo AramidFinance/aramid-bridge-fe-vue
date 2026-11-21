@@ -78,6 +78,11 @@ describe('toast store', () => {
     expect(toastMessages.map((m) => m.detail)).toEqual(['{"code":4001}', 'rejected', 'Error', '() => 1'])
   })
 
+  it('never shows a blank error (an Error without a message passed as e.message ?? e)', () => {
+    addToast({ severity: 'error', detail: '' })
+    expect(toastMessages[0].detail).toBe('Something went wrong. Please try again.')
+  })
+
   it('a polite announcement does not clear an assertive one still being read', () => {
     vi.useFakeTimers()
     announce('Transaction failed', true)

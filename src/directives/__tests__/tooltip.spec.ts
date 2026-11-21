@@ -14,6 +14,9 @@ const pointer = (el: Element, type: string, pointerType = 'mouse') => {
   el.dispatchEvent(event)
 }
 
+/** scroll/resize re-placement runs on the next animation frame */
+const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve))
+
 const mountWith = (template: string, setup: () => Record<string, unknown> = () => ({})) => mount(defineComponent({ template, setup }), { attachTo: document.body, global: { directives: { tooltip } } })
 
 afterEach(() => {
@@ -444,7 +447,7 @@ describe('v-tooltip', () => {
     wrapper.unmount()
   })
 
-  it('hides while the target is scrolled out of a scrolling container', () => {
+  it('hides while the target is scrolled out of a scrolling container', async () => {
     const wrapper = mountWith(`<div class="list" style="overflow-y: auto"><button v-tooltip="'Copy'">c</button></div>`)
     const list = wrapper.get('.list').element as HTMLElement
     const button = wrapper.get('button').element
@@ -456,6 +459,7 @@ describe('v-tooltip', () => {
     expect(tip()?.style.visibility).toBe('')
     top = 20 // scrolled above the list's visible area, but still inside the window
     list.dispatchEvent(new Event('scroll'))
+    await nextFrame()
     expect(tip()?.style.visibility).toBe('hidden')
     wrapper.unmount()
   })
@@ -484,7 +488,7 @@ describe('v-tooltip', () => {
     wrapper.unmount()
   })
 
-  it('follows the target on scroll, hides while it is off screen, and is removed on unmount', () => {
+  it('follows the target on scroll (once per frame), hides while it is off screen, and is removed on unmount', async () => {
     const wrapper = mountWith(`<span v-tooltip.bottom="'Follow'">x</span>`)
     const span = wrapper.get('span').element
     let top = 100
@@ -495,10 +499,13 @@ describe('v-tooltip', () => {
 
     top = 200
     document.dispatchEvent(new Event('scroll'))
+    document.dispatchEvent(new Event('scroll'))
+    await nextFrame()
     expect(tip()?.style.top).toBe('230px')
 
     top = -500
     window.dispatchEvent(new Event('resize'))
+    await nextFrame()
     expect(tip()?.style.visibility).toBe('hidden')
 
     wrapper.unmount()

@@ -150,6 +150,7 @@
     "loadingBalance": "Načítá se zůstatek {type} adresy, prosím zkuste to později",
     "loadingEscrowBalance": "Načítá se zůstatek cílové escrow adresy, prosím zkuste to později",
     "configurationMissing": "Konfigurace chybí",
+    "unknown": "Něco se pokazilo. Zkuste to prosím znovu.",
     "sourceConfigurationMissing": "Konfigurace zdrojového řetězce chybí",
     "accountNotOptedIn": "Účet ještě nemá opt-in pro aktivum {assetId}"
   },

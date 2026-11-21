@@ -150,6 +150,7 @@
     "loadingBalance": "Ładowanie salda adresu {type} — spróbuj ponownie później.",
     "loadingEscrowBalance": "Ładowanie salda adresu escrow w łańcuchu docelowym — spróbuj ponownie później.",
     "configurationMissing": "Brakuje konfiguracji.",
+    "unknown": "Coś poszło nie tak. Spróbuj ponownie.",
     "sourceConfigurationMissing": "Brakuje konfiguracji łańcucha źródłowego.",
     "accountNotOptedIn": "Konto nie wykonało jeszcze opt-in dla aktywa {assetId}."
   },

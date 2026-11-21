@@ -150,6 +150,7 @@
     "loadingBalance": "Guthaben der {type}-Adresse wird geladen, bitte versuchen Sie es später erneut",
     "loadingEscrowBalance": "Guthaben der Ziel-Escrow-Adresse wird geladen, bitte versuchen Sie es später erneut",
     "configurationMissing": "Konfiguration fehlt",
+    "unknown": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
     "sourceConfigurationMissing": "Konfiguration der Quellkette fehlt",
     "accountNotOptedIn": "Konto hat noch kein Opt-in für Asset {assetId}"
   },

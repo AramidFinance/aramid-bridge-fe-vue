@@ -150,6 +150,7 @@
     "loadingBalance": "Loading the balance of the {type} address, please try again later",
     "loadingEscrowBalance": "Loading the balance of the destination escrow address, please try again later",
     "configurationMissing": "Configuration is missing",
+    "unknown": "Something went wrong. Please try again.",
     "sourceConfigurationMissing": "store.state.sourceChainConfiguration is missing",
     "accountNotOptedIn": "Account is not yet opted in to asset {assetId}"
   },

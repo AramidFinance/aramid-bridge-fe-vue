@@ -1,4 +1,5 @@
 import { reactive, readonly } from 'vue'
+import i18n from '@/i18n'
 
 export type Severity = 'success' | 'info' | 'warn' | 'error'
 
@@ -101,6 +102,8 @@ export const addToast = (options: ToastOptions): number => {
   const id = nextId++
   const life = options.life !== undefined && options.life > 0 ? options.life : undefined
   const message: ToastMessage = { id, severity: options.severity ?? 'info', summary: toText(options.summary), detail: toText(options.detail), life }
+  // callers pass `e.message ?? e`, which is '' for an Error without a message: never show (or announce) a blank error
+  if (message.severity === 'error' && !message.summary && !message.detail) message.detail = i18n.global.t('error.unknown')
   state.messages.push(message)
   // announced at insertion, so even a toast trimmed in the same burst is read out
   announce([message.summary, message.detail].filter(Boolean).join(': '), isAssertive(message.severity))

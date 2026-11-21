@@ -46,6 +46,7 @@ interface TooltipState {
   lastRect?: string
   observer?: MutationObserver
   frame?: number
+  repositionFrame?: number
   onKeydown: (event: KeyboardEvent) => void
   onReposition: () => void
   cleanup: () => void
@@ -216,6 +217,8 @@ const hide = (el: HTMLElement, state: TooltipState): void => {
   state.observer = undefined
   if (state.frame !== undefined) cancelAnimationFrame(state.frame)
   state.frame = undefined
+  if (state.repositionFrame !== undefined) cancelAnimationFrame(state.repositionFrame)
+  state.repositionFrame = undefined
   removeDescribedBy(el, state.id)
   document.removeEventListener('keydown', state.onKeydown)
   document.removeEventListener('scroll', state.onReposition, true)
@@ -323,7 +326,14 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
         state.dismissed = true
         sync(el, state)
       },
-      onReposition: () => position(el, state),
+      // scroll/resize fire many times per frame: re-place at most once per frame
+      onReposition: () => {
+        if (state.repositionFrame !== undefined) return
+        state.repositionFrame = requestAnimationFrame(() => {
+          state.repositionFrame = undefined
+          position(el, state)
+        })
+      },
       cleanup: () => {
         clearTimeout(state.pointerFocusTimer)
         cancelPress()
