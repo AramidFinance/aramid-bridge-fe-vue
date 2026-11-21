@@ -170,3 +170,8 @@ wcm-modal,
     animation: none;
   }
 }
+
+/* app root is focused programmatically as a last-resort focus target (toast close); no ring for that */
+#app2:focus {
+  outline: none;
+}

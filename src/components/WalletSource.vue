@@ -6,7 +6,7 @@ import SimpleLabel from './ui/SimpleLabel.vue'
 import getAlgoAccountARC200TokenBalance from '@/scripts/algo/getAlgoAccountARC200TokenBalance'
 import getAlgoAccountTokenBalance from '@/scripts/algo/getAlgoAccountTokenBalance'
 import asyncdelay from '@/scripts/common/asyncDelay'
-import { formatTooltip } from '@/scripts/common/formatTooltip'
+import { tooltipWithDetail } from '@/scripts/common/formatTooltip'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import getEthAccountTokenBalance from '@/scripts/eth/getEthAccountTokenBalance'
 import getAppKit, { getAppKitNetworkByChainId } from '@/scripts/eth/getAppKit'
@@ -219,7 +219,7 @@ const getImageUrl = () => {
   <div>
     <SimpleLabel>{{ t('wallet.originWallet') }}</SimpleLabel>
     <RoundButton
-      v-tooltip.top="formatTooltip(t('wallet.tooltipOrigin'))"
+      v-tooltip.top="tooltipWithDetail(t('wallet.tooltipOrigin'), state.connected && store.state.sourceAddress)"
       v-if="store.state.sourceTokenConfiguration"
       :img="`logos/tokens/${store.state.sourceTokenConfiguration?.logo}.png`"
       :text="store.state.sourceTokenConfiguration.name"

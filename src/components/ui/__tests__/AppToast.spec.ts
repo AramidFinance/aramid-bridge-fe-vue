@@ -137,6 +137,21 @@ describe('AppToast', () => {
     expect(document.activeElement).toBe(origin)
   })
 
+  it('falls back to the app root when there is nowhere to return focus to', async () => {
+    const root = document.createElement('div')
+    root.id = 'app2'
+    root.tabIndex = -1
+    document.body.append(root)
+    mountToast()
+    addToast({ detail: 'only' })
+    await nextTick()
+    const close = $('.toast__close')!
+    close.focus() // e.g. reached with a screen reader's virtual cursor: no relatedTarget
+    close.click()
+    await nextTick()
+    expect(document.activeElement).toBe(root)
+  })
+
   it('leaves focus alone when a toast is closed with the mouse', async () => {
     mountToast()
     addToast({ detail: 'first', life: 1000 })

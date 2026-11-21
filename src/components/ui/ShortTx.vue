@@ -20,7 +20,7 @@ const truncated = computed(() => !!props.txId && shortenAddress(props.txId, prop
 </script>
 <template>
   <span v-if="state.explorer">
-    <a v-tooltip.top="props.txId" :href="`${state.explorer}${props.txId}`" target="_blank" rel="noreferrer">{{ shortenAddress(props.txId ?? '', props.length ?? 4) }}</a>
+    <a v-tooltip.top="truncated ? props.txId : ''" :href="`${state.explorer}${props.txId}`" target="_blank" rel="noreferrer">{{ shortenAddress(props.txId ?? '', props.length ?? 4) }}</a>
   </span>
   <span v-else>
     <span v-tooltip.top="truncated ? props.txId : ''" :tabindex="truncated ? 0 : undefined">{{ shortenAddress(props.txId ?? '', props.length ?? 4) }}</span>

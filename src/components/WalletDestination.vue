@@ -6,7 +6,7 @@ import getAlgoAccountARC200TokenBalance from '@/scripts/algo/getAlgoAccountARC20
 import getAlgoAccountTokenBalance from '@/scripts/algo/getAlgoAccountTokenBalance'
 import getAlgoAccountTokenOptedIn from '@/scripts/algo/getAlgoAccountTokenOptedIn'
 import asyncdelay from '@/scripts/common/asyncDelay'
-import { formatTooltip } from '@/scripts/common/formatTooltip'
+import { tooltipWithDetail } from '@/scripts/common/formatTooltip'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import getEthAccountTokenBalance from '@/scripts/eth/getEthAccountTokenBalance'
 import getAppKit from '@/scripts/eth/getAppKit'
@@ -275,7 +275,7 @@ watch(
       v-if="store.state.destinationTokenConfiguration"
       :img="`logos/tokens/${store.state.destinationTokenConfiguration?.logo}.png`"
       :text="store.state.destinationTokenConfiguration.name"
-      v-tooltip.top="formatTooltip(t('wallet.tooltipDestination'))"
+      v-tooltip.top="tooltipWithDetail(t('wallet.tooltipDestination'), state.connected && store.state.destinationAddress)"
       @click="buttonClick"
     >
       <img alt="wallet" loading="lazy" width="20" height="20" decoding="async" data-nimg="1" class="3xl:w-14 3xl:h-14" :src="getImageUrl()" style="color: transparent" />

@@ -66,6 +66,17 @@ describe('v-tooltip', () => {
     wrapper.unmount()
   })
 
+  it('closes when activated from the keyboard (Enter/Space click), so it does not cover what opens', () => {
+    const wrapper = mountWith(`<button v-tooltip="'Choose chain'">x</button>`)
+    const button = wrapper.get('button').element
+    vi.spyOn(Element.prototype, 'matches').mockReturnValue(true) // keyboard focus
+    button.focus()
+    expect(tip()).not.toBeNull()
+    button.click() // no pointerdown: keyboard activation
+    expect(tip()).toBeNull()
+    wrapper.unmount()
+  })
+
   it('on touch, a tap does not open it but press-and-hold does; the next touch closes it', () => {
     vi.useFakeTimers()
     const wrapper = mountWith(`<button v-tooltip="'Origin wallet'">x</button>`)

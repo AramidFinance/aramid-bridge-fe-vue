@@ -2,15 +2,33 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import RoundButton from '../RoundButton.vue'
 
+const mountButton = () => {
+  const onClick = vi.fn()
+  const wrapper = mount(RoundButton, { attrs: { onClick }, slots: { default: 'Connect' } })
+  return { wrapper, onClick }
+}
+
 describe('RoundButton', () => {
-  it('is a focusable button activated by Enter and Space', async () => {
-    const onClick = vi.fn()
-    const wrapper = mount(RoundButton, { attrs: { onClick }, slots: { default: 'Connect' } })
+  it('is a focusable button', () => {
+    const { wrapper } = mountButton()
     expect(wrapper.attributes('role')).toBe('button')
     expect(wrapper.attributes('tabindex')).toBe('0')
+  })
 
+  it('clicks once on Enter, ignoring auto-repeat', async () => {
+    const { wrapper, onClick } = mountButton()
     await wrapper.trigger('keydown', { key: 'Enter' })
-    await wrapper.trigger('keydown', { key: ' ' })
-    expect(onClick).toHaveBeenCalledTimes(2)
+    await wrapper.trigger('keydown', { key: 'Enter', repeat: true })
+    expect(onClick).toHaveBeenCalledTimes(1)
+  })
+
+  it('clicks on Space release like a native button, without scrolling on press', async () => {
+    const { wrapper, onClick } = mountButton()
+    const down = new KeyboardEvent('keydown', { key: ' ', cancelable: true })
+    wrapper.element.dispatchEvent(down)
+    expect(down.defaultPrevented).toBe(true)
+    expect(onClick).not.toHaveBeenCalled()
+    await wrapper.trigger('keyup', { key: ' ' })
+    expect(onClick).toHaveBeenCalledTimes(1)
   })
 })

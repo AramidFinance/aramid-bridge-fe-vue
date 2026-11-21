@@ -4,7 +4,7 @@ import SelectArc200BridgeWalletAlgoDialog from './dialogs/SelectArc200BridgeWall
 import SimpleLabel from './ui/SimpleLabel.vue'
 
 import asyncdelay from '@/scripts/common/asyncDelay'
-import { formatTooltip } from '@/scripts/common/formatTooltip'
+import { tooltipWithDetail } from '@/scripts/common/formatTooltip'
 import getPublicConfiguration from '@/scripts/common/getPublicConfiguration'
 import getAppKit, { getAppKitNetworkByChainId } from '@/scripts/eth/getAppKit'
 import { AlgoConnectorType } from '@/scripts/interface/algo/AlgoConnectorType'
@@ -164,7 +164,7 @@ const getImageUrl = () => {
   <div>
     <SimpleLabel>Wallet for ARC200 claim</SimpleLabel>
     <RoundButton
-      v-tooltip.top="formatTooltip(t('wallet.tooltipOrigin'))"
+      v-tooltip.top="tooltipWithDetail(t('wallet.tooltipOrigin'), state.connected && store.state.arc200BridgeAddress)"
       v-if="store.state.arc200BridgeChainConfiguration"
       :img="`logos/tokens/${store.state.arc200BridgeChainConfiguration?.logo}.png`"
       :text="store.state.arc200BridgeChainConfiguration.name"

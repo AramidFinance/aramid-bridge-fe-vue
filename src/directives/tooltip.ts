@@ -334,8 +334,14 @@ export const tooltip: Directive<HTMLElement, TooltipValue> = {
         state.pressTimer = setTimeout(openPress, LONG_PRESS_MS)
       }
     }
-    // some browsers still click after a long-press; whatever the click opens must not sit under the tooltip
-    const onClick = () => closePress()
+    // Any click (mouse, Enter/Space on the focused element, or the click some browsers send after a long-press)
+    // usually opens something the tooltip would cover, so it closes; input hints stay.
+    const onClick = () => {
+      closePress()
+      if (state.focusOnly) return
+      state.dismissed = true
+      sync(el, state)
+    }
     const onFocusIn = (event: FocusEvent) => {
       // focus from a click/tap is not a request for the tooltip (text inputs match :focus-visible even when clicked)
       const fromPointer = Date.now() - state.lastPointerDown < POINTER_FOCUS_MS
