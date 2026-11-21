@@ -32,6 +32,15 @@ describe('RoundButton', () => {
     expect(onClick).toHaveBeenCalledTimes(1)
   })
 
+  it('leaves keys pressed on a focusable child to that child', async () => {
+    const onClick = vi.fn()
+    const wrapper = mount(RoundButton, { attrs: { onClick }, slots: { default: '<button class="inner">copy</button>' } })
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+    wrapper.get('.inner').element.dispatchEvent(enter)
+    expect(enter.defaultPrevented).toBe(false)
+    expect(onClick).not.toHaveBeenCalled()
+  })
+
   it('ignores a Space release whose press started elsewhere', async () => {
     const { wrapper, onClick } = mountButton()
     await wrapper.trigger('keyup', { key: ' ' })

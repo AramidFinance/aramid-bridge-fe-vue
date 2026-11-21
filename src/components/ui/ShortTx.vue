@@ -7,14 +7,13 @@ import { computed, reactive } from 'vue'
 const props = defineProps({ txId: String, length: Number, chain: Number })
 
 const store = useAppStore()
+// reactive, so the explorer link appears once the public configuration loads; unknown chains have no link
 const state = reactive({
-  explorer: ''
+  explorer: computed(() => {
+    const chain = props.chain ?? store.state.sourceChain
+    return (chain && store.state.publicConfiguration?.chains[chain.toString()]?.blockExplorers?.[0]) || ''
+  })
 })
-const chain = props.chain ?? store.state.sourceChain
-if (chain && store.state.publicConfiguration?.chains[chain?.toString()].blockExplorers) {
-  state.explorer = store.state.publicConfiguration?.chains[chain?.toString()].blockExplorers[0]
-}
-console.log('state.explorer', props, state.explorer)
 // the full id only needs revealing (keyboard stop) when it was actually shortened
 const truncated = computed(() => !!props.txId && shortenAddress(props.txId, props.length ?? 4) !== props.txId)
 </script>

@@ -3,16 +3,20 @@
 // Enter clicks on keydown (not on auto-repeat); Space clicks on keyup, only if the press also started here
 let spacePressed = false
 const click = (event: KeyboardEvent) => (event.currentTarget as HTMLElement).click()
+// keys pressed on focusable children (bubbling up) belong to them, not to this button
+const isOwn = (event: KeyboardEvent) => event.target === event.currentTarget
 const onEnter = (event: KeyboardEvent) => {
+  if (!isOwn(event)) return
   event.preventDefault()
   if (!event.repeat) click(event)
 }
 const onSpaceDown = (event: KeyboardEvent) => {
+  if (!isOwn(event)) return
   event.preventDefault() // Space would otherwise scroll the page
   spacePressed = true
 }
 const onSpaceUp = (event: KeyboardEvent) => {
-  if (!spacePressed) return
+  if (!spacePressed || !isOwn(event)) return
   spacePressed = false
   click(event)
 }

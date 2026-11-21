@@ -110,6 +110,7 @@ const fillInRoute = () => {
 
 const doValidation = (): boolean => {
   // called when the review button is pressed, right after confirmNetworksAndDestinationAddress
+  state.error = '' // a previous failure must not linger once the input is fixed
   try {
     if (store.state.loadingDestinationAddressBalance) {
       throw Error(t('error.loadingBalance', { type: t('address.destination').toLowerCase() }))

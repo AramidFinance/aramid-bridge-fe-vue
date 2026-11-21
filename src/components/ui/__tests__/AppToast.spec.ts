@@ -152,6 +152,27 @@ describe('AppToast', () => {
     expect(document.activeElement).toBe(root)
   })
 
+  it('forgets where focus came from once the user leaves the toasts for the page', async () => {
+    const root = document.createElement('div')
+    root.id = 'app2'
+    root.tabIndex = -1
+    const a = document.createElement('button')
+    document.body.append(root, a)
+    mountToast()
+    addToast({ detail: 'only' })
+    await nextTick()
+    const close = $('.toast__close')!
+
+    a.focus()
+    close.focus() // Tab in from A: A is remembered
+    a.focus() // Shift+Tab back out without closing: forgotten
+    a.blur()
+    close.focus() // reached later with no relatedTarget (e.g. screen reader virtual cursor)
+    close.click()
+    await nextTick()
+    expect(document.activeElement).toBe(root)
+  })
+
   it('leaves focus alone when a toast is closed with the mouse', async () => {
     mountToast()
     addToast({ detail: 'first', life: 1000 })

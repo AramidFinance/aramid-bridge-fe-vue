@@ -40,9 +40,12 @@ const close = () => {
     const index = others.indexOf(li)
     const sibling = (others[index + 1] ?? others[index - 1])?.querySelector<HTMLElement>('.toast__close')
     // last resort: the app root (tabindex=-1), so focus does not fall to <body> and restart at the top
-    const target = sibling ?? (returnFocus?.isConnected ? returnFocus : document.getElementById('app2'))
+    const appRoot = document.getElementById('app2')
+    const target = sibling ?? (returnFocus?.isConnected ? returnFocus : appRoot)
     if (!sibling) returnFocus = undefined
     target?.focus({ preventScroll: true })
+    // the remembered element may have become unfocusable (hidden, disabled): fall back to the app root
+    if (target && document.activeElement !== target) appRoot?.focus({ preventScroll: true })
   }
   dismiss()
 }
@@ -90,6 +93,8 @@ const onFocusIn = (event: FocusEvent) => {
 }
 
 const onFocusOut = (event: FocusEvent) => {
+  // leaving the toast region for the page: the remembered origin is no longer where the user is
+  if (event.relatedTarget instanceof HTMLElement && !event.relatedTarget.closest('.toast-region')) returnFocus = undefined
   // focus moving between elements inside the toast keeps it paused
   if (root.value?.contains(event.relatedTarget as Node | null)) return
   focused.value = false
