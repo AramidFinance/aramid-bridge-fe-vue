@@ -72,7 +72,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: dashboard-ingress-beta
+  name: dashboard-ingress-aramid-beta
   namespace: zb-web-beta
   annotations:
     kubernetes.io/ingress.class: "nginx"
@@ -81,10 +81,10 @@ metadata:
 spec:
   tls:
     - hosts:
-        - beta.zb01.zerobridge.xyz
-      secretName: tls-beta1
+        - beta.k8s.aramid.finance
+      secretName: tls-aramid-beta1
   rules:
-    - host: beta.zb01.zerobridge.xyz
+    - host: beta.k8s.aramid.finance
       http:
         paths:
           - path: /
